@@ -1,4 +1,3 @@
-// mainwindow.cs
 // Basic resizable GUI window in C# using Windows Forms
 
 using System;
@@ -28,4 +27,3 @@ namespace GameTrainerGUI
         }
     }
 }
-
