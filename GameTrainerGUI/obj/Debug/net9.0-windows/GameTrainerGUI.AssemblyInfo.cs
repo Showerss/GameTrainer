@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GameTrainerGUI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+521500a4e7dd5be4d8339e5c78b919b98d70df3e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ad84867d7518663742e359b18d61cf0b5e9fa794")]
 [assembly: System.Reflection.AssemblyProductAttribute("GameTrainerGUI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GameTrainerGUI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
