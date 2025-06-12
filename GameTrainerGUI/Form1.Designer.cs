@@ -2,8 +2,6 @@
 // Put all the .Location, .Size, .Text, and .Controls.Add(...) setup code here.
 
 
-using System.Text;
-
 namespace GameTrainerGUI;
 
 partial class Form1

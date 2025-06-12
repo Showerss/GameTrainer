@@ -12,12 +12,12 @@ public partial class Form1 : Form
     public Form1()
     {
         InitializeComponent();
-        checkboxGodMode.CheckedChanged += CheckGodMode;
+        playerGodMode.CheckedChanged += CheckGodMode;
     }
 
     private void CheckGodMode(object sender, EventArgs e)
     {
-        if (checkboxGodMode.Checked)
+        if (playerGodMode.Checked)
         {
             //call c++ file for memory editing
         }
