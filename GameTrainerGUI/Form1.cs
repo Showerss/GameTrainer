@@ -19,7 +19,7 @@ public partial class Form1 : Form
     {
         if (checkboxGodMode.Checked)
         {
-            //call c++
+            //call c++ file for memory editing
         }
         else
         {

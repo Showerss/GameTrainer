@@ -2,19 +2,25 @@
 // Put all the .Location, .Size, .Text, and .Controls.Add(...) setup code here.
 
 
+using System.Text;
+
 namespace GameTrainerGUI;
 
 partial class Form1
 {
-    /// <summary>
     ///  Required designer variable.
-    /// </summary>
     private System.ComponentModel.IContainer components = null;
-    private System.Windows.Forms.CheckBox checkboxGodMode;
 
-    /// <summary>
+    // my character menus options
+    private CheckBox playerGodMode, playerInfiniteStamina;
+    private TrackBar playerSpeed, playerJumpHeight;
+
+    //weapons menu options
+    private CheckBox playerInfiniteAmmo, playerInfiniteGrenades;
+    private TrackBar playerShootSpeed, playerRechargeSpeed;
+
+
     ///  Clean up any resources being used.
-    /// </summary>
     /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
     protected override void Dispose(bool disposing)
     {
@@ -25,14 +31,19 @@ partial class Form1
         base.Dispose(disposing);
     }
 
+
+
+
+
+
     #region Windows Form Designer generated code
 
-    /// <summary>
+
     ///  Required method for Designer support - do not modify
     ///  the contents of this method with the code editor.
-    /// </summary>
     private void InitializeComponent()
     {
+
         this.components = new System.ComponentModel.Container();
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.ClientSize = new System.Drawing.Size(800, 450);
@@ -40,17 +51,15 @@ partial class Form1
 
 
         //godmode checkbox
-        this.checkboxGodMode = new System.Windows.Forms.CheckBox();
-        this.checkboxGodMode.AutoSize = true;
-        this.checkboxGodMode.Location = new System.Drawing.Point(20,20);
-        this.checkboxGodMode.Name = "checkboxGodMode";
-        this.checkboxGodMode.Size = new System.Drawing.Size(200,17);
-        this.checkboxGodMode.TabIndex = 0;
-        this.checkboxGodMode.Text = "Enable GodMode";
-        this.checkboxGodMode.UseVisualStyleBackColor = true;
-        this.Controls.Add(this.checkboxGodMode);
-
-        //superspeed checkbox
+        this.playerGodMode = new System.Windows.Forms.CheckBox();
+        this.playerGodMode.AutoSize = true;
+        this.playerGodMode.Location = new System.Drawing.Point(20,20);
+        this.playerGodMode.Name = "playerGodMode";
+        this.playerGodMode.Size = new System.Drawing.Size(200,17);
+        this.playerGodMode.TabIndex = 0;
+        this.playerGodMode.Text = "Enable GodMode";
+        this.playerGodMode.UseVisualStyleBackColor = true;
+        this.Controls.Add(this.playerGodMode);
 
     }
 
