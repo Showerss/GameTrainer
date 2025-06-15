@@ -9,12 +9,7 @@ partial class Form1
     ///  Required designer variable.
     private System.ComponentModel.IContainer components = null;
     private System.Windows.Forms.TabControl tabControl;
-    private System.Windows.Forms.TabPage tabCharacter;
-    private System.Windows.Forms.TabPage tabWeapons;
-    private System.Windows.Forms.TabPage tabResources;
-    private System.Windows.Forms.TabPage tabItems;
-    private System.Windows.Forms.TabPage tabMemory;
-
+    private System.Windows.Forms.TabPage tabCharacter, tabWeapons, tabRescources, tabItems, tabMemory;
 
     // my character menus options
     private CheckBox playerGodMode, playerInfiniteStamina;
@@ -47,12 +42,32 @@ partial class Form1
     private void InitializeComponent()
     {
 
+        //tab names
         this.components = new System.ComponentModel.Container();
         this.tabControl = new TabControl();
         this.tabCharacter = new TabPage("Character");
         this.tabWeapons = new TabPage("Weapons");
-        this.tabResources = new TabPage("Resources");
+        this.tabRescources = new TabPage("Resources");
+        this.tabItems = new TabPage("Items");
         this.tabMemory = new TabPage("Memory");
+
+
+        //tabControl
+        this.tabControl.Dock = DockStyle.Fill;
+        this.tabControl.TabPages.AddRange(new TabPage[] { this.tabCharacter, this.tabWeapons, this.tabRescources, this.tabItems, this.tabMemory });
+        this.tabControl.Location = new Point(0, 0);
+        this.tabControl.Name = "tabControl";
+        this.tabControl.SelectedIndex = 0;
+        this.tabControl.Size = new Size(800, 450);
+        this.tabControl.TabIndex = 0;
+
+        //Character Tab
+        this.playerGodMode = new CheckBox {Text = "Enable GodMode"};
+        this.playerInfiniteStamina = new CheckBox {Text = "Infinite Stamina"};
+        this.playerSpeed = new TrackBar {Text = "Speed"};
+        this.playerJumpHeight = new TrackBar {Text = "Jump Height"};
+        tabCharacter.Controls.AddRange(new Control[] { this.playerGodMode, this.playerInfiniteStamina, this.playerSpeed, this.playerJumpHeight });
+
 
 
         this.components = new System.ComponentModel.Container();
@@ -61,16 +76,7 @@ partial class Form1
         this.Text = "Form1";
 
 
-        //godmode checkbox
-        this.playerGodMode = new System.Windows.Forms.CheckBox();
-        this.playerGodMode.AutoSize = true;
-        this.playerGodMode.Location = new System.Drawing.Point(20,20);
-        this.playerGodMode.Name = "playerGodMode";
-        this.playerGodMode.Size = new System.Drawing.Size(200,17);
-        this.playerGodMode.TabIndex = 0;
-        this.playerGodMode.Text = "Enable GodMode";
-        this.playerGodMode.UseVisualStyleBackColor = true;
-        this.Controls.Add(this.playerGodMode);
+        
 
     }
 
