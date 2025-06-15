@@ -68,8 +68,15 @@ partial class Form1
         this.playerJumpHeight = new TrackBar {Text = "Jump Height"};
         tabCharacter.Controls.AddRange(new Control[] { this.playerGodMode, this.playerInfiniteStamina, this.playerSpeed, this.playerJumpHeight });
 
+        //Weapons Tab
+        this.playerInfiniteAmmo = new CheckBox {Text = "Infinite Ammo"};
+        this.playerInfiniteGrenades = new CheckBox {Text = "Infinite Grenades"};
+        this.playerShootSpeed = new TrackBar {Text = "Shoot Speed"};
+        this.playerRechargeSpeed = new TrackBar {Text = "Recharge Speed"};
+        tabWeapons.Controls.AddRange(new Control[] { this.playerInfiniteAmmo, this.playerInfiniteGrenades, this.playerShootSpeed, this.playerRechargeSpeed });
 
 
+        //Overall window style
         this.components = new System.ComponentModel.Container();
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.ClientSize = new System.Drawing.Size(800, 450);
