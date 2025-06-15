@@ -8,6 +8,13 @@ partial class Form1
 {
     ///  Required designer variable.
     private System.ComponentModel.IContainer components = null;
+    private System.Windows.Forms.TabControl tabControl;
+    private System.Windows.Forms.TabPage tabCharacter;
+    private System.Windows.Forms.TabPage tabWeapons;
+    private System.Windows.Forms.TabPage tabResources;
+    private System.Windows.Forms.TabPage tabItems;
+    private System.Windows.Forms.TabPage tabMemory;
+
 
     // my character menus options
     private CheckBox playerGodMode, playerInfiniteStamina;
@@ -32,15 +39,21 @@ partial class Form1
 
 
 
-
-
-    #region Windows Form Designer generated code
+    #region Windows Form Designer 
 
 
     ///  Required method for Designer support - do not modify
     ///  the contents of this method with the code editor.
     private void InitializeComponent()
     {
+
+        this.components = new System.ComponentModel.Container();
+        this.tabControl = new TabControl();
+        this.tabCharacter = new TabPage("Character");
+        this.tabWeapons = new TabPage("Weapons");
+        this.tabResources = new TabPage("Resources");
+        this.tabMemory = new TabPage("Memory");
+
 
         this.components = new System.ComponentModel.Container();
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
