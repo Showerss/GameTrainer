@@ -4,15 +4,15 @@ Welcome to my chaotic coding sandbox! 🎮
 
 This project is where I explore and practice creating tools for local single-player games. It’s a playground to help me:
 
-- 🔧 Build scalable, responsive GUIs in **C#** using Windows Forms
-- ⚙️ Handle memory-heavy operations and low-level tasks in **C++**
-- 🔗 Learn how to **bridge C# and C++** — sending data back and forth like an old-school LAN party
+- 🔧 Build scalable, responsive GUIs in **Python (TKinter)**
+- ⚙️ Handle memory-heavy operations and low-level tasks in **C**
+- 🔗 Learn how to C and Python — sending data back and forth like an old-school LAN party
 - 💥 Experiment with memory allocation, pointers, and how to crash games for fun (and learning!)
 
 ## 💡 What I’m Practicing
 
-- Clean GUI design in C#
-- Interfacing C# with native C++ DLLs
+- Clean GUI design in Python
+- Interfacing C with native windows api
 - Understanding how memory gets allocated, edited, and sometimes horribly misused
 - Reverse engineering basic game behavior
 - Breaking things until they make sense
