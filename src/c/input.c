@@ -1,8 +1,6 @@
 #include "input.h"
 #include <stdlib.h>
-#include <time.h>
-
-// Wraps a relative mouse move.
+#include <time.h>// Wraps a relative mouse move.
 void SendMouseMove(int dx, int dy) {
     INPUT inp = { .type = INPUT_MOUSE };
     inp.mi.dx      = dx;
