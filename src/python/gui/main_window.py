@@ -1,114 +1,75 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import messagebox, filedialog
+from tkinter.scrolledtext import ScrolledText
+from utils.logger import Logger
+
 
 class GameTrainerGUI:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Game Trainer")
-        self.root.geometry("800x500")
-        self.is_bot_running = False
-        self.setup_gui()
+    def __init__(self, root):
+        self.root = root
+        self.root.title("GameTrainer")
+        self.logger = Logger()
 
-    def setup_gui(self):
-        # Create main frame with padding
-        main_frame = ttk.Frame(self.root, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Button Panel
+        btn_frame = tk.Frame(root)
+        btn_frame.pack(padx=10, pady=10)
 
-        # Script selection frame
-        script_frame = ttk.Frame(main_frame)
-        script_frame.pack(fill=tk.X, pady=(0, 20))
+        self.start_btn = tk.Button(btn_frame, text="Start", width=12, command=self.on_start)
+        self.stop_btn = tk.Button(btn_frame, text="Stop", width=12, command=self.on_stop)
+        self.pause_btn = tk.Button(btn_frame, text="Pause", width=12, command=self.on_pause)
+        self.load_btn = tk.Button(btn_frame, text="Load Routine", width=12, command=self.on_load)
+        self.config_btn = tk.Button(btn_frame, text="Configure", width=12, command=self.on_configure)
+        self.contact_btn = tk.Button(btn_frame, text="Contact", width=12, command=self.on_contact)
+        self.logs_btn = tk.Button(btn_frame, text="Logs", width=12, command=self.toggle_logs)
 
-        script_label = ttk.Label(script_frame, text="Select Script:")
-        script_label.pack(side=tk.LEFT, padx=(0, 10))
+        buttons = [self.start_btn, self.stop_btn, self.pause_btn, self.load_btn,
+                   self.config_btn, self.contact_btn, self.logs_btn]
 
-        self.script_var = tk.StringVar()
-        self.script_combo = ttk.Combobox(script_frame, textvariable=self.script_var)
-        self.script_combo['values'] = ('Script 1', 'Script 2', 'Script 3')  # Add your script options here
-        self.script_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        for btn in buttons:
+            btn.pack(pady=2)
 
-        browse_btn = ttk.Button(script_frame, text="Browse...", command=self.browse_script)
-        browse_btn.pack(side=tk.RIGHT)
+        # Log Display (hidden by default)
+        self.log_window = ScrolledText(root, height=10, state="disabled")
+        self.log_visible = False
 
-        # Buttons
-        self.start_stop_btn = ttk.Button(main_frame, text="Start Bot", command=self.toggle_bot)
-        self.start_stop_btn.pack(fill=tk.X, pady=(0, 10))
+    def on_start(self):
+        self.logger.log("Bot started.")
 
-        configure_btn = ttk.Button(main_frame, text="Configure", command=self.configure)
-        configure_btn.pack(fill=tk.X, pady=(0, 10))
+    def on_stop(self):
+        self.logger.log("Bot stopped.")
 
-        help_btn = ttk.Button(main_frame, text="Help", command=self.show_help)
-        help_btn.pack(fill=tk.X, pady=(0, 10))
+    def on_pause(self):
+        self.logger.log("Bot paused.")
 
-        contact_btn = ttk.Button(main_frame, text="Contact", command=self.show_contact)
-        contact_btn.pack(fill=tk.X, pady=(0, 10))
+    def on_load(self):
+        file = filedialog.askopenfilename(title="Load Routine")
+        if file:
+            self.logger.log(f"Loaded routine: {file}")
 
-    def browse_script(self):
-        filename = filedialog.askopenfilename(
-            title="Select Script",
-            filetypes=(("Python files", "*.py"), ("All files", "*.*"))
-        )
-        if filename:
-            self.script_var.set(filename)
+    def on_configure(self):
+        messagebox.showinfo("Configure", "Configuration window not implemented yet.")
+        self.logger.log("Opened configuration window.")
 
-    def toggle_bot(self):
-        self.is_bot_running = not self.is_bot_running
-        if self.is_bot_running:
-            self.start_stop_btn.configure(text="Stop Bot")
-            # Add your bot start logic here
+    def on_contact(self):
+        messagebox.showinfo("Contact", "Reach me on Discord: yourtag#1234")
+        self.logger.log("Displayed contact information.")
+
+    def toggle_logs(self):
+        if self.log_visible:
+            self.log_window.pack_forget()
         else:
-            self.start_stop_btn.configure(text="Start Bot")
-            # Add your bot stop logic here
+            self.log_window.pack(fill="both", expand=True)
+        self.log_visible = not self.log_visible
 
-    def bot_loop(self):
-        while self.is_bot_running:
-            try:
-                # Example bot logic using C functions
-                if self.script_var.get() == "Script 1":
-                    health = read_memory(0x12345678)  # Example address
-                    if health < 100:
-                        write_memory(0x12345678, 100)
+    def update_log_display(self, msg):
+        self.log_window.config(state="normal")
+        self.log_window.insert(tk.END, msg + "\n")
+        self.log_window.yview(tk.END)
+        self.log_window.config(state="disabled")
 
-                    jittered_mouse_move(100, 100)
-                    send_key(0x41)  # 'A' key
-                time.sleep(0.1)  # Prevent CPU overuse
-            except Exception as e:
-                print(f"Error in bot loop: {e}")
-                self.stop_bot()
-
-    def toggle_bot(self):
-        self.is_bot_running = not self.is_bot_running
-        if self.is_bot_running:
-            self.start_stop_btn.configure(text="Stop Bot")
-            self.bot_thread = threading.Thread(target=self.bot_loop, daemon=True)
-            self.bot_thread.start()
-        else:
-            self.stop_bot()
-
-    def stop_bot(self):
-        self.is_bot_running = False
-        if self.bot_thread:
-            self.bot_thread.join(timeout=1.0)
-        self.start_stop_btn.configure(text="Start Bot")
-
-
-    def configure(self):
-        # Add configuration window logic here
-        pass
-
-    def show_help(self):
-        # Add help window logic here
-        pass
-
-    def show_contact(self):
-        # Add contact window logic here
-        pass
-
-    def run(self):
-        self.root.mainloop()
-
-def main():
-    app = GameTrainerGUI()
-    app.run()
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    gui = GameTrainerGUI(root)
+    gui.logger.set_gui_logger(gui.update_log_display)
+    root.mainloop()
