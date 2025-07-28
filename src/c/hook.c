@@ -1,6 +1,5 @@
 #include "hook.h"
 #include <d3d11.h>
-#include <stdio.h>
 
 // We'll store the original Present here.
 static IDXGISwapChain *g_pSwapChain = NULL;

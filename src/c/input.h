@@ -7,7 +7,7 @@
 void SendMouseMove(int dx, int dy);
 
 // Moves the mouse to (targetX, targetY) in small jittered steps.
-void JitteredMouseMove(int targetX, int targetY);
+void JitteredMouseMove(int x, int y);
 
 // Sends a single key press-and-release of virtual-key vkCode.
 void SendKey(WORD vkCode);
