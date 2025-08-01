@@ -333,7 +333,7 @@ pip install .
 - **Operation Throttling**: pace memory reads/writes and input events to mimic legitimate game behavior statistics
 - **Watchdog Awareness**: detect and temporarily suspend operations if known anti-cheat watchdog processes or drivers become active
 
-## 11. Future Enhancements Future Enhancements
+## 11. Future Enhancements
 
 - Plugin system for new “trainers” per game
 - AOB pattern scanner with signature definitions
