@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from tkinter.scrolledtext import ScrolledText
-from utils.logger import Logger
+from src.python.core.logger import Logger
 
 
 class GameTrainerGUI:
@@ -31,6 +31,11 @@ class GameTrainerGUI:
         # Log Display (hidden by default)
         self.log_window = ScrolledText(root, height=10, state="disabled")
         self.log_visible = False
+
+    def run(self):
+        """Start the Tk main loop."""
+        self.logger.set_gui_logger(self.update_log_display)
+        self.root.mainloop()
 
     def on_start(self):
         self.logger.log("Bot started.")
