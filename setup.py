@@ -8,7 +8,7 @@ setup(
     ext_modules=[
         Extension(
             "gametrainer.clib",
-            ["src/c/memory.c", "src/c/input.c"],
+            ["src/c/memory_manager.c", "src/c/input.c"],
             include_dirs=["include"],
         )
     ],

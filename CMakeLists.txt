@@ -10,7 +10,7 @@ include_directories(include)
 add_library(GameTrainerLib SHARED
         src/c/input.c
 #        src/c/memory_ops.c  # Adjust path as needed
-        sec/c/memory.c
+        src/c/memory_manager.c
 
 )
 
