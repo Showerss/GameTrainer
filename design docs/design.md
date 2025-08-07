@@ -226,7 +226,7 @@ GameTrainer/
 │       │   ├── window_manager.py
 │       │   └── event_handler.py
 │       └── core/
-│           ├── trainer_core.py
+│           ├── trainer.py
 │           └── pixel_detector.py
 ├── tests/
 │   ├── c_tests/
