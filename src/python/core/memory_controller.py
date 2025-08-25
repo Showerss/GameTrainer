@@ -67,6 +67,8 @@ class MemoryController:
     #-----------------------------
     # Pointer Utilities
     #-----------------------------
+    def _resolve_pointer(self, chain: PointerChain) -> int: 
+        """return the absolute address for the pointer chain"""
 
 
 
