@@ -1,3 +1,5 @@
+# 3. logger will create timestamped session logs and etc to attempt to read whats going on, what its thinking etc,
+
 import logging
 import os
 from datetime import datetime
