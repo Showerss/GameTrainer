@@ -1,4 +1,8 @@
-# src/python/core/trainer.py
+# 2. trainer.py is a high level loop that polls information coming from memory_controller.py every 0.5s and compares the energy, health, etc to the 
+# thresholds set in the trainer GUI.  If the thresholds are met, the trainer will use the input simulator to perform the actions needed to 
+# reach the thresholds, it will also load a C .dll that use windows actions to perform the actions needed to reach the thresholds
+
+
 import ctypes
 from pathlib import Path
 
