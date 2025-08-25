@@ -36,32 +36,21 @@ class PointerChain:
 class MemoryController:
     """Controller for reading and writing to game memory."""
 
+    #these persist outside of the class, they are constants
     PROCESS_NAME = "StardewValley.exe"
-    
-    
     ENERGY_PTR = PointerChain("StardewValley.exe", 0X00349A98, [0x70, 0xA0, 0x88, 0x4D0, 0x4C])
-    #TODO: find these pointers 
+    #TODO: find the below pointers 
     HEALTH_PTR = NONE
     MONEY_PTR = NONE
     INVENTORY_PTR = NONE
 
+    #init automatically runs whenever you make a controller with = MemoryController(), 
+    #meaning each memorycontroller will have its own pymem instance and module instance
     def __init__(self): 
-
-
         if Pymem is None or module_from_name is None: 
             raise ImportError("pymem is required for memory access. Please install it using pip.")
         self.pm = Pymem(self.PROCESS_NAME)
         self.module = module_from_name(self.pm.process_handle, self.MODULE_NAME)
-
-
-        #what to do with the health pointer
-        def _resolve_pointer(self, chain: PointerChain) -> int: 
-            """return the absolute address for the pointer chain"""
-
-
-
-
-
 
 
     #-----------------------------
@@ -70,8 +59,11 @@ class MemoryController:
     def _resolve_pointer(self, chain: PointerChain) -> int: 
         """return the absolute address for the pointer chain"""
 
-
-
+        module_base = module_from_name(self.pm.process_handle, chain.module).lpBaseOfDll #this gives me the address of the games main building (.exe)... lpBaseOfDll is the memory address from where the game loads up
+        addr = self.pm.read_ulonglong(module_base + chain.base_offset) #module base + base offset is the specific room of the building
+        for offset in chain.offsets: 
+            addr = self.pm.read_ulonglong(addr + offset)
+        return addr
 
 
     #-----------------------------
@@ -79,6 +71,12 @@ class MemoryController:
     #-----------------------------
     def read_energy(self) -> Optional[float]:
         """Read and return the players currernt energy level"""
+
+        try:
+            addr = self._resolve_pointer(self.ENERGY_PTR)
+            return self.pm.read_float(addr)
+        except:
+            return None
     
     def read_health(self) -> Optional[float]:
         """Read and return the players currernt health level"""
