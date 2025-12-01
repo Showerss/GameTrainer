@@ -1,2 +1,4 @@
-health offset:
-energy offset
+{
+    "health_offset": 0,
+    "energy_offset": 0
+}
