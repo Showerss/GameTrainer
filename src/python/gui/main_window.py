@@ -5,9 +5,10 @@ from src.python.core.logger import Logger
 
 
 class GameTrainerGUI:
-    def __init__(self, root):
+    def __init__(self, root, trainer=None):
         self.root = root
         self.root.title("GameTrainer")
+        self.trainer = trainer
         self.logger = Logger()
 
         # Button Panel
@@ -38,12 +39,18 @@ class GameTrainerGUI:
         self.root.mainloop()
 
     def on_start(self):
+        if self.trainer:
+            self.trainer.start()
         self.logger.log("Bot started.")
 
     def on_stop(self):
+        if self.trainer:
+            self.trainer.stop()
         self.logger.log("Bot stopped.")
 
     def on_pause(self):
+        if self.trainer:
+            self.trainer.pause()
         self.logger.log("Bot paused.")
 
     def on_load(self):
