@@ -1,5 +1,5 @@
 from src.python.gui.main_window import GameTrainerGUI
-from src.python.core.trainer import GameTrainer  # This would be your wrapper for C functions
+from src.python.core.io.process_client import ProcessClient
 import tkinter as tk
 
 def main():
@@ -8,7 +8,7 @@ def main():
 
     # Initialize GUI with trainer instance
     root = tk.Tk()
-    app = GameTrainerGUI(root)
+    app = GameTrainerGUI(root, trainer)
     app.run()
 
 if __name__ == "__main__":
