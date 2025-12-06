@@ -7,16 +7,16 @@
 ## 1. Overview
 
 ### 1.1 Purpose
-Define a clean, maintainable architecture for **GameTrainer**, a hybrid C/Python application that:
+Define a clean, maintainable architecture for **GameTrainer**, a hybrid C++/Python application that:
 - Reads well‑defined regions of a target process’s memory to observe game state.
 - Automates benign actions via simulated input and pixel cues.
 - Provides a GUI to configure profiles, bot behaviors, and safety limits.
 
 ### 1.2 Goals
 - **Reliability:** predictable behavior, defensive error handling, no resource leaks.
-- **Maintainability:** SOLID-aligned modularity, typed Python, documented C API.
+- **Maintainability:** SOLID-aligned modularity, typed Python, documented C++ API.
 - **Testability:** unit + integration tests with a dummy target process.
-- **Portability (Windows-first):** WinAPI-backed C library with narrow, stable surface.
+- **Portability (Windows-first):** WinAPI-backed C++ library with narrow, stable surface.
 
 ### 1.3 Out of Scope
 - Kernel‑mode drivers, stealth/evasion, thread hijacking, manual mapping, SEH abuse, DKOM. (Removed for ethics, safety, and portfolio fitness.)
@@ -72,82 +72,7 @@ Define a clean, maintainable architecture for **GameTrainer**, a hybrid C/Python
 
 ## 4. Detailed Design
 
-### 4.1 Native C Library (`libgametrainer`)
-
-**Headers**
-```c
-// process.h
-#pragma once
-#include <windows.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct {
-    HANDLE handle;
-    DWORD  pid;
-    BOOL   is64bit;
-} gt_process_t;
-
-BOOL gt_find_process_id(const char* name, DWORD* out_pid);
-BOOL gt_open_process(DWORD pid, gt_process_t* out);
-void gt_close_process(gt_process_t* proc);
-BOOL gt_is_process_64bit(HANDLE hProc, BOOL* out);
-
-#ifdef __cplusplus
-}
-#endif
-```
-
-```c
-// memory.h
-#pragma once
-#include <windows.h>
-#include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-BOOL gt_read(HANDLE h, LPCVOID addr, void* buf, size_t sz);
-BOOL gt_write(HANDLE h, LPVOID addr, const void* buf, size_t sz);
-
-// Pointer chain helper (safe evaluation with bounds checks)
-BOOL gt_read_ptr_chain(HANDLE h, LPCVOID base, const size_t* offsets, size_t count, void** out_addr);
-
-#ifdef __cplusplus
-}
-#endif
-```
-
-```c
-// input.h
-#pragma once
-#include <windows.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct {
-    int   curvature;     // 0..100
-    int   jitter_px;     // 0..N
-    int   step_ms_min;   // per segment
-    int   step_ms_max;
-} gt_mouse_profile_t;
-
-BOOL gt_mouse_move_curve(int x, int y, const gt_mouse_profile_t* profile);
-BOOL gt_mouse_click(WORD button_vk, int down_up_both, int delay_ms);
-BOOL gt_key(WORD vk, int down_up_both, int delay_ms);
-
-#ifdef __cplusplus
-}
-#endif
-```
-
-**Design Notes**
-- Avoid `PROCESS_ALL_ACCESS`; request only `PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION` as needed.
-- Validate `sz` and pointer arguments; clamp sizes; memset output buffers on failure.
-- Return `GetLastError()` via `gt_errno()` helper or thread‑local last error for Python exceptions.
-- Provide `__declspec(dllexport)` on Windows and a `.def` file to keep a stable ABI.
+### 4.1 Native C++ Library 
 
 ### 4.2 Python Core
 
@@ -227,45 +152,6 @@ input:
 - Wrap all C calls; raise rich Python exceptions (`GtProcessError`, `GtMemoryError`).
 - Provide remediation hints in GUI dialogs (32/64‑bit mismatch, access denied, window minimized, etc.).
 
----
-
-## 5. Build & Packaging
-
-### 5.1 CMake (C library)
-- Minimum `cmake_minimum_required(VERSION 3.20)`.
-- `set(C_STANDARD 11)`; `/W4` (MSVC) or `-Wall -Wextra -Wpedantic` (MinGW/Clang).
-- Separate `gt_core` target for common code; `gametrainer` shared lib exporting a small ABI.
-- Produce `.pdb` on RelWithDebInfo builds; strip symbols for Release.
-
-### 5.2 Python Packaging
-- PEP 621 `pyproject.toml` with `setuptools`.
-- Wheel includes the platform‑specific DLL in `trainer/core/bin/`.
-- Entry point script `gametrainer-gui`.
-
-### 5.3 Continuous Integration
-- GitHub Actions: matrix (Py 3.10–3.12; x64 Windows). Run unit tests + flake8 + mypy + C build.
-- Artifact upload of wheels on tagged releases.
-
----
-
-## 6. Testing Strategy
-
-### 6.1 Unit Tests
-- **C:** mockable wrappers around `ReadProcessMemory`/`WriteProcessMemory`; gtest or lightweight C harness.
-- **Python:** pytest + hypothesis for pointer‑chain evaluation; pixel detector with synthetic frames.
-
-### 6.2 Integration Tests
-- **Dummy Target:** bundled sample app exposes a few read‑only counters and a writable int with guardrails.
-- End‑to‑end attach → read → pixel event → input (simulated via a virtual window).
-
-### 6.3 Performance Tests
-- Frame capture FPS under various ROIs; input latency distribution; pointer resolution time for AOB vs fixed addresses.
-
-### 6.4 Security/Safety Checks
-- Ensure no writes occur unless a profile opt‑in flag is true.
-- Enforce upper bounds on CPS, runtime, and pointer depths.
-
----
 
 ## 7. Project Structure
 
