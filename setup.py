@@ -13,4 +13,10 @@ setup(
             libraries=["user32", "kernel32"],
         )
     ],
+    install_requires=[
+        "opencv-python",
+        "mss",
+        "numpy",
+        "pyadirectinput",
+    ],
 )
