@@ -5,17 +5,59 @@
 
 import ctypes
 from pathlib import Path
+import time
+import threading
+from src.python.core.memory_controller import MemoryController
+from src.python.core.logger import Logger
 
 class GameTrainer:
     def __init__(self):
-        # Load the compiled C library
-        lib_path = Path(__file__).parent.parent.parent / "build" / "libgametrainer.dll"
-        self.lib = ctypes.CDLL(str(lib_path))
+        self.memory = MemoryController()
+        self.logger = Logger()
+        self.running = False
+        self.paused = False
+        self.thread = None
 
-        # Set up function signatures
-        self.lib.SendMouseMove.argtypes = [ctypes.c_int, ctypes.c_int]
-        self.lib.SendMouseMove.restype = None
+    def start(self):
+        if self.running:
+            return
+        
+        self.logger.log("Trainer starting...")
+        if not self.memory.attach():
+            self.logger.log("Failed to attach to process. Is the game running?")
+            return
 
-    def send_mouse_move(self, dx: int, dy: int):
-        """Python wrapper for C function SendMouseMove"""
-        self.lib.SendMouseMove(dx, dy)
+        self.running = True
+        self.paused = False
+        self.thread = threading.Thread(target=self._loop)
+        self.thread.daemon = True
+        self.thread.start()
+        self.logger.log("Trainer started.")
+
+    def stop(self):
+        self.running = False
+        if self.thread:
+            self.thread.join()
+        self.memory.detach()
+        self.logger.log("Trainer stopped.")
+
+    def pause(self):
+        self.paused = not self.paused
+        state = "paused" if self.paused else "resumed"
+        self.logger.log(f"Trainer {state}.")
+
+    def _loop(self):
+        while self.running:
+            if self.paused:
+                time.sleep(0.1)
+                continue
+
+            # Main Logic Loop
+            energy = self.memory.read_energy()
+            if energy is not None:
+                # self.logger.log(f"Energy: {energy}")
+                pass
+            
+            # TODO: Add behavior logic here (e.g., if energy < 10, eat food)
+            
+            time.sleep(0.1) # 10 Hz
