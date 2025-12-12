@@ -37,6 +37,10 @@ bool Process::Attach(const std::string& name) {
 bool Process::Attach(DWORD pid) {
     Detach(); // Close existing if any
     
+    // TEACHER NOTE: specific access rights are required to read/write memory
+    // PROCESS_VM_READ: Allows reading memory
+    // PROCESS_VM_WRITE: Allows writing memory
+    // PROCESS_VM_OPERATION: Allows VirtualProtectEx (changing memory protection)
     handle_ = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (!handle_) return false;
     
@@ -44,6 +48,9 @@ bool Process::Attach(DWORD pid) {
     
     // Check architecture
     BOOL isWow64 = FALSE;
+    // TEACHER NOTE: "Wow64" stands for "Windows on Windows 64-bit".
+    // It has nothing to do with World of Warcraft! :)
+    // It checks if a 32-bit program is running on 64-bit Windows.
     if (IsWow64Process(handle_, &isWow64)) {
         is64bit_ = !isWow64;
     } else {
@@ -66,18 +73,34 @@ void Process::Detach() {
 bool Process::Read(LPCVOID addr, void* buf, size_t sz) const {
     if (!handle_) return false;
     SIZE_T bytesRead;
+    // ReadProcessMemory copies data from the target process's memory into our buffer.
+    // It's like peeking into someone else's notebook!
     return ReadProcessMemory(handle_, addr, buf, sz, &bytesRead) && bytesRead == sz;
 }
 
 bool Process::Write(LPVOID addr, const void* buf, size_t sz) {
     if (!handle_) return false;
     SIZE_T bytesWritten;
+    // WriteProcessMemory changes data in the target process. 
+    // This is how we change health, ammo, or position!
     return WriteProcessMemory(handle_, addr, buf, sz, &bytesWritten) && bytesWritten == sz;
 }
 
 } // namespace GameTrainer
 
-// --- C Interface Implementation ---
+// --- CPP Interface Implementation ---
+
+// TEACHER NOTE: ACROMYM CHEAT SHEET!
+// ------------------------------------------------------------------
+// gt_:     Stands for "GameTrainer". We use it to name our functions 
+//          so they don't crash into other functions with the same name.
+//
+// DWORD:   "Double Word". It's just a 32-bit positive whole number.
+// HANDLE:  Think of this like a "Ticket". Windows gives us this ticket
+//          so we can access the game process later.
+// LPCVOID: "Long Pointer to Constant Void". Scary name, simple meaning:
+//          It's just a "Memory Address" (like a house address).
+// ------------------------------------------------------------------
 
 bool gt_find_process_id(const char* name, DWORD* out_pid) {
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
