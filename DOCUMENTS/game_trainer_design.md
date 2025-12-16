@@ -1,224 +1,396 @@
-# GameTrainer Design Document (Revised)
+# GameTrainer Design Document
 
-> **Scope note (ethics & legality):** This project is intended for **local, single‑player games** (e.g., Stardew Valley–like titles) and **offline** experimentation on processes **you own and control**. Do **not** use, distribute, or adapt this for multiplayer or anti‑cheat–protected titles. Avoid any circumvention techniques aimed at defeating third‑party protections. This design purposefully excludes such material.
+> **Teacher Note:** This is the high-level "what and why" document. For detailed
+> implementation specifics, see `knowledge_system_design.md`.
+
+---
+
+> **Scope note (ethics & legality):** This project is intended for **local,
+> single‑player games** (e.g., Stardew Valley–like titles) and **offline**
+> experimentation on games **you own and control**. Do **not** use, distribute,
+> or adapt this for multiplayer or anti‑cheat–protected titles.
 
 ---
 
 ## 1. Overview
 
 ### 1.1 Purpose
-Define a clean, maintainable architecture for **GameTrainer**, a hybrid C++/Python application that:
-- Reads well‑defined regions of a target process’s memory to observe game state.
-- Automates benign actions via simulated input and pixel cues.
-- Provides a GUI to configure profiles, bot behaviors, and safety limits.
+
+GameTrainer is a **vision-based** game automation tool that:
+
+- **Watches** the screen like a human would (no memory reading or process injection)
+- **Learns** game mechanics from existing wikis and guides (knowledge bootstrapping)
+- **Decides** what actions to take using fast, local rule evaluation
+- **Acts** via simulated keyboard/mouse input
+- **Improves** by learning from unexpected outcomes
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     THE CORE PHILOSOPHY                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   "Play the game like a human would - by looking at the         │
+│    screen and pressing buttons. Just do it faster and           │
+│    without getting tired."                                      │
+│                                                                 │
+│   We DON'T:                                                     │
+│   ✗ Read game memory                                            │
+│   ✗ Inject code into processes                                  │
+│   ✗ Modify game files                                           │
+│   ✗ Use kernel drivers                                          │
+│                                                                 │
+│   We DO:                                                        │
+│   ✓ Look at the screen (like your eyes)                         │
+│   ✓ Press keys and move the mouse (like your hands)             │
+│   ✓ Learn from documentation (like reading a guide)             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### 1.2 Goals
-- **Reliability:** predictable behavior, defensive error handling, no resource leaks.
-- **Maintainability:** SOLID-aligned modularity, typed Python, documented C++ API.
-- **Testability:** unit + integration tests with a dummy target process.
-- **Portability (Windows-first):** WinAPI-backed C++ library with narrow, stable surface.
+
+| Goal | Description |
+|------|-------------|
+| **Educational** | Code is written to teach; comments explain "why" not just "what" |
+| **Transparent** | Every decision can be traced to a human-readable rule |
+| **Efficient** | AI used sparingly (setup + exceptions); runtime is pure logic |
+| **Safe** | Built-in limits prevent runaway behavior |
+| **Maintainable** | Clean architecture, typed Python, documented interfaces |
 
 ### 1.3 Out of Scope
-- Kernel‑mode drivers, stealth/evasion, thread hijacking, manual mapping, SEH abuse, DKOM. (Removed for ethics, safety, and portfolio fitness.)
+
+- Memory reading / process attachment
+- Code injection of any kind
+- Kernel-mode drivers
+- Stealth or anti-detection techniques
+- Network play or anything affecting other players
 
 ---
 
-## 2. User Stories & Requirements
+## 2. User Stories
 
-### 2.1 User Stories
-- **US-01:** As a user, I can attach to a local process by name or PID and confirm attachment with clear status.
-- **US-02:** As a user, I can define **profiles** (pointer chains, AOB patterns, pixel regions, keybinds, timings) and save/load them.
-- **US-03:** As a user, I can start/stop **automation behaviors** that read memory and/or watch pixels, then act via input with humanized timing.
-- **US-04:** As a user, I can set **safety limits** (pause on input, idle/logout timers, max clicks per minute, max runtime).
-- **US-05:** As a user, I can view **logs** and a **live dashboard** (target FPS, last read latency, event counts).
+### Who is this for?
 
-### 2.2 Functional Requirements
-1. **Process Management:** list processes; attach/detach by PID/name; validate 64‑bit vs 32‑bit target.
-2. **Memory Access (Read/Optional Write):** ReadProcessMemory wrapper; optional writes gated by explicit user consent per profile item.
-3. **Address Discovery (aux tooling):** pointer-chain evaluation; AOB scanning; static base + offsets.
-4. **Input Simulation:** SendInput‑based mouse/keyboard with jitter/curvature; configurable humanization; pause/resume hotkeys.
-5. **Pixel Monitoring:** capture window/region; thresholded template/pixel matching; FPS and latency budget.
-6. **Configuration:** JSON/YAML profiles with schema validation; per‑profile randomization bounds.
-7. **Observability:** structured logging, rotating files; metrics exposed to GUI; error dialog surfacing.
+A developer or hobbyist who wants to:
+- Automate repetitive tasks in single-player games
+- Learn about computer vision, rule engines, and AI integration
+- Build a portfolio project demonstrating clean architecture
 
-### 2.3 Non‑Functional Requirements
-- **Performance:** typical memory read ≤ 5 ms; pixel capture ≥ 20 FPS sustained per region; input latency ≤ 50 ms.
-- **Security:** principle of least privilege; sanity‑check all pointers/sizes; bounds checking; avoid PROCESS_ALL_ACCESS.
-- **Accessibility:** keyboard navigation, color‑blind friendly highlighting in GUI.
+### User Stories
+
+- **US-01:** As a user, I can point the tool at a game window and have it
+  automatically learn basic mechanics from that game's wiki.
+
+- **US-02:** As a user, I can start/stop automation with clear visual feedback
+  about what the bot is "thinking" and doing.
+
+- **US-03:** As a user, I can set safety limits (max runtime, max actions per
+  minute, pause when I touch keyboard/mouse).
+
+- **US-04:** As a user, I can review and edit the rules the system generated,
+  so I understand and control its behavior.
+
+- **US-05:** As a user, I can see a log of exceptions (times when actions didn't
+  work as expected) and trigger relearning for those cases.
 
 ---
 
 ## 3. Architecture
 
-### 3.1 Layered View
-1. **GUI Layer (Python, PySide6 / PyQt5):** windows, profile editor, logs/metrics panel, start/stop controls.
-2. **Core Layer (Python):** orchestration, scheduling, state machine/behavior tree for automation, adapter to C API.
-3. **Native Layer (C, shared library):** narrow WinAPI wrappers for process/memory/input; no injection or stealth.
-4. **OS/Runtime:** Windows memory APIs, Desktop Duplication or GDI for capture, SendInput.
+### 3.1 System Overview
 
-### 3.2 Component Diagram (C4 C2-ish)
-- **GameTrainerGUI** → **TrainerCore** → **libgametrainer** → WinAPI.
-- **PixelDetector** feeds events → **TrainerCore**.
-- **Behavior Engine** consumes Memory + Pixel signals → emits Input commands.
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            GAMETRAINER                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   SETUP PHASE (uses AI, one-time)                                       │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐     │
+│   │   Scrape    │───►│  LLM Parse  │───►│   Knowledge Base        │     │
+│   │   Wiki      │    │  to Rules   │    │   (JSON file)           │     │
+│   └─────────────┘    └─────────────┘    └───────────┬─────────────┘     │
+│                                                     │                    │
+│   ──────────────────────────────────────────────────┼────────────────── │
+│                                                     │                    │
+│   RUNTIME PHASE (no AI, fast & free)                ▼                    │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐     │
+│   │   Screen    │───►│   Extract   │───►│   Evaluate Rules        │     │
+│   │   Capture   │    │   State     │    │   (if/then logic)       │     │
+│   └─────────────┘    └─────────────┘    └───────────┬─────────────┘     │
+│                                                     │                    │
+│                                                     ▼                    │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐     │
+│   │   Input     │◄───│   Verify    │◄───│   Execute Action        │     │
+│   │   Simulate  │    │   Outcome   │    │                         │     │
+│   └─────────────┘    └─────────────┘    └─────────────────────────┘     │
+│                             │                                            │
+│                             ▼                                            │
+│                      Unexpected?                                         │
+│                             │                                            │
+│   ──────────────────────────┼────────────────────────────────────────── │
+│                             │                                            │
+│   REFINEMENT PHASE (uses AI, occasional)                                │
+│                             ▼                                            │
+│   ┌─────────────────────────────────────────────────────────────┐       │
+│   │   Log exception → Batch analyze → Update rules              │       │
+│   └─────────────────────────────────────────────────────────────┘       │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-### 3.3 Key Abstractions
-- **IProcessClient** (Python): attach/detach/status, read(addr, size), write(addr, bytes?)
-- **IMemoryAddress**: direct address, base+offset chain, AOB signature resolver.
-- **IInputBus**: mouse_move(x,y,opts), mouse_click(opts), key(vk,down/up,opts).
-- **IPixelSource**: capture(region) → frame; **IPixelDetector**: on(frame) → events.
-- **Behavior**: finite‑state machine or behavior tree node with `tick(ctx)`.
+### 3.2 Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        GUI LAYER                                 │
+│                     (Python / tkinter)                           │
+│  • Start/Stop controls                                          │
+│  • Rule viewer/editor                                           │
+│  • Log display                                                  │
+│  • Safety settings                                              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       CORE LAYER                                 │
+│                        (Python)                                  │
+│  • Main loop orchestration (10 Hz)                              │
+│  • Knowledge base management                                    │
+│  • Rule evaluation engine                                       │
+│  • State extraction from frames                                 │
+│  • Outcome verification                                         │
+│  • Exception logging                                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     INTEGRATION LAYER                            │
+│                  (Python + Native Libraries)                     │
+│  • Screen capture (mss → native Desktop Duplication)            │
+│  • Image processing (OpenCV → native C++)                       │
+│  • AI API calls (anthropic SDK → network)                       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      NATIVE LAYER                                │
+│                    (C++ / SendInput)                             │
+│  • Keyboard simulation                                          │
+│  • Mouse simulation                                             │
+│  • Timing-critical input                                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3.3 Key Components
+
+| Component | Language | Purpose |
+|-----------|----------|---------|
+| `KnowledgeHarvester` | Python | Scrapes wikis for game information |
+| `KnowledgeCompiler` | Python | Uses LLM to convert text → rules |
+| `KnowledgeBase` | JSON | Stores rules, entities, UI definitions |
+| `ScreenCapture` | Python (mss) | Captures game window frames |
+| `StateExtractor` | Python (OpenCV) | Converts pixels → game state |
+| `DecisionEngine` | Python | Evaluates rules, picks actions |
+| `InputSimulator` | C++ | Executes keyboard/mouse actions |
+| `OutcomeVerifier` | Python | Checks if actions worked |
+| `RefinementSystem` | Python | Learns from failures |
 
 ---
 
-## 4. Detailed Design
+## 4. Data Flow
 
-### 4.1 Native C++ Library 
+### 4.1 One Frame Cycle (Runtime)
 
-### 4.2 Python Core
-
-```text
-trainer/
-  core/
-    trainer.py           # Orchestration, lifecycle
-    behaviors/
-      __init__.py
-      fsms.py            # Finite state machine helpers
-      fishing.py         # Example behavior (Stardew-like)
-    io/
-      process_client.py  # ctypes bindings to libgametrainer
-      input_bus.py
-      pixel_source.py    # mss / Desktop Duplication
-      pixel_detector.py  # thresholding, template match
-  gui/
-    main_window.py
-    profile_editor.py
-    logs_panel.py
+```
+    ┌──────────────────────────────────────────────────────────────┐
+    │                    SINGLE FRAME (~100ms budget)              │
+    ├──────────────────────────────────────────────────────────────┤
+    │                                                              │
+    │  1. CAPTURE (~20ms)                                          │
+    │     Screen ──► Raw frame (numpy array)                       │
+    │                                                              │
+    │  2. PERCEIVE (~15ms)                                         │
+    │     Raw frame ──► Game state dict                            │
+    │     {                                                        │
+    │       "player_health": 75,                                   │
+    │       "player_stamina": 30,                                  │
+    │       "enemies_nearby": false                                │
+    │     }                                                        │
+    │                                                              │
+    │  3. DECIDE (~0.1ms)                                          │
+    │     Game state + Rules ──► Best matching action              │
+    │     Rule "eat_when_tired" matches (stamina < 40)             │
+    │                                                              │
+    │  4. ACT (~5ms)                                               │
+    │     Action ──► Input simulation                              │
+    │     Press 'E' to open inventory                              │
+    │                                                              │
+    │  5. VERIFY (next frame)                                      │
+    │     Did stamina increase? If not ──► Log exception           │
+    │                                                              │
+    └──────────────────────────────────────────────────────────────┘
 ```
 
-**TrainerCore Responsibilities**
-- Manage attach/detach; runtime clock; cooperative scheduler for periodic tasks.
-- Provide `Context` to behaviors: current memory snapshot, pixel events, rate limiters.
-- Expose safe start/stop; propagate errors to GUI via signals.
+### 4.2 Knowledge Bootstrap (One-time Setup)
 
-**Behavior Engine**
-- Prefer **finite‑state machines** or **behavior trees** over ad‑hoc loops.
-- Each Behavior gets **tick(ctx)** at a fixed cadence (e.g., 20 Hz) with soft deadlines.
-- Built‑in rate limiters/randomizers (per action min/max intervals, deviation %).
-
-### 4.3 Pixel Path
-- Use **Desktop Duplication API** (DXGI) when available for efficient capture; fall back to **GDI BitBlt**; via Python, consider `mss` with CFFI/ctypes.
-- Normalize frames (format, stride); expose grayscale and downscaled versions for cheap comparisons.
-- Provide region‑of‑interest (ROI) configuration in profiles; precompute masks.
-
-### 4.4 Input Path
-- Windows `SendInput` only. Expose curvature + jitter in user space; cap maximum CPS, random delay bands, occasional miss behavior only within user‑set bounds.
-- Optional **global pause hotkey** and safe‑stop if user moves mouse/keyboard significantly.
-
-### 4.5 Configuration & Profiles
-- **Schema:** YAML (human friendly) or JSON with **Pydantic** validation in Python.
-- **Example (YAML):**
-```yaml
-version: 1
-profile_name: stardew_fish
-process:
-  name: StardewValley.exe
-memory:
-  pointers:
-    fish_state:
-      base: 0x12345678
-      offsets: [0x10, 0x18, 0x30]
-aob:
-  reel_bar: "48 8B ?? 89 54 24 ?? 48 83 EC ??"
-pixels:
-  bite_roi: { x: 900, y: 540, w: 120, h: 40, threshold: 0.85 }
-input:
-  mouse:
-    curvature: 35
-    jitter_px: 2
-    cps_max: 6
-  safety:
-    max_runtime_min: 120
-    idle_logout_min: 30
+```
+    User provides: Game name + Wiki URL(s)
+                        │
+                        ▼
+    ┌───────────────────────────────────────┐
+    │  HARVEST: Fetch wiki pages            │
+    │  "Stardew Valley Wiki - Fishing"      │
+    │  "Stardew Valley Wiki - Combat"       │
+    └───────────────────┬───────────────────┘
+                        │
+                        ▼
+    ┌───────────────────────────────────────┐
+    │  COMPILE: Send to LLM with prompt     │
+    │  "Extract actionable rules from       │
+    │   this game documentation..."         │
+    └───────────────────┬───────────────────┘
+                        │
+                        ▼
+    ┌───────────────────────────────────────┐
+    │  VALIDATE: Check rule syntax          │
+    │  Human reviews generated rules        │
+    └───────────────────┬───────────────────┘
+                        │
+                        ▼
+    ┌───────────────────────────────────────┐
+    │  SAVE: Write knowledge_base.json      │
+    │  Ready to use forever (no more AI)    │
+    └───────────────────────────────────────┘
 ```
 
-- **Secrets/Paths:** keep per‑user paths in a separate `secrets.local.yaml` ignored by VCS.
+---
 
-### 4.6 Logging & Metrics
-- Python `logging` with JSON formatter; rotating file handlers by size/time.
-- Events: attach/detach, read/write durations, pixel FPS, input actions, behavior state changes.
-- Optional lightweight metrics in memory for GUI charts (no network telemetry).
+## 5. Safety Features
 
-### 4.7 Error Handling
-- Wrap all C calls; raise rich Python exceptions (`GtProcessError`, `GtMemoryError`).
-- Provide remediation hints in GUI dialogs (32/64‑bit mismatch, access denied, window minimized, etc.).
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     SAFETY FIRST                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  RUNTIME LIMITS                                                  │
+│  ├── Max actions per minute (default: 60)                       │
+│  ├── Max runtime before auto-pause (default: 2 hours)           │
+│  ├── Minimum delay between same action (default: 500ms)         │
+│  └── Emergency stop hotkey (default: F12)                       │
+│                                                                  │
+│  USER OVERRIDE DETECTION                                         │
+│  ├── Pause if user moves mouse                                  │
+│  ├── Pause if user presses any key                              │
+│  └── Resume only via explicit GUI action                        │
+│                                                                  │
+│  TRANSPARENCY                                                    │
+│  ├── All decisions logged with reasoning                        │
+│  ├── Rules are human-readable JSON                              │
+│  └── No hidden behavior                                         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
+---
 
-## 7. Project Structure
+## 6. Project Structure
 
 ```
 GameTrainer/
-├─ src/
-│  ├─ c/
-│  │  ├─ process.c/.h
-│  │  ├─ memory.c/.h
-│  │  ├─ input.c/.h
-│  │  └─ util.c/.h
-│  └─ python/
-│     ├─ trainer/
-│     │  ├─ core/
-│     │  │  ├─ trainer.py
-│     │  │  ├─ behaviors/
-│     │  │  ├─ io/
-│     │  │  └─ utils/
-│     │  └─ gui/
-│     │     ├─ main_window.py
-│     │     ├─ profile_editor.py
-│     │     └─ logs_panel.py
-├─ tests/
-│  ├─ c/
-│  └─ python/
-├─ tools/               # small pointer/AOB helpers, profile validators
-├─ examples/            # sample profiles & dummy target
-├─ docs/
-│  ├─ ARCHITECTURE.md
-│  ├─ BEHAVIORS.md
-│  └─ PROFILES.md
-├─ CMakeLists.txt
-├─ pyproject.toml
-├─ README.md
-└─ LICENSE
+├── DOCUMENTS/
+│   ├── game_trainer_design.md      # This file (high-level design)
+│   ├── knowledge_system_design.md  # Detailed implementation spec
+│   └── screen_capture_design.md    # Screen capture options
+│
+├── src/
+│   ├── python/
+│   │   ├── core/
+│   │   │   ├── trainer.py          # Main loop orchestration
+│   │   │   ├── knowledge/
+│   │   │   │   ├── harvester.py    # Web scraping
+│   │   │   │   ├── compiler.py     # LLM parsing
+│   │   │   │   └── base.py         # Knowledge base I/O
+│   │   │   ├── perception/
+│   │   │   │   ├── capture.py      # Screen capture
+│   │   │   │   └── extractor.py    # State extraction
+│   │   │   ├── decision/
+│   │   │   │   ├── engine.py       # Rule evaluation
+│   │   │   │   └── verifier.py     # Outcome checking
+│   │   │   └── refinement/
+│   │   │       └── learner.py      # Exception-based learning
+│   │   │
+│   │   └── gui/
+│   │       ├── main_window.py      # Main application window
+│   │       ├── rule_editor.py      # View/edit rules
+│   │       └── log_viewer.py       # Exception/action logs
+│   │
+│   └── cpp/
+│       ├── input_simulator.cpp     # SendInput wrapper
+│       └── input_simulator.h
+│
+├── knowledge/                       # Generated knowledge bases
+│   └── stardew_valley/
+│       ├── knowledge_base.json
+│       └── exceptions.log
+│
+├── tests/
+│   └── python/
+│
+├── config.json                      # User settings
+├── main.py                          # Entry point
+├── setup.py                         # Build configuration
+├── CMakeLists.txt                   # C++ build
+└── CLAUDE.md                        # AI assistant guidance
 ```
 
 ---
 
-## 8. Dependencies
-- **C:** Windows SDK; optional MinGW/Clang toolchain.
-- **Python:** PySide6/PyQt5, `ctypes`, `mss`, `numpy` (optional), `pydantic`, `pytest`.
-- **Dev:** `black`, `ruff`/`flake8`, `mypy`.
+## 7. Dependencies
+
+### Runtime
+| Package | Purpose |
+|---------|---------|
+| `mss` | Fast screen capture |
+| `opencv-python` | Image processing, template matching |
+| `numpy` | Array operations |
+| `anthropic` | Claude API for knowledge compilation |
+| `pydantic` | JSON schema validation |
+
+### Development
+| Package | Purpose |
+|---------|---------|
+| `pytest` | Testing |
+| `black` | Code formatting |
+| `mypy` | Type checking |
+
+### Native
+| Library | Purpose |
+|---------|---------|
+| Windows SDK | SendInput for input simulation |
 
 ---
 
-## 9. Risk Management & Safety Features
-- **Local‑only** operation; never network.
-- **Safety caps** on actions (CPS, runtime); emergency stop hotkey.
-- **Read‑first** default: encourage read‑only observation profiles.
-- **Clear logs** for auditability in your demos/interviews.
+## 8. Success Metrics
+
+How do we know if this project is successful?
+
+| Metric | Target |
+|--------|--------|
+| Frame processing time | < 50ms at 10 FPS |
+| Rule evaluation time | < 1ms |
+| Exception rate | < 5% of actions |
+| Knowledge extraction accuracy | > 80% usable rules from wiki |
+| Code clarity | Any developer can understand in < 30 min |
 
 ---
 
-## 10. Future Enhancements
-- Plugin system for per‑game behavior packs.
-- In‑GUI memory viewer (read‑only).
-- Template matching with ORB/SURF (CPU‑friendly) for richer pixel cues.
-- Cross‑platform capture backends.
+## 9. References
+
+- Detailed implementation: `DOCUMENTS/knowledge_system_design.md`
+- Screen capture options: `DOCUMENTS/screen_capture_design.md`
+- AI assistant guidance: `CLAUDE.md`
 
 ---
 
-## 11. Appendix: Stardew‑like Example Behavior (High Level)
-- **States:** Idle → Detect Bite (pixel ROI) → Hook (click) → Reel (read `fish_state` & pixel bar) → Settle.
-- **Guards:** cap reel adjustments per second; randomized micro‑delays; hard stop if user jiggles mouse.
-
----
-
-*This revision strips stealth/evasion material and emphasizes safe, testable engineering with strong docs and CI. Keep the document versioned and updated as the code evolves.*
-
+*Document version: 2.0 (Vision-based architecture)*
+*Last updated: December 2024*
