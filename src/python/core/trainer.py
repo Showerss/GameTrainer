@@ -51,9 +51,12 @@ class GameTrainer:
     TARGET_FPS = 10  # How many times per second we process a frame
     FRAME_TIME = 1.0 / TARGET_FPS  # Time budget per frame (100ms)
 
-    def __init__(self):
+    def __init__(self, profile_path: str = "profiles/stardew_valley"):
         """
         Initialize all components.
+
+        Args:
+            profile_path: Path to the game profile folder containing regions.yaml, etc.
 
         Teacher Note: We create all our "workers" here but don't start
         anything yet. This follows the principle of "construct, then start"
@@ -64,8 +67,22 @@ class GameTrainer:
         self.detector = PixelDetector()  # Our "eyes" - analyzes what we see
         self.screen_capture = ScreenCapture()  # Grabs screenshots
 
+        # Configuration
+        self.config = ConfigLoader(profile_path)
+        self.logger.log(f"Loaded profile: {self.config.profile_name}")
+
+        # State management (Slice 1: just health/energy tracking)
+        self.state = StateManager()
+
+        # Vision components (Slice 1: health/energy detection)
+        # Teacher Note: We initialize detectors with region configs from the profile.
+        # If a region isn't defined, we use fallback defaults.
+        energy_region = self.config.get_region("energy_bar") or {
+            "x": 1260, "y": 595, "width": 25, "height": 175
+        }
+        self.energy_detector = HealthDetector(energy_region)
+
         # TODO: These will be added as we implement the full architecture
-        # self.state_extractor = StateExtractor()
         # self.knowledge_base = KnowledgeBase()
         # self.decision_engine = DecisionEngine()
         # self.input_simulator = InputSimulator()
@@ -79,6 +96,9 @@ class GameTrainer:
         # Statistics (useful for debugging)
         self._frame_count = 0
         self._start_time = 0.0
+
+        # Debug: log every N frames (to avoid spam)
+        self._log_interval = 30  # Log state every 30 frames (3 seconds at 10 FPS)
 
     def start(self) -> bool:
         """
