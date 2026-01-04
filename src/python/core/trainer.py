@@ -1,82 +1,260 @@
-# 2. trainer.py is a high level loop that polls information coming from memory_controller.py every 0.1s.
-# It compares the game state (energy, health, etc.) to the thresholds set in the GUI.
-# If thresholds are met, it triggers actions.
+"""
+GameTrainer - Main Orchestration Module
 
-import ctypes
-from pathlib import Path
+Teacher Note: This is the "brain" of the bot. It coordinates all the other
+components in a continuous loop:
+
+    1. CAPTURE  - Take a screenshot of the game
+    2. EXTRACT  - Convert pixels into game state (health, stamina, etc.)
+    3. DECIDE   - Look up which rule matches the current state
+    4. ACT      - Execute the action (press keys, move mouse)
+    5. VERIFY   - Check if the action worked as expected
+
+The loop runs at 10 FPS (every 100ms), which is plenty fast for most games.
+Remember: We're watching the screen like a human would - no memory reading!
+"""
+
 import time
 import threading
-from src.python.core.memory_controller import MemoryController
+from typing import Optional
+
 from src.python.core.logger import Logger
-# We will need this later for the AI vision part!
-from src.python.core.pixel_detector import PixelDetector 
+from src.python.core.pixel_detector import PixelDetector
+from src.python.core.screen_capture import ScreenCapture
+from src.python.core.config_loader import ConfigLoader
+from src.python.core.state_manager import StateManager
+from src.python.core.vision import HealthDetector
+
 
 class GameTrainer:
     """
-    The main brain of the bot.
-    It runs in a separate thread loops forever (until stopped) checking 
-    if the game character needs help (like healing or eating).
+    The main orchestrator for GameTrainer.
+
+    Teacher Note: This class follows the "Coordinator" or "Mediator" pattern.
+    It doesn't do the actual work - it just tells other components what to
+    do and when. This keeps each component simple and testable.
+
+    Lifecycle:
+        1. __init__() - Create all components
+        2. start()    - Begin the main loop in a background thread
+        3. _loop()    - Runs continuously until stop() is called
+        4. stop()     - Clean shutdown
+
+    Example:
+        trainer = GameTrainer()
+        trainer.start()
+        # ... bot is now running ...
+        trainer.stop()
     """
+
+    # Configuration constants
+    TARGET_FPS = 10  # How many times per second we process a frame
+    FRAME_TIME = 1.0 / TARGET_FPS  # Time budget per frame (100ms)
+
     def __init__(self):
-        self.memory = MemoryController()
+        """
+        Initialize all components.
+
+        Teacher Note: We create all our "workers" here but don't start
+        anything yet. This follows the principle of "construct, then start"
+        which makes the code easier to test and debug.
+        """
+        # Core components
         self.logger = Logger()
-        self.detector = PixelDetector() # Our "eyes" for the game
+        self.detector = PixelDetector()  # Our "eyes" - analyzes what we see
+        self.screen_capture = ScreenCapture()  # Grabs screenshots
+
+        # TODO: These will be added as we implement the full architecture
+        # self.state_extractor = StateExtractor()
+        # self.knowledge_base = KnowledgeBase()
+        # self.decision_engine = DecisionEngine()
+        # self.input_simulator = InputSimulator()
+        # self.outcome_verifier = OutcomeVerifier()
+
+        # Runtime state
         self.running = False
         self.paused = False
-        self.thread = None
+        self._thread: Optional[threading.Thread] = None
 
-    def start(self):
-        """Starts the background monitoring loop."""
+        # Statistics (useful for debugging)
+        self._frame_count = 0
+        self._start_time = 0.0
+
+    def start(self) -> bool:
+        """
+        Start the trainer loop in a background thread.
+
+        Returns:
+            True if started successfully, False otherwise
+
+        Teacher Note: We use a background thread so the GUI stays responsive.
+        If we ran the loop on the main thread, the window would freeze.
+        """
         if self.running:
-            return
-        
+            self.logger.log("Trainer is already running.")
+            return False
+
         self.logger.log("Trainer starting...")
-        # Try to hook into the game process
-        if not self.memory.attach():
-            self.logger.log("Failed to attach to process. Is the game running?")
-            self.logger.log("Teacher Tip: Make sure the game is open before starting!")
-            return
+
+        # TODO: Initialize screen capture region
+        # if not self.screen_capture.set_region_from_window("Game Window"):
+        #     self.logger.log("Could not find game window!")
+        #     return False
+
+        # TODO: Load knowledge base
+        # if not self.knowledge_base.load("knowledge/game_name/knowledge_base.json"):
+        #     self.logger.log("Could not load knowledge base!")
+        #     return False
 
         self.running = True
         self.paused = False
-        # thread logic: run self._loop in the background so the GUI doesn't freeze
-        self.thread = threading.Thread(target=self._loop)
-        self.thread.daemon = True # Dies if the main program closes
-        self.thread.start()
-        self.logger.log("Trainer started.")
+        self._frame_count = 0
+        self._start_time = time.time()
 
-    def stop(self):
-        """Stops the monitoring loop."""
+        # Start the loop in a background thread
+        # daemon=True means the thread dies when the main program exits
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+        self.logger.log("Trainer started successfully.")
+        self.logger.log("Teacher Tip: The bot is now watching the screen at 10 FPS.")
+        return True
+
+    def stop(self) -> None:
+        """
+        Stop the trainer loop and clean up resources.
+
+        Teacher Note: We set running=False and then wait for the thread to
+        finish (join). This ensures a clean shutdown with no orphaned threads.
+        """
+        if not self.running:
+            self.logger.log("Trainer is not running.")
+            return
+
+        self.logger.log("Trainer stopping...")
         self.running = False
-        if self.thread:
-            self.thread.join() # Wait for the loop to actually finish
-        self.memory.detach()
+
+        # Wait for the loop thread to finish
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)  # Wait up to 2 seconds
+            self._thread = None
+
+        # Log statistics
+        elapsed = time.time() - self._start_time
+        if elapsed > 0:
+            actual_fps = self._frame_count / elapsed
+            self.logger.log(f"Ran for {elapsed:.1f}s, {self._frame_count} frames ({actual_fps:.1f} FPS)")
+
         self.logger.log("Trainer stopped.")
 
-    def pause(self):
-        """Temporarily pauses the logic without stopping the thread."""
+    def pause(self) -> None:
+        """
+        Toggle pause state.
+
+        Teacher Note: When paused, the loop keeps running but skips all
+        processing. This is useful when the user needs to interact with
+        the game manually.
+        """
         self.paused = not self.paused
         state = "paused" if self.paused else "resumed"
         self.logger.log(f"Trainer {state}.")
 
-    def _loop(self):
+    def _loop(self) -> None:
         """
-        The heartbeat of the bot. Runs 10 times a second.
+        The main processing loop. Runs at TARGET_FPS.
+
+        Teacher Note: This is where the magic happens! Each iteration:
+        1. Captures the screen
+        2. Extracts game state from the image
+        3. Decides what action to take
+        4. Executes the action
+        5. Verifies the outcome
+
+        We use time.sleep() to maintain a consistent frame rate. This is
+        important because we don't want to waste CPU cycles or make the
+        bot behave erratically.
         """
+        self.logger.log("Main loop started.")
+
         while self.running:
+            frame_start = time.time()
+
+            # Skip processing if paused
             if self.paused:
-                time.sleep(0.1)
+                time.sleep(self.FRAME_TIME)
                 continue
 
-            # 1. READ Game State (Memory or Vision)
-            energy = self.memory.read_energy()
-            
-            # 2. DECIDE what to do
-            # Example: If energy is low, we might need to eat.
-            # print(f"Current Energy: {energy}")
+            # ─────────────────────────────────────────────────────────
+            # PHASE 1: CAPTURE
+            # Grab a screenshot of the game window
+            # ─────────────────────────────────────────────────────────
+            frame = self.screen_capture.grab()
+            if frame is None:
+                # No frame captured - maybe region not set or error occurred
+                time.sleep(self.FRAME_TIME)
+                continue
 
-            # 3. ACT (Simulate keypresses - Coming Soon!)
-            # if energy < 10:
-            #     input_simulator.press_key('F1')
-            
-            time.sleep(0.1) # 10 Hz (Run 10 times per second)
+            # ─────────────────────────────────────────────────────────
+            # PHASE 2: EXTRACT
+            # Convert the image into meaningful game state
+            # ─────────────────────────────────────────────────────────
+            # TODO: game_state = self.state_extractor.extract_state(frame)
+
+            # ─────────────────────────────────────────────────────────
+            # PHASE 3: VERIFY PREVIOUS ACTION
+            # Check if the last action worked as expected
+            # ─────────────────────────────────────────────────────────
+            # TODO: self.outcome_verifier.verify(game_state, frame)
+
+            # ─────────────────────────────────────────────────────────
+            # PHASE 4: DECIDE
+            # Look up which rule matches the current state
+            # ─────────────────────────────────────────────────────────
+            # TODO: decision = self.decision_engine.decide(game_state)
+
+            # ─────────────────────────────────────────────────────────
+            # PHASE 5: ACT
+            # Execute the action (if any)
+            # ─────────────────────────────────────────────────────────
+            # TODO: if decision:
+            # TODO:     self.outcome_verifier.expect(decision.expected_outcome, game_state)
+            # TODO:     self.input_simulator.execute_action(decision.action)
+
+            # Update statistics
+            self._frame_count += 1
+
+            # Sleep to maintain target FPS
+            frame_elapsed = time.time() - frame_start
+            sleep_time = self.FRAME_TIME - frame_elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            elif frame_elapsed > self.FRAME_TIME * 1.5:
+                # Log warning if we're falling behind
+                self.logger.log(f"Warning: Frame took {frame_elapsed*1000:.1f}ms (budget: {self.FRAME_TIME*1000:.1f}ms)")
+
+        self.logger.log("Main loop ended.")
+
+    @property
+    def is_running(self) -> bool:
+        """Check if the trainer is currently running."""
+        return self.running
+
+    @property
+    def is_paused(self) -> bool:
+        """Check if the trainer is currently paused."""
+        return self.paused
+
+    @property
+    def stats(self) -> dict:
+        """
+        Get current statistics.
+
+        Returns:
+            Dictionary with frame_count, elapsed_time, fps
+        """
+        elapsed = time.time() - self._start_time if self.running else 0
+        return {
+            "frame_count": self._frame_count,
+            "elapsed_time": elapsed,
+            "fps": self._frame_count / elapsed if elapsed > 0 else 0
+        }
