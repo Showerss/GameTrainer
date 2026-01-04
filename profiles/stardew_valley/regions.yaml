@@ -1,0 +1,102 @@
+# Stardew Valley UI Region Definitions
+#
+# Teacher Note: This file defines WHERE on the screen each UI element appears.
+# These coordinates are for 1920x1080 resolution. If your resolution differs,
+# you'll need to adjust these values.
+#
+# How to find these values:
+#   1. Take a screenshot of the game
+#   2. Open in an image editor (Paint, GIMP, etc.)
+#   3. Find the UI element and note its pixel coordinates
+#   4. Record: x (left edge), y (top edge), width, height
+#
+# The coordinate system:
+#   (0,0) is the TOP-LEFT corner of the screen
+#   x increases going RIGHT
+#   y increases going DOWN
+
+# Base resolution these coordinates were measured at
+resolution:
+  width: 1920
+  height: 1080
+
+# Health and Energy bars (bottom-right of screen in Stardew Valley)
+#
+# Teacher Note: Stardew Valley shows energy as a vertical bar on the right side.
+# The bar fills from bottom to top. We detect the fill percentage by counting
+# colored pixels vs empty pixels in this region.
+#
+# NOTE: These are PLACEHOLDER values! You need to measure your actual game.
+# Run the calibration tool to get accurate coordinates for your setup.
+
+ui_regions:
+  # Energy bar - the tall vertical bar on the right side
+  # In Stardew Valley, this is actually "energy" not "health"
+  # It's green when full, yellow when medium, red when low
+  energy_bar:
+    x: 1260        # Left edge of the energy bar
+    y: 595         # Top of the bar region
+    width: 25      # How wide the bar is
+    height: 175    # How tall the bar is (full length)
+
+    # Detection settings
+    fill_direction: "bottom_to_top"  # Bar fills from bottom
+
+    # Color ranges for detection (HSV format)
+    # Teacher Note: HSV (Hue, Saturation, Value) is easier to work with than RGB
+    # for color detection because it separates color (hue) from brightness (value)
+    colors:
+      full:    # Green - high energy
+        h_min: 35
+        h_max: 85
+        s_min: 100
+        v_min: 100
+      medium:  # Yellow - medium energy
+        h_min: 20
+        h_max: 35
+        s_min: 100
+        v_min: 100
+      low:     # Red - low energy
+        h_min: 0
+        h_max: 20
+        s_min: 100
+        v_min: 100
+
+  # Health bar - Stardew Valley doesn't have a traditional health bar,
+  # but we define this for games that do (or for the player health in combat)
+  health_bar:
+    x: 1220        # Placeholder - adjust for your game
+    y: 595
+    width: 25
+    height: 175
+    fill_direction: "bottom_to_top"
+    colors:
+      filled:
+        h_min: 0
+        h_max: 180  # Accept any hue for now
+        s_min: 50
+        v_min: 50
+
+  # Time display (top-right corner)
+  time_display:
+    x: 1800
+    y: 10
+    width: 100
+    height: 40
+    type: "ocr"  # This region needs OCR, not color detection
+
+  # Gold display (top-right, below time)
+  gold_display:
+    x: 1780
+    y: 55
+    width: 120
+    height: 30
+    type: "ocr"
+
+  # Date/Season display
+  date_display:
+    x: 1750
+    y: 90
+    width: 150
+    height: 25
+    type: "ocr"
