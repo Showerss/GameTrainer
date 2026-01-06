@@ -33,8 +33,12 @@ class StardewEnv(gym.Env):
         self.render_mode = render_mode
         
         # 1. Initialize Action Space (Discrete)
-        # 0: No-op, 1: W, 2: S, 3: A, 4: D, 5: Tool(C), 6: Action(X)
-        self.action_space = spaces.Discrete(7)
+        # Movement: 0=No-op, 1=W, 2=S, 3=A, 4=D
+        # Mouse clicks: 5=Left click, 6=Right click
+        # Mouse movement: 7=Mouse Up, 8=Mouse Down, 9=Mouse Left, 10=Mouse Right
+        # Teacher Note: Mouse movement is essential in Stardew - you click on specific
+        # tiles/objects, so the agent needs to aim before clicking.
+        self.action_space = spaces.Discrete(11)
 
         # 2. Initialize Observation Space (Visual)
         self.obs_shape = (256, 256, 3)
@@ -46,11 +50,14 @@ class StardewEnv(gym.Env):
         self.cap = ScreenCapture()
         self.input = InputController()
 
-        # Connect to game window
+        # Connect to game window and focus it
         found = self.cap.set_region_from_window("Stardew Valley")
         if not found:
             self.logger.log("WARNING: Stardew Valley window not found. Defaulting to full screen.")
             self.cap.set_region_fullscreen()
+        else:
+            # Focus the game window so it receives input
+            self._focus_game_window("Stardew Valley")
 
         # 4. Internal State (The Referee)
         # We track these strictly for reward calculation
@@ -206,22 +213,95 @@ class StardewEnv(gym.Env):
     def close(self):
         pass
 
+    def _focus_game_window(self, window_title: str):
+        """
+        Focus/activate the game window so it receives input.
+        Time complexity: O(n) where n is number of windows (usually fast).
+        
+        Following clean code: Single Responsibility - handles window focusing.
+        """
+        try:
+            import win32gui
+            import win32con
+            
+            # Find the window using the same method as ScreenCapture
+            hwnd = None
+            partial_lower = window_title.lower()
+            
+            def callback(window_hwnd, _):
+                nonlocal hwnd
+                if win32gui.IsWindowVisible(window_hwnd):
+                    title = win32gui.GetWindowText(window_hwnd)
+                    if partial_lower in title.lower():
+                        hwnd = window_hwnd
+                        return False  # Stop enumeration
+                return True  # Continue enumeration
+            
+            win32gui.EnumWindows(callback, None)
+            
+            if hwnd:
+                # Bring window to foreground
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)  # Restore if minimized
+                win32gui.SetForegroundWindow(hwnd)  # Focus the window
+                self.logger.log(f"Focused game window: {win32gui.GetWindowText(hwnd)}")
+                time.sleep(0.3)  # Longer delay to ensure window is fully focused and ready for input
+            else:
+                self.logger.log(f"WARNING: Could not find window '{window_title}' to focus")
+        except ImportError:
+            self.logger.log("WARNING: win32gui not available - cannot focus window. Install pywin32.")
+        except Exception as e:
+            self.logger.log(f"WARNING: Failed to focus window: {e}")
+
     def _take_action(self, action):
-        """Map discrete action index to input command."""
+        """
+        Map discrete action index to input command.
+        Uses WASD for movement, mouse clicks for interactions, and mouse movement for aiming.
+        Time complexity: O(1) - simple conditional mapping.
+
+        Following clean code principles: Clear action mapping with descriptive names.
+        """
+        # Action names for logging
+        action_names = [
+            "NO-OP", "UP(W)", "DOWN(S)", "LEFT(A)", "RIGHT(D)",
+            "LEFT_CLICK", "RIGHT_CLICK",
+            "MOUSE_UP", "MOUSE_DOWN", "MOUSE_LEFT", "MOUSE_RIGHT"
+        ]
+
+        # Mouse movement step size in pixels
+        # Teacher Note: 30px is roughly one tile in Stardew at 1080p.
+        # Adjust if needed for your resolution.
+        MOUSE_STEP = 30
+
+        # Ensure window is focused before sending input (every 100 steps to avoid overhead)
+        if self._steps_alive % 100 == 0:
+            self._focus_game_window("Stardew Valley")
+
         if action == 0:
-            pass # No-op
+            pass  # No-op
         elif action == 1:
-            self.input.move_up()
+            self.input.move_up()  # W key
         elif action == 2:
-            self.input.move_down()
+            self.input.move_down()  # S key
         elif action == 3:
-            self.input.move_left()
+            self.input.move_left()  # A key
         elif action == 4:
-            self.input.move_right()
+            self.input.move_right()  # D key
         elif action == 5:
-            self.input.use_tool()
+            self.input.mouse_click()  # Left click for interactions
         elif action == 6:
-            self.input.action()
+            self.input.mouse_right_click()  # Right click for using tools
+        elif action == 7:
+            self.input.mouse_move(0, -MOUSE_STEP)  # Mouse up
+        elif action == 8:
+            self.input.mouse_move(0, MOUSE_STEP)   # Mouse down
+        elif action == 9:
+            self.input.mouse_move(-MOUSE_STEP, 0)  # Mouse left
+        elif action == 10:
+            self.input.mouse_move(MOUSE_STEP, 0)   # Mouse right
+
+        # Log actions periodically (every 50 steps to avoid spam)
+        if self._steps_alive % 50 == 0:
+            self.logger.log(f"Action taken: {action_names[action]} (step {self._steps_alive})")
 
     def _get_obs(self):
         """Capture screen and resize to observation shape."""

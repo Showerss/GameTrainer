@@ -32,11 +32,31 @@ static PyObject* method_jitter_move(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+// Python wrapper for SendMouseClick
+static PyObject* method_send_mouse_click(PyObject* self, PyObject* args) {
+    if (!PyArg_ParseTuple(args, "")) {
+        return NULL;
+    }
+    SendMouseClick();
+    Py_RETURN_NONE;
+}
+
+// Python wrapper for SendMouseRightClick
+static PyObject* method_send_mouse_right_click(PyObject* self, PyObject* args) {
+    if (!PyArg_ParseTuple(args, "")) {
+        return NULL;
+    }
+    SendMouseRightClick();
+    Py_RETURN_NONE;
+}
+
 // Method definition table
 static PyMethodDef ClibMethods[] = {
     {"send_key", method_send_key, METH_VARARGS, "Send a key press (VK code)."},
     {"send_mouse_move", method_send_mouse_move, METH_VARARGS, "Move mouse relative (dx, dy)."},
     {"jitter_move", method_jitter_move, METH_VARARGS, "Move mouse relative with jitter (dx, dy)."},
+    {"send_mouse_click", method_send_mouse_click, METH_VARARGS, "Send a left mouse button click."},
+    {"send_mouse_right_click", method_send_mouse_right_click, METH_VARARGS, "Send a right mouse button click."},
     {NULL, NULL, 0, NULL} // Sentinel
 };
 

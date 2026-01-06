@@ -19,8 +19,10 @@ except ImportError:
     # Mock for testing/linting without build
     class MockClib:
         def send_key(self, code): pass
-        def move_mouse(self, x, y): pass
+        def send_mouse_move(self, x, y): pass
         def jitter_move(self, x, y): pass
+        def send_mouse_click(self): pass
+        def send_mouse_right_click(self): pass
     clib = MockClib()
 
 
@@ -46,11 +48,15 @@ class InputController:
     def tap_key(self, key_code: int, duration: float = 0.1):
         """
         Press and release a key.
+        Time complexity: O(1) - single system call.
         """
         # For now, our C++ SendKey does a full press+release instantly.
         # Ideally we'd separate down/up for duration control.
         # TODO: Update C++ to support hold duration.
-        clib.send_key(key_code)
+        try:
+            clib.send_key(key_code)
+        except Exception as e:
+            print(f"ERROR: Failed to send key {key_code}: {e}")
         
         # If we need to simulate holding, we'd need separate down/up functions in C++.
         # For discrete RL steps, a "tap" is usually sufficient for movement.
@@ -66,5 +72,30 @@ class InputController:
     def escape(self): self.tap_key(self.VK_ESC)
 
     def mouse_move(self, dx: int, dy: int):
-        """Move mouse relative to current position."""
+        """
+        Move mouse relative to current position.
+        Time complexity: O(1) - single system call.
+        """
         clib.send_mouse_move(dx, dy)
+    
+    def mouse_click(self):
+        """
+        Send a left mouse button click.
+        Time complexity: O(1) - single system call.
+        
+        Following clean code principles: Clear, descriptive method name.
+        """
+        try:
+            clib.send_mouse_click()
+        except Exception as e:
+            print(f"ERROR: Failed to send mouse click: {e}")
+    
+    def mouse_right_click(self):
+        """
+        Send a right mouse button click.
+        Time complexity: O(1) - single system call.
+        """
+        try:
+            clib.send_mouse_right_click()
+        except Exception as e:
+            print(f"ERROR: Failed to send right mouse click: {e}")
