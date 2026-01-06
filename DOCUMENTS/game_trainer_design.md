@@ -18,31 +18,37 @@
 
 GameTrainer is a **vision-based** game automation tool that:
 
+- **Records** gameplay videos for training (you play, it watches)
+- **Learns** game mechanics by uploading videos to Claude for analysis
 - **Watches** the screen like a human would (no memory reading or process injection)
-- **Learns** game mechanics from existing wikis and guides (knowledge bootstrapping)
-- **Decides** what actions to take using fast, local rule evaluation
+- **Decides** what actions to take using fast, local rule evaluation (FREE at runtime)
 - **Acts** via simulated keyboard/mouse input
-- **Improves** by learning from unexpected outcomes
+- **Improves** by recording and analyzing new scenarios
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     THE CORE PHILOSOPHY                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   "Play the game like a human would - by looking at the         │
-│    screen and pressing buttons. Just do it faster and           │
-│    without getting tired."                                      │
+│   "Pay once to train, play forever for free."                   │
+│                                                                 │
+│   TRAINING (paid, one-time):                                    │
+│   ✓ Record gameplay videos while you play                       │
+│   ✓ Upload videos to Claude for analysis                        │
+│   ✓ Claude extracts rules, UI locations, patterns               │
+│   ✓ Save training data locally                                  │
+│                                                                 │
+│   RUNTIME (free, forever):                                      │
+│   ✓ Look at the screen (like your eyes)                         │
+│   ✓ Press keys and move the mouse (like your hands)             │
+│   ✓ Use local decision trees (no API calls!)                    │
 │                                                                 │
 │   We DON'T:                                                     │
 │   ✗ Read game memory                                            │
 │   ✗ Inject code into processes                                  │
 │   ✗ Modify game files                                           │
 │   ✗ Use kernel drivers                                          │
-│                                                                 │
-│   We DO:                                                        │
-│   ✓ Look at the screen (like your eyes)                         │
-│   ✓ Press keys and move the mouse (like your hands)             │
-│   ✓ Learn from documentation (like reading a guide)             │
+│   ✗ Call AI APIs during gameplay (that costs money!)            │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -51,9 +57,10 @@ GameTrainer is a **vision-based** game automation tool that:
 
 | Goal | Description |
 |------|-------------|
+| **Cost-Effective** | Pay for video analysis once, run forever for free |
 | **Educational** | Code is written to teach; comments explain "why" not just "what" |
 | **Transparent** | Every decision can be traced to a human-readable rule |
-| **Efficient** | AI used sparingly (setup + exceptions); runtime is pure logic |
+| **Efficient** | AI used only for training (video analysis); runtime is pure local logic |
 | **Safe** | Built-in limits prevent runaway behavior |
 | **Maintainable** | Clean architecture, typed Python, documented interfaces |
 
@@ -104,36 +111,40 @@ A developer or hobbyist who wants to:
 │                            GAMETRAINER                                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│   SETUP PHASE (uses AI, one-time)                                       │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐     │
-│   │   Scrape    │───►│  LLM Parse  │───►│   Knowledge Base        │     │
-│   │   Wiki      │    │  to Rules   │    │   (JSON file)           │     │
-│   └─────────────┘    └─────────────┘    └───────────┬─────────────┘     │
-│                                                     │                    │
-│   ──────────────────────────────────────────────────┼────────────────── │
-│                                                     │                    │
-│   RUNTIME PHASE (no AI, fast & free)                ▼                    │
+│   TRAINING PHASE (uses AI, one-time cost)                               │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────┐ │
+│   │   Record    │───►│   Upload    │───►│   Claude    │───►│  Save   │ │
+│   │  Gameplay   │    │   Video     │    │  Analyzes   │    │  Rules  │ │
+│   │   Video     │    │  to Claude  │    │   Video     │    │ Locally │ │
+│   └─────────────┘    └─────────────┘    └─────────────┘    └────┬────┘ │
+│        FREE              PAID              PAID               FREE      │
+│                                                                  │       │
+│   ───────────────────────────────────────────────────────────────┼───── │
+│                                                                  │       │
+│   RUNTIME PHASE (no AI, fast & FREE forever)                     ▼       │
 │   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐     │
 │   │   Screen    │───►│   Extract   │───►│   Evaluate Rules        │     │
 │   │   Capture   │    │   State     │    │   (if/then logic)       │     │
 │   └─────────────┘    └─────────────┘    └───────────┬─────────────┘     │
-│                                                     │                    │
+│        FREE              FREE                       │    FREE            │
 │                                                     ▼                    │
 │   ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐     │
 │   │   Input     │◄───│   Verify    │◄───│   Execute Action        │     │
 │   │   Simulate  │    │   Outcome   │    │                         │     │
 │   └─────────────┘    └─────────────┘    └─────────────────────────┘     │
+│        FREE              FREE                       FREE                 │
 │                             │                                            │
 │                             ▼                                            │
 │                      Unexpected?                                         │
 │                             │                                            │
-│   ──────────────────────────┼────────────────────────────────────────── │
+│   ───────────────────────────┼───────────────────────────────────────── │
 │                             │                                            │
-│   REFINEMENT PHASE (uses AI, occasional)                                │
+│   REFINEMENT PHASE (record more video, re-analyze - optional)           │
 │                             ▼                                            │
 │   ┌─────────────────────────────────────────────────────────────┐       │
-│   │   Log exception → Batch analyze → Update rules              │       │
+│   │   Record new scenario → Upload to Claude → Update rules     │       │
 │   └─────────────────────────────────────────────────────────────┘       │
+│                        PAID (only when needed)                           │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -185,15 +196,15 @@ A developer or hobbyist who wants to:
 
 | Component | Language | Purpose |
 |-----------|----------|---------|
-| `KnowledgeHarvester` | Python | Scrapes wikis for game information |
-| `KnowledgeCompiler` | Python | Uses LLM to convert text → rules |
-| `KnowledgeBase` | JSON | Stores rules, entities, UI definitions |
-| `ScreenCapture` | Python (mss) | Captures game window frames |
+| `GameplayRecorder` | Python | Records gameplay videos for training |
+| `VideoAnalyzer` | Python | Uploads videos to Claude for analysis |
+| `KnowledgeBase` | JSON | Stores rules, entities, UI definitions (locally) |
+| `ScreenCapture` | Python (mss) | Captures game window frames at runtime |
 | `StateExtractor` | Python (OpenCV) | Converts pixels → game state |
-| `DecisionEngine` | Python | Evaluates rules, picks actions |
+| `DecisionEngine` | Python | Evaluates rules, picks actions (FREE) |
 | `InputSimulator` | C++ | Executes keyboard/mouse actions |
 | `OutcomeVerifier` | Python | Checks if actions worked |
-| `RefinementSystem` | Python | Learns from failures |
+| `KnowledgeHarvester` | Python | (Optional) Scrapes wikis to supplement video data |
 
 ---
 
@@ -231,36 +242,63 @@ A developer or hobbyist who wants to:
     └──────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Knowledge Bootstrap (One-time Setup)
+### 4.2 Training Phase: Video Analysis (One-time Setup)
 
 ```
-    User provides: Game name + Wiki URL(s)
+    User plays the game while recording
                         │
                         ▼
     ┌───────────────────────────────────────┐
-    │  HARVEST: Fetch wiki pages            │
-    │  "Stardew Valley Wiki - Fishing"      │
-    │  "Stardew Valley Wiki - Combat"       │
+    │  RECORD: Capture gameplay video       │
+    │  • Play normally for 5-30 minutes     │
+    │  • Demonstrate actions you want bot   │
+    │    to learn (farming, combat, etc.)   │
+    │  • Include edge cases (low health)    │
+    │                                       │
+    │  Cost: FREE (local recording)         │
     └───────────────────┬───────────────────┘
                         │
                         ▼
     ┌───────────────────────────────────────┐
-    │  COMPILE: Send to LLM with prompt     │
-    │  "Extract actionable rules from       │
-    │   this game documentation..."         │
+    │  UPLOAD: Send video to Claude API     │
+    │  • Video is sent to Claude's vision   │
+    │  • Claude watches and understands     │
+    │    the gameplay context               │
+    │                                       │
+    │  Cost: PAID (API usage)               │
+    └───────────────────┬───────────────────┘
+                        │
+                        ▼
+    ┌───────────────────────────────────────┐
+    │  ANALYZE: Claude extracts knowledge   │
+    │  • UI element locations & colors      │
+    │  • Game state patterns                │
+    │  • Action → outcome mappings          │
+    │  • Decision rules (if X then Y)       │
+    │                                       │
+    │  Cost: PAID (API usage)               │
     └───────────────────┬───────────────────┘
                         │
                         ▼
     ┌───────────────────────────────────────┐
     │  VALIDATE: Check rule syntax          │
     │  Human reviews generated rules        │
+    │  Optionally supplement with wiki data │
+    │                                       │
+    │  Cost: FREE                           │
     └───────────────────┬───────────────────┘
                         │
                         ▼
     ┌───────────────────────────────────────┐
     │  SAVE: Write knowledge_base.json      │
-    │  Ready to use forever (no more AI)    │
+    │  Ready to use FOREVER (no more AI!)   │
+    │                                       │
+    │  Cost: FREE                           │
     └───────────────────────────────────────┘
+
+    ═══════════════════════════════════════════
+    TOTAL: Pay once for training, run free forever
+    ═══════════════════════════════════════════
 ```
 
 ---
@@ -300,27 +338,31 @@ GameTrainer/
 ├── DOCUMENTS/
 │   ├── game_trainer_design.md      # This file (high-level design)
 │   ├── knowledge_system_design.md  # Detailed implementation spec
-│   └── screen_capture_design.md    # Screen capture options
+│   └── screen_capture_design.md    # Screen capture & recording options
 │
 ├── src/
 │   ├── python/
 │   │   ├── core/
-│   │   │   ├── trainer.py          # Main loop orchestration
+│   │   │   ├── trainer.py          # Main loop orchestration (FREE runtime)
+│   │   │   ├── recorder.py         # Gameplay video recording (for training)
+│   │   │   ├── training/
+│   │   │   │   ├── video_analyzer.py  # Upload videos to Claude (PAID)
+│   │   │   │   └── rule_generator.py  # Parse Claude's analysis to rules
 │   │   │   ├── knowledge/
-│   │   │   │   ├── harvester.py    # Web scraping
-│   │   │   │   ├── compiler.py     # LLM parsing
+│   │   │   │   ├── harvester.py    # (Optional) Web scraping
 │   │   │   │   └── base.py         # Knowledge base I/O
 │   │   │   ├── perception/
-│   │   │   │   ├── capture.py      # Screen capture
+│   │   │   │   ├── capture.py      # Screen capture (runtime)
 │   │   │   │   └── extractor.py    # State extraction
 │   │   │   ├── decision/
-│   │   │   │   ├── engine.py       # Rule evaluation
+│   │   │   │   ├── engine.py       # Rule evaluation (FREE)
 │   │   │   │   └── verifier.py     # Outcome checking
 │   │   │   └── refinement/
-│   │   │       └── learner.py      # Exception-based learning
+│   │   │       └── learner.py      # Exception logging for retraining
 │   │   │
 │   │   └── gui/
 │   │       ├── main_window.py      # Main application window
+│   │       ├── recorder_window.py  # Recording controls & preview
 │   │       ├── rule_editor.py      # View/edit rules
 │   │       └── log_viewer.py       # Exception/action logs
 │   │
@@ -328,10 +370,18 @@ GameTrainer/
 │       ├── input_simulator.cpp     # SendInput wrapper
 │       └── input_simulator.h
 │
-├── knowledge/                       # Generated knowledge bases
+├── profiles/                        # Game-specific profiles
 │   └── stardew_valley/
-│       ├── knowledge_base.json
-│       └── exceptions.log
+│       ├── profile.yaml            # Game settings
+│       ├── recordings/             # Gameplay videos (for training)
+│       │   ├── raw/                # Unprocessed recordings
+│       │   └── analyzed/           # Videos that have been sent to Claude
+│       ├── templates/              # Template images (extracted from videos)
+│       ├── regions.yaml            # UI element locations (learned from videos)
+│       ├── knowledge/              # Optional wiki/guide data
+│       └── rules/                  # Decision trees (generated from video analysis)
+│           ├── priorities.yaml
+│           └── subtrees/
 │
 ├── tests/
 │   └── python/
@@ -347,13 +397,20 @@ GameTrainer/
 
 ## 7. Dependencies
 
-### Runtime
+### Training Phase (One-time, PAID)
+| Package | Purpose |
+|---------|---------|
+| `opencv-python` | Video recording and frame extraction |
+| `ffmpeg-python` | Video encoding/compression |
+| `anthropic` | Claude API for video analysis |
+| `pydantic` | JSON schema validation |
+
+### Runtime Phase (Forever, FREE)
 | Package | Purpose |
 |---------|---------|
 | `mss` | Fast screen capture |
 | `opencv-python` | Image processing, template matching |
 | `numpy` | Array operations |
-| `anthropic` | Claude API for knowledge compilation |
 | `pydantic` | JSON schema validation |
 
 ### Development
@@ -367,6 +424,7 @@ GameTrainer/
 | Library | Purpose |
 |---------|---------|
 | Windows SDK | SendInput for input simulation |
+| ffmpeg | Video encoding (for recording) |
 
 ---
 
@@ -376,10 +434,16 @@ How do we know if this project is successful?
 
 | Metric | Target |
 |--------|--------|
+| **Training Phase** | |
+| Video analysis cost | < $5 per game profile (initial training) |
+| Rule extraction accuracy | > 80% usable rules from video |
+| Training time | < 1 hour from recording to running bot |
+| **Runtime Phase (FREE)** | |
 | Frame processing time | < 50ms at 10 FPS |
 | Rule evaluation time | < 1ms |
 | Exception rate | < 5% of actions |
-| Knowledge extraction accuracy | > 80% usable rules from wiki |
+| API calls during gameplay | ZERO (all local) |
+| **Code Quality** | |
 | Code clarity | Any developer can understand in < 30 min |
 
 ---
@@ -392,5 +456,5 @@ How do we know if this project is successful?
 
 ---
 
-*Document version: 2.0 (Vision-based architecture)*
-*Last updated: December 2024*
+*Document version: 3.0 (Video-based training architecture)*
+*Last updated: January 2025*

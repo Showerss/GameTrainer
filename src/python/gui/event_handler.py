@@ -1,1 +1,0 @@
-# event handler takes in buttons from the main_window and sends them to either trainer core, logger, etc

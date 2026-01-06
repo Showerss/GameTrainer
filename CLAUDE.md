@@ -4,102 +4,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GameTrainer is a **vision-based** game automation tool for local, single-player games. Instead of reading game memory, it watches the screen like a human would, sends that visual information to an AI model, and executes the AI's decisions through simulated input.
+GameTrainer is a **local Reinforcement Learning (RL)** system for game automation. It leverages high-end hardware (specifically the user's **9070xt GPU**) to train an autonomous agent that learns to play Stardew Valley through trial and error.
 
-**Important:** This project is for local, single-player games only. Do not use for multiplayer or anti-cheat protected titles.
+**Pivot Note (Jan 2026):** We have moved AWAY from the previous "video upload + manual pixel detection" strategy.
+- **No more pixel hunting:** Manual coordinate/color definitions are unscalable and brittle. The agent uses neural networks (CNNs) to perceive the game state directly from visual input.
+- **No more video uploads:** We do not send data to the cloud. Training happens locally to allow the agent to learn from unlimited gameplay steps and edge cases without API costs or latency.
+- **Active Learning:** The goal is an agent that improves over time via RL, rather than a static bot that "fails safe" when confused.
 
 ## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Screen Capture │ ──► │   AI Decision   │ ──► │ Input Simulate  │
-│   (mss/opencv)  │     │  (LLM / Model)  │     │   (SendInput)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+┌─────────────────┐     ┌──────────────────────────────┐     ┌─────────────────┐
+│  Screen Capture │ ──► │  RL Agent (PPO/DQN on GPU)   │ ──► │ Input Simulate  │
+│   (mss/opencv)  │     │   (stable-baselines3/torch)  │     │   (SendInput)   │
+└─────────────────┘     └──────────────────────────────┘     └─────────────────┘
 ```
 
-The AI "sees" the game exactly as a human would - no memory hacks, no process injection.
+## Reinforcement Learning Strategy
 
-## Two-Phase AI Strategy
+We use `gymnasium` and `stable-baselines3` to create a standard RL environment.
 
-The system uses a **teacher-student** approach to balance quality and performance:
+### 1. Perception (The Eyes)
+Instead of searching for specific "red pixels" for health, the system feeds the game frame (downscaled/processed) into a **Convolutional Neural Network (CNN)**. The model learns which visual features matter (e.g., bar length, objects) on its own.
 
-### Training Phase (Expensive, Offline)
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Record    │ ──► │   Upload    │ ──► │  Claude Video   │ ──► │  Training Data  │
-│  Gameplay   │     │   Videos    │     │    Analysis     │     │  (state→action) │
-└─────────────┘     └─────────────┘     └─────────────────┘     └─────────────────┘
-```
-- **Record:** Capture gameplay videos while you play (or let the bot explore)
-- **Upload:** Send video clips to Claude for analysis (paid API cost)
-- **Analyze:** Claude watches the video and extracts:
-  - UI element locations (health bars, inventory, etc.)
-  - Game state patterns (what does "low health" look like?)
-  - Action mappings (what inputs achieve what results?)
-  - Decision rules (when should the bot do X vs Y?)
-- **Output:** Structured training data saved locally as JSON rules
+### 2. Action (The Hands)
+The agent outputs discrete actions (e.g., `Move Up`, `Use Tool`, `Eat`) or continuous values depending on the specific task configuration.
 
-### Runtime Phase (Fast, Local, FREE)
-```
-┌─────────────┐     ┌───────────────┐     ┌─────────────────┐
-│   Screen    │ ──► │ Decision Tree │ ──► │ Input Simulate  │
-│   Capture   │     │   (student)   │     │   (SendInput)   │
-└─────────────┘     └───────────────┘     └─────────────────┘
-```
-- Lightweight decision tree runs locally, no GPU required
-- Microsecond-fast decisions, **zero API costs**
-- Uses the training data generated from video analysis
-- **Novel situations:** Fail gracefully (do nothing / safe default) rather than fall back to LLM
+### 3. Reward (The Teacher)
+We define a reward function to guide learning:
+- **Positive:** Gaining XP, harvesting crops, clearing debris.
+- **Negative:** Running out of energy, taking damage, wasted movement.
+- **Neutral:** Existing.
 
-### Why This Approach?
-- **Cost:** Pay once for video analysis, run forever for free
-- **Quality:** Claude sees actual gameplay context, not just static screenshots
-- **Latency:** Decision trees are nearly instant vs 1-5+ seconds for cloud LLM
-- **Simplicity:** No GPU or complex inference needed in production
-- **Temporal Understanding:** Video captures sequences (animations, timing, cause-effect)
+### 4. Training Loop (The Brain)
+- **Local & Fast:** Runs entirely on the 9070xt GPU.
+- **Iterative:** The agent tries actions, receives rewards, updates its neural weights, and tries again.
+- **Exploration:** The agent actively tries new strategies to discover optimal play, covering edge cases that a fixed rule set would miss.
 
-## Knowledge System
+## Environment & State
 
-The AI has three sources of information:
+The "Knowledge" of the system is now implicit within the trained neural network weights, not stored in human-readable JSON files.
 
-### Video Analysis Layer (Training)
-- Claude watches gameplay videos and extracts structured knowledge
-- Identifies UI layouts, game mechanics, cause-effect relationships
-- Generates rules, templates, and region definitions automatically
-- **One-time cost:** Pay for video analysis, use results forever
+### Observation Space (Input)
+- **Visual:** Raw RGB frames from the game window (processed/grayscale/stacked).
+- **Auxiliary (Optional):** OCR text or critical numerical values (Energy %) can be fed as a separate vector if visual learning proves too slow for specific gauges.
 
-### Vision Layer (Runtime)
-- Template matching extracts game state from screen
-- Uses templates and regions learned from video analysis
-- Detects: objects, UI elements, positions, percentages (health, energy, etc.)
-- Fast, runs every frame, **no API costs**
+### Action Space (Output)
+- **Discrete:** Mapping specific indices to key presses (e.g., `0` = W, `1` = A, `2` = S, `3` = D, `4` = Use Tool).
+- **MultiDiscrete:** For combining movement + action simultaneously.
 
-### Knowledge Layer (Pre-loaded)
-- Wiki/guide data can supplement video analysis
-- Game calendar, events, optimal strategies
-- Informs decision tree priorities based on context
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ Video Analysis  │     │  Wiki / Guides  │     │  Screen State   │
-│  (from Claude)  │     │   (optional)    │     │    (runtime)    │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         └───────────────────────┴───────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  CONTEXT-AWARE DECISION TREE                     │
-│                                                                  │
-│  Priorities shift based on:                                      │
-│  - Current game state (detected from screen)                     │
-│  - In-game date/season (if applicable)                          │
-│  - Learned patterns from video analysis                         │
-│  - Optimal strategies from guides                               │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-This allows the decision tree to answer not just "what CAN I do?" (vision) but "what SHOULD I do?" (knowledge learned from videos).
+### Game Profiles
+Profiles now store:
+- **Hyperparameters:** Learning rate, batch size, PPO/DQN settings.
+- **Checkpoints:** Saved `.zip` models of the trained agent.
+- **Reward Config:** Definitions of what constitutes "good" behavior for that specific game.
 
 ## Game Profiles (Multi-Game Support)
 
@@ -226,26 +184,23 @@ pytest tests/         # Run tests
 - **Input Simulation:** pyadirectinput, custom C++ SendInput wrapper
 - **GUI:** tkinter
 
-## Training vs Runtime Costs
+## Resource Usage
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     COST BREAKDOWN                               │
+│                     RESOURCE BREAKDOWN                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  TRAINING PHASE (One-time per game):                            │
-│  ├── Record gameplay .................... FREE (local)          │
-│  ├── Upload video to Claude ............. PAID (API cost)       │
-│  ├── Claude analyzes video .............. PAID (API cost)       │
-│  └── Save training data locally ......... FREE                  │
+│  TRAINING PHASE (Continuous / Overnight):                       │
+│  ├── Hardware ........................... GPU (9070xt) HEAVY    │
+│  ├── API Costs .......................... $0 (Local only)       │
+│  ├── Time ............................... Hours/Days            │
+│  └── Output ............................. Trained Neural Net    │
 │                                                                  │
-│  RUNTIME PHASE (Forever):                                       │
-│  ├── Screen capture ..................... FREE (local)          │
-│  ├── Decision tree evaluation ........... FREE (local)          │
-│  ├── Input simulation ................... FREE (local)          │
-│  └── All gameplay ....................... FREE (no API calls)   │
-│                                                                  │
-│  RESULT: Pay once for training, play forever for free!          │
+│  INFERENCE PHASE (Playing):                                     │
+│  ├── Hardware ........................... GPU (Light/Moderate)  │
+│  ├── API Costs .......................... $0                    │
+│  └── Latency ............................ Real-time (< 30ms)    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```

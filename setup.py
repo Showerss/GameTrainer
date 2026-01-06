@@ -13,8 +13,8 @@ setup(
     version="2.0",
     description="Vision-based game automation tool",
     packages=[
-        "src.python.gui",
         "src.python.core",
+        "src.python.core.rl",
     ],
 
     # C++ Extension for input simulation
@@ -38,6 +38,8 @@ setup(
         "mss",            # Fast screen capture
         "numpy",          # Array operations (used by OpenCV)
         "pydantic",       # JSON schema validation for knowledge base
+        "pyyaml",         # YAML config file parsing
+        "pynput",         # Global keyboard/mouse input capture
     ],
 
     # Optional dependencies for development
@@ -49,6 +51,13 @@ setup(
         ],
         "ai": [
             "anthropic",  # Claude API for knowledge compilation
+        ],
+        "rl": [
+            "gymnasium",         # Standard API for RL environments
+            "stable-baselines3", # RL algorithms (PPO, DQN, etc.)
+            "torch",             # Deep learning backend
+            "tensorboard",       # Training visualization
+            "shimmy",            # Compatibility layer often needed for gym v0.26+
         ],
     },
 
