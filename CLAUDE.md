@@ -25,16 +25,21 @@ The system uses a **teacher-student** approach to balance quality and performanc
 
 ### Training Phase (Expensive, Offline)
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────────┐
-│   Screen    │ ──► │     LLM     │ ──► │  Training Data  │
-│   Capture   │     │  (teacher)  │     │  (state→action) │
-└─────────────┘     └─────────────┘     └─────────────────┘
+┌─────────────┐     ┌─────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Record    │ ──► │   Upload    │ ──► │  Claude Video   │ ──► │  Training Data  │
+│  Gameplay   │     │   Videos    │     │    Analysis     │     │  (state→action) │
+└─────────────┘     └─────────────┘     └─────────────────┘     └─────────────────┘
 ```
-- Cloud LLM (Claude, GPT-4V, etc.) labels game states with appropriate actions
-- This is slow and costly, but only happens during training
-- Builds the "knowledge" that gets distilled into the runtime model
+- **Record:** Capture gameplay videos while you play (or let the bot explore)
+- **Upload:** Send video clips to Claude for analysis (paid API cost)
+- **Analyze:** Claude watches the video and extracts:
+  - UI element locations (health bars, inventory, etc.)
+  - Game state patterns (what does "low health" look like?)
+  - Action mappings (what inputs achieve what results?)
+  - Decision rules (when should the bot do X vs Y?)
+- **Output:** Structured training data saved locally as JSON rules
 
-### Runtime Phase (Fast, Local)
+### Runtime Phase (Fast, Local, FREE)
 ```
 ┌─────────────┐     ┌───────────────┐     ┌─────────────────┐
 │   Screen    │ ──► │ Decision Tree │ ──► │ Input Simulate  │
@@ -42,46 +47,59 @@ The system uses a **teacher-student** approach to balance quality and performanc
 └─────────────┘     └───────────────┘     └─────────────────┘
 ```
 - Lightweight decision tree runs locally, no GPU required
-- Microsecond-fast decisions
+- Microsecond-fast decisions, **zero API costs**
+- Uses the training data generated from video analysis
 - **Novel situations:** Fail gracefully (do nothing / safe default) rather than fall back to LLM
 
 ### Why This Approach?
-- **Cost:** LLM only used during training, not at runtime
+- **Cost:** Pay once for video analysis, run forever for free
+- **Quality:** Claude sees actual gameplay context, not just static screenshots
 - **Latency:** Decision trees are nearly instant vs 1-5+ seconds for cloud LLM
 - **Simplicity:** No GPU or complex inference needed in production
+- **Temporal Understanding:** Video captures sequences (animations, timing, cause-effect)
 
 ## Knowledge System
 
-The AI has two sources of information:
+The AI has three sources of information:
+
+### Video Analysis Layer (Training)
+- Claude watches gameplay videos and extracts structured knowledge
+- Identifies UI layouts, game mechanics, cause-effect relationships
+- Generates rules, templates, and region definitions automatically
+- **One-time cost:** Pay for video analysis, use results forever
 
 ### Vision Layer (Runtime)
 - Template matching extracts game state from screen
+- Uses templates and regions learned from video analysis
 - Detects: objects, UI elements, positions, percentages (health, energy, etc.)
-- Fast, runs every frame
+- Fast, runs every frame, **no API costs**
 
 ### Knowledge Layer (Pre-loaded)
-- Wiki/guide data ingested during training
+- Wiki/guide data can supplement video analysis
 - Game calendar, events, optimal strategies
 - Informs decision tree priorities based on context
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│  Wiki / Guides  │     │  Screen State   │
-│   (knowledge)   │     │    (vision)     │
-└────────┬────────┘     └────────┬────────┘
-         │                       │
-         ▼                       ▼
-┌─────────────────────────────────────────┐
-│       CONTEXT-AWARE DECISION TREE        │
-│                                          │
-│  Priorities shift based on:              │
-│  - In-game date/season                   │
-│  - Active events or festivals            │
-│  - Optimal strategies from guides        │
-└─────────────────────────────────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ Video Analysis  │     │  Wiki / Guides  │     │  Screen State   │
+│  (from Claude)  │     │   (optional)    │     │    (runtime)    │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         └───────────────────────┴───────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  CONTEXT-AWARE DECISION TREE                     │
+│                                                                  │
+│  Priorities shift based on:                                      │
+│  - Current game state (detected from screen)                     │
+│  - In-game date/season (if applicable)                          │
+│  - Learned patterns from video analysis                         │
+│  - Optimal strategies from guides                               │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-This allows the decision tree to answer not just "what CAN I do?" (vision) but "what SHOULD I do?" (knowledge).
+This allows the decision tree to answer not just "what CAN I do?" (vision) but "what SHOULD I do?" (knowledge learned from videos).
 
 ## Game Profiles (Multi-Game Support)
 
@@ -110,7 +128,13 @@ The engine is game-agnostic. Each game is defined by a **profile** - a configura
 profiles/
 └── stardew_valley/
     ├── profile.yaml          # Main config (resolution, input mappings)
-    ├── templates/            # Images to match on screen
+    ├── recordings/           # Gameplay videos for training
+    │   ├── raw/              # Original recorded footage
+    │   │   ├── session_001.mp4
+    │   │   └── session_002.mp4
+    │   └── analyzed/         # Videos that have been processed
+    │       └── session_001.mp4
+    ├── templates/            # Images to match on screen (extracted from videos)
     │   ├── crops/
     │   │   ├── tomato_ripe.png
     │   │   └── tomato_growing.png
@@ -119,13 +143,13 @@ profiles/
     │   │   └── inventory_full.png
     │   └── objects/
     │       └── chest.png
-    ├── regions.yaml          # Where to look for UI elements
+    ├── regions.yaml          # Where to look for UI elements (learned from videos)
     │   # date_display: {x: 1200, y: 10, w: 100, h: 30}
     │   # energy_bar: {x: 1250, y: 600, w: 50, h: 200}
-    ├── knowledge/            # Wiki data, strategies
+    ├── knowledge/            # Wiki data, strategies (optional supplement)
     │   ├── calendar.json     # Events, festivals
     │   └── crops.json        # Growth times, prices
-    └── rules/                # Decision tree definitions
+    └── rules/                # Decision tree definitions (generated from video analysis)
         ├── priorities.yaml   # Master priority list
         └── subtrees/
             ├── farming.yaml
@@ -136,19 +160,36 @@ profiles/
 
 | Component | Purpose | Example |
 |-----------|---------|---------|
-| **templates/** | Images to find on screen | `tomato_ripe.png` |
-| **regions.yaml** | Fixed UI element locations | `energy_bar: {x: 1250, y: 600}` |
-| **knowledge/** | External game data (wiki, guides) | `festivals.json` |
-| **rules/** | Decision tree logic | `if energy < 20 → eat` |
+| **recordings/** | Gameplay videos for Claude to analyze | `session_001.mp4` |
+| **templates/** | Images to find on screen (auto-extracted) | `tomato_ripe.png` |
+| **regions.yaml** | Fixed UI element locations (learned from video) | `energy_bar: {x: 1250, y: 600}` |
+| **knowledge/** | External game data (wiki, guides) - optional | `festivals.json` |
+| **rules/** | Decision tree logic (generated from video analysis) | `if energy < 20 → eat` |
 | **profile.yaml** | Input mappings, resolution, settings | `harvest_key: "mouse1"` |
 
-### Creating a New Game Profile
+### Creating a New Game Profile (Video-Based Workflow)
 
-1. **LLM Training Phase:** Show the LLM screenshots of the new game
-2. **Template Extraction:** LLM identifies key objects, you screenshot them
-3. **UI Mapping:** LLM identifies where health/mana/date/etc. appear
-4. **Rule Generation:** LLM suggests decision priorities based on game mechanics
-5. **Knowledge Import:** Scrape or manually add wiki/guide data
+1. **Record Gameplay:** Capture 5-30 minutes of gameplay video showing various scenarios
+   - Play normally, demonstrating the actions you want the bot to learn
+   - Include edge cases: low health situations, inventory management, etc.
+
+2. **Upload to Claude:** Send video clips to Claude API for analysis
+   - Claude watches the video and identifies UI elements, game states, patterns
+   - **This is the only paid API cost** - everything after is free
+
+3. **Auto-Extract Training Data:** Claude generates:
+   - Template images (cropped from video frames)
+   - Region definitions (where UI elements are located)
+   - Decision rules (when to take which actions)
+   - Action mappings (what inputs achieve what)
+
+4. **Review & Refine:** Manually review the generated rules
+   - Adjust priorities, fix any misidentifications
+   - Add supplementary knowledge from wikis if needed
+
+5. **Run Locally (Free Forever):** The bot now runs using local decision trees
+   - No more API calls during gameplay
+   - All knowledge is stored in the profile folder
 
 The core engine code never changes - only the profile folder is swapped.
 
@@ -180,7 +221,31 @@ pytest tests/         # Run tests
 
 ## Dependencies
 
-- **Screen Capture:** mss, opencv-python, numpy
-- **AI Integration:** anthropic SDK (or similar vision-capable AI)
+- **Screen Capture & Recording:** mss, opencv-python, numpy, ffmpeg (for video encoding)
+- **Video Analysis (Training):** anthropic SDK with video support
 - **Input Simulation:** pyadirectinput, custom C++ SendInput wrapper
 - **GUI:** tkinter
+
+## Training vs Runtime Costs
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     COST BREAKDOWN                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  TRAINING PHASE (One-time per game):                            │
+│  ├── Record gameplay .................... FREE (local)          │
+│  ├── Upload video to Claude ............. PAID (API cost)       │
+│  ├── Claude analyzes video .............. PAID (API cost)       │
+│  └── Save training data locally ......... FREE                  │
+│                                                                  │
+│  RUNTIME PHASE (Forever):                                       │
+│  ├── Screen capture ..................... FREE (local)          │
+│  ├── Decision tree evaluation ........... FREE (local)          │
+│  ├── Input simulation ................... FREE (local)          │
+│  └── All gameplay ....................... FREE (no API calls)   │
+│                                                                  │
+│  RESULT: Pay once for training, play forever for free!          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
