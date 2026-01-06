@@ -13,7 +13,7 @@ from typing import Tuple
 # Import our custom C++ extension
 # Note: This might fail if the extension isn't built yet
 try:
-    import src.python.core.clib as clib
+    import src.gametrainer.clib as clib
 except ImportError:
     print("WARNING: C++ extension not found. Input simulation will not work.")
     # Mock for testing/linting without build
@@ -29,6 +29,9 @@ except ImportError:
 class InputController:
     """
     High-level interface for game input.
+
+    Provides methods to simulate keyboard and mouse actions for game automation.
+    Uses Windows SendInput via C++ extension for reliable game input.
     """
 
     # Virtual Key Codes (Windows)
@@ -50,22 +53,18 @@ class InputController:
         Press and release a key.
         Time complexity: O(1) - single system call.
         """
-        # For now, our C++ SendKey does a full press+release instantly.
-        # Ideally we'd separate down/up for duration control.
-        # TODO: Update C++ to support hold duration.
         try:
             clib.send_key(key_code)
         except Exception as e:
             print(f"ERROR: Failed to send key {key_code}: {e}")
-        
-        # If we need to simulate holding, we'd need separate down/up functions in C++.
-        # For discrete RL steps, a "tap" is usually sufficient for movement.
 
+    # Movement keys
     def move_up(self): self.tap_key(self.VK_W)
     def move_down(self): self.tap_key(self.VK_S)
     def move_left(self): self.tap_key(self.VK_A)
     def move_right(self): self.tap_key(self.VK_D)
-    
+
+    # Action keys
     def use_tool(self): self.tap_key(self.VK_C)
     def action(self): self.tap_key(self.VK_X)
     def menu(self): self.tap_key(self.VK_E)
@@ -77,19 +76,17 @@ class InputController:
         Time complexity: O(1) - single system call.
         """
         clib.send_mouse_move(dx, dy)
-    
+
     def mouse_click(self):
         """
         Send a left mouse button click.
         Time complexity: O(1) - single system call.
-        
-        Following clean code principles: Clear, descriptive method name.
         """
         try:
             clib.send_mouse_click()
         except Exception as e:
             print(f"ERROR: Failed to send mouse click: {e}")
-    
+
     def mouse_right_click(self):
         """
         Send a right mouse button click.

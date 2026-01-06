@@ -11,10 +11,9 @@ from setuptools import setup, Extension
 setup(
     name="gametrainer",
     version="2.0",
-    description="Vision-based game automation tool",
+    description="Vision-based game automation with Reinforcement Learning",
     packages=[
-        "src.python.core",
-        "src.python.core.rl",
+        "src.gametrainer",
     ],
 
     # C++ Extension for input simulation
@@ -22,7 +21,7 @@ setup(
     # The input.cpp file wraps Windows SendInput for keyboard/mouse simulation.
     ext_modules=[
         Extension(
-            "src.python.core.clib",
+            "src.gametrainer.clib",
             sources=[
                 "src/cpp/input.cpp",
                 "src/cpp/py_init.cpp",

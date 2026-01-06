@@ -4,7 +4,7 @@ Run this with Stardew Valley open.
 """
 
 import time
-from src.python.core.input_controller import InputController
+from src.gametrainer.input import InputController
 
 print("=" * 60)
 print("INPUT TEST SCRIPT")
@@ -71,11 +71,10 @@ print("=" * 60)
 print("\nDid you see:")
 print("  - Character movement (W/A/S/D keys)?")
 print("  - Mouse clicks in the game?")
-print("\nIf you saw movement/clicks: Input is working! ✓")
+print("\nIf you saw movement/clicks: Input is working!")
 print("If you saw nothing: There may be an issue with:")
 print("  - Game window not receiving focus")
 print("  - C++ extension not working")
 print("  - Game blocking simulated inputs")
 print("  - Need to run as administrator")
 print("\n" + "=" * 60)
-
