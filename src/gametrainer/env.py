@@ -230,61 +230,58 @@ class StardewEnv(gym.Env):
         """
         reward = 0.0
         h, w, _ = frame.shape
+        reward_reasons = []  # Track what contributed to this reward
 
-        # For detailed logging every N steps
-        should_log_details = (self._steps_alive % 200 == 0) and (self._steps_alive > 0)
-        reward_breakdown = {}  # Track individual reward components
+        # Action names for logging
+        action_names = [
+            "NO-OP", "UP(W)", "DOWN(S)", "LEFT(A)", "RIGHT(D)",
+            "LEFT_CLICK", "RIGHT_CLICK",
+            "MOUSE_UP", "MOUSE_DOWN", "MOUSE_LEFT", "MOUSE_RIGHT",
+            "ESC"
+        ]
 
         # =====================================================================
         # A. MOVEMENT DETECTION (The "Am I Stuck?" Check)
         # =====================================================================
-        # Teacher Note: We extract the CENTER of the screen (the "game area")
-        # excluding UI elements at the edges. If the agent sends a movement
-        # command but this area doesn't change, the agent is STUCK.
-
-        # Extract center game area (exclude ~10% from each edge for UI)
         margin_x = int(w * 0.10)
-        margin_top = int(h * 0.08)    # Top has clock/date
-        margin_bottom = int(h * 0.12)  # Bottom has inventory bar
+        margin_top = int(h * 0.08)
+        margin_bottom = int(h * 0.12)
 
         game_area = frame[margin_top:h-margin_bottom, margin_x:w-margin_x]
         game_area_gray = cv2.cvtColor(game_area, cv2.COLOR_BGR2GRAY)
 
-        # Check if this was a movement action (WASD = actions 1-4)
         is_movement_action = action in [1, 2, 3, 4]
 
         if self._prev_game_area is not None and is_movement_action:
-            # Calculate how much the game area changed
             diff = cv2.absdiff(game_area_gray, self._prev_game_area)
             movement_score = diff.mean()
-
-            # Teacher Note: Thresholds determined experimentally.
-            # - < 1.0: Basically identical (STUCK - menu, wall, etc.)
-            # - 1.0-5.0: Minor changes (lighting, animations, but no movement)
-            # - > 5.0: Significant change (character actually moved!)
 
             STUCK_THRESHOLD = 2.0
 
             if movement_score < STUCK_THRESHOLD:
-                # Agent tried to move but nothing happened!
                 self._stuck_counter += 1
-
-                # Escalating penalty - the longer stuck, the worse
-                # This encourages trying ESC or different actions
                 stuck_penalty = -0.1 * min(self._stuck_counter, 10)
                 reward += stuck_penalty
+                reward_reasons.append(f"STUCK({stuck_penalty:+.2f})")
 
-                if self._stuck_counter % 20 == 0:  # Log every 20 stuck frames
-                    self.logger.log(f"STUCK! Counter: {self._stuck_counter}, Penalty: {stuck_penalty:.2f}, Movement score: {movement_score:.2f}")
+                if self._stuck_counter % 20 == 0:
+                    self.logger.log(
+                        f"[PENALTY] STUCK after {action_names[action]} | "
+                        f"Counter: {self._stuck_counter} | "
+                        f"Penalty: {stuck_penalty:.2f} | "
+                        f"Screen change: {movement_score:.2f} (threshold: {STUCK_THRESHOLD})"
+                    )
             else:
-                # Movement succeeded! Reset stuck counter
                 if self._stuck_counter > 0:
-                    self.logger.log(f"Unstuck after {self._stuck_counter} steps! Movement score: {movement_score:.2f}")
+                    self.logger.log(
+                        f"[REWARD] UNSTUCK after {self._stuck_counter} steps | "
+                        f"Action: {action_names[action]} | "
+                        f"Screen change: {movement_score:.2f}"
+                    )
                 self._stuck_counter = 0
-                # Small reward for successful movement
                 reward += 0.05
+                reward_reasons.append("MOVED(+0.05)")
 
-        # Store current game area for next comparison
         self._prev_game_area = game_area_gray.copy()
 
         # =====================================================================
@@ -299,37 +296,76 @@ class StardewEnv(gym.Env):
         energy_delta = current_energy - self._prev_energy
 
         if energy_delta < 0:
-            # Lost energy - small penalty to discourage wasting it
             reward -= 0.05
+            reward_reasons.append("ENERGY_LOSS(-0.05)")
 
         self._prev_energy = current_energy
 
         # =====================================================================
         # D. PRODUCTIVITY (Inventory Changes)
         # =====================================================================
-        inv_region = frame[h-60:h-10, w//4:w//4*3]
+        # Region: center-bottom of screen (inventory bar)
+        inv_x1, inv_x2 = w // 4, (w * 3) // 4
+        inv_y1, inv_y2 = h - 60, h - 10
+        inv_region = frame[inv_y1:inv_y2, inv_x1:inv_x2]
         inv_gray = cv2.cvtColor(inv_region, cv2.COLOR_BGR2GRAY)
 
         if self._prev_inventory_pixels is not None:
-            score = cv2.absdiff(inv_gray, self._prev_inventory_pixels).mean()
-            if score > 5.0:
+            inv_diff = cv2.absdiff(inv_gray, self._prev_inventory_pixels).mean()
+            INV_THRESHOLD = 5.0
+
+            if inv_diff > INV_THRESHOLD:
                 reward += 0.5
+                reward_reasons.append(f"INVENTORY(+0.5)")
+                self.logger.log(
+                    f"[REWARD] INVENTORY CHANGED | "
+                    f"Action: {action_names[action]} | "
+                    f"Pixel diff: {inv_diff:.2f} (threshold: {INV_THRESHOLD}) | "
+                    f"Region: x[{inv_x1}:{inv_x2}] y[{inv_y1}:{inv_y2}]"
+                )
 
         self._prev_inventory_pixels = inv_gray
 
         # =====================================================================
         # E. FINANCIAL SUCCESS (Money Changes)
         # =====================================================================
-        money_region = frame[10:60, w-150:w-10]
+        # Region: top-right corner where money is displayed
+        # NOTE: The clock is ALSO in this area, so we need a higher threshold
+        # to avoid false positives from time changes
+        money_x1, money_x2 = w - 150, w - 10
+        money_y1, money_y2 = 10, 60
+        money_region = frame[money_y1:money_y2, money_x1:money_x2]
         money_gray = cv2.cvtColor(money_region, cv2.COLOR_BGR2GRAY)
 
         if self._prev_money_pixels is not None:
-            score = cv2.absdiff(money_gray, self._prev_money_pixels).mean()
-            if score > 2.0:
+            money_diff = cv2.absdiff(money_gray, self._prev_money_pixels).mean()
+
+            # HIGHER threshold to avoid clock changes triggering this
+            # Clock ticks cause small changes (~2-5), real money changes are bigger
+            MONEY_THRESHOLD = 8.0
+
+            if money_diff > MONEY_THRESHOLD:
                 reward += 1.0
-                self.logger.log("Reward: MONEY EARNED!")
+                reward_reasons.append(f"MONEY(+1.0)")
+                self.logger.log(
+                    f"[REWARD] MONEY REGION CHANGED | "
+                    f"Action: {action_names[action]} | "
+                    f"Pixel diff: {money_diff:.2f} (threshold: {MONEY_THRESHOLD}) | "
+                    f"Region: x[{money_x1}:{money_x2}] y[{money_y1}:{money_y2}] | "
+                    f"WARNING: Could be clock change, menu, or actual money!"
+                )
 
         self._prev_money_pixels = money_gray
+
+        # =====================================================================
+        # PERIODIC SUMMARY LOG (every 100 steps)
+        # =====================================================================
+        if self._steps_alive % 100 == 0 and self._steps_alive > 0:
+            self.logger.log(
+                f"[STEP {self._steps_alive}] Action: {action_names[action]} | "
+                f"Reward: {reward:+.3f} | "
+                f"Reasons: {', '.join(reward_reasons) if reward_reasons else 'survival only'}"
+            )
 
         return reward
 

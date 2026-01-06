@@ -57,6 +57,7 @@ setup(
             "torch",             # Deep learning backend
             "tensorboard",       # Training visualization
             "shimmy",            # Compatibility layer often needed for gym v0.26+
+            "timm",              # PyTorch Image Models - provides ViT architectures
         ],
     },
 
