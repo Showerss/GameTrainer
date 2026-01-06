@@ -22,3 +22,8 @@ CMakeFiles/
 .idea/
 .vscode/
 *.swp
+
+# Models and Training Artifacts
+models/
+logs/
+*.zip
