@@ -18,13 +18,12 @@ setup(
 
     # C++ Extension for input simulation
     # Teacher Note: This compiles our C++ code into a Python-importable module.
-    # The input.cpp file wraps Windows SendInput for keyboard/mouse simulation.
+    # We use a single unified C++ file (clib.cpp) for simplicity.
     ext_modules=[
         Extension(
             "src.gametrainer.clib",
             sources=[
-                "src/cpp/input.cpp",
-                "src/cpp/py_init.cpp",
+                "src/cpp/clib.cpp",
             ],
             include_dirs=["include"],
             libraries=["user32", "kernel32"],

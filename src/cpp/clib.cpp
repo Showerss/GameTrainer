@@ -1,7 +1,12 @@
-#include "input.h"
+#include <Python.h>
+#include <Windows.h>
 #include <random>
 #include <thread>
 #include <chrono>
+
+// ============================================================================
+// PART 1: NATIVE INPUT IMPLEMENTATION
+// ============================================================================
 
 namespace {
     std::mt19937& GetRNG() {
@@ -82,22 +87,18 @@ void SendMouseRightClick() {
 
 // Simple key down + key up.
 // Teacher Note: Games using DirectInput (like Stardew Valley / MonoGame) read
-// HARDWARE SCAN CODES, not virtual key codes. Virtual keys work for regular apps
-// (Notepad, browsers) but games bypass the Windows message queue and read directly
-// from the keyboard driver. We must use KEYEVENTF_SCANCODE to simulate hardware input.
+// HARDWARE SCAN CODES, not virtual key codes. We use MapVirtualKey to find them.
 void SendKey(WORD vkCode) {
     INPUT inputs[2] = {0};
 
     // Convert virtual key to hardware scan code
-    // Teacher Note: MapVirtualKey translates between VK codes and scan codes.
-    // MAPVK_VK_TO_VSC gives us the scan code that the physical key would generate.
     UINT scanCode = MapVirtualKey(vkCode, MAPVK_VK_TO_VSC);
 
     // Key down - using SCAN CODE (critical for games!)
     inputs[0].type        = INPUT_KEYBOARD;
     inputs[0].ki.wVk      = 0;  // Must be 0 when using scan codes
     inputs[0].ki.wScan    = scanCode;
-    inputs[0].ki.dwFlags  = KEYEVENTF_SCANCODE;  // This flag tells Windows to use wScan
+    inputs[0].ki.dwFlags  = KEYEVENTF_SCANCODE;
     inputs[0].ki.dwExtraInfo = 0;
 
     // Key up - also using scan code
@@ -117,26 +118,71 @@ void SendKey(WORD vkCode) {
     SendInput(1, &inputs[1], sizeof(INPUT));
 }
 
-// Alternative method: Send key directly to window using PostMessage.
-// This can bypass some games' input detection mechanisms.
-int SendKeyToWindow(HWND hwnd, WORD vkCode) {
-    if (hwnd == NULL || !IsWindow(hwnd)) {
-        return 0;  // Invalid window handle
+
+// ============================================================================
+// PART 2: PYTHON BINDINGS (C API)
+// ============================================================================
+
+// Python wrapper for SendKey
+static PyObject* method_send_key(PyObject* self, PyObject* args) {
+    int vkCode;
+    if (!PyArg_ParseTuple(args, "i", &vkCode)) return NULL;
+    SendKey((WORD)vkCode);
+    Py_RETURN_NONE;
+}
+
+// Python wrapper for SendMouseMove
+static PyObject* method_send_mouse_move(PyObject* self, PyObject* args) {
+    int dx, dy;
+    if (!PyArg_ParseTuple(args, "ii", &dx, &dy)) return NULL;
+    SendMouseMove(dx, dy);
+    Py_RETURN_NONE;
+}
+
+// Python wrapper for JitteredMouseMove
+static PyObject* method_jitter_move(PyObject* self, PyObject* args) {
+    int x, y;
+    if (!PyArg_ParseTuple(args, "ii", &x, &y)) return NULL;
+    JitteredMouseMove(x, y);
+    Py_RETURN_NONE;
+}
+
+// Python wrapper for SendMouseClick
+static PyObject* method_send_mouse_click(PyObject* self, PyObject* args) {
+    if (!PyArg_ParseTuple(args, "")) return NULL;
+    SendMouseClick();
+    Py_RETURN_NONE;
+}
+
+// Python wrapper for SendMouseRightClick
+static PyObject* method_send_mouse_right_click(PyObject* self, PyObject* args) {
+    if (!PyArg_ParseTuple(args, "")) return NULL;
+    SendMouseRightClick();
+    Py_RETURN_NONE;
+}
+
+// Method definition table
+static PyMethodDef ClibMethods[] = {
+    {"send_key", method_send_key, METH_VARARGS, "Send a key press (VK code)."},
+    {"send_mouse_move", method_send_mouse_move, METH_VARARGS, "Move mouse relative (dx, dy)."},
+    {"jitter_move", method_jitter_move, METH_VARARGS, "Move mouse relative with jitter (dx, dy)."},
+    {"send_mouse_click", method_send_mouse_click, METH_VARARGS, "Send a left mouse button click."},
+    {"send_mouse_right_click", method_send_mouse_right_click, METH_VARARGS, "Send a right mouse button click."},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
+
+// Module definition
+static PyModuleDef ClibModule = {
+    PyModuleDef_HEAD_INIT,
+    "clib",
+    "GameTrainer C Library",
+    -1,
+    ClibMethods
+};
+
+// Module initialization function
+extern "C" {
+    PyMODINIT_FUNC PyInit_clib(void) {
+        return PyModule_Create(&ClibModule);
     }
-    
-    // Get scan code for the virtual key
-    UINT scanCode = MapVirtualKey(vkCode, MAPVK_VK_TO_VSC);
-    
-    // Send WM_KEYDOWN
-    LPARAM lParamDown = (scanCode << 16) | (1 << 25);  // Scan code + extended key flag
-    PostMessage(hwnd, WM_KEYDOWN, vkCode, lParamDown);
-    
-    // Small delay
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
-    // Send WM_KEYUP
-    LPARAM lParamUp = (scanCode << 16) | (1 << 25) | (1 << 30) | (1 << 31);  // + key was down + transition
-    PostMessage(hwnd, WM_KEYUP, vkCode, lParamUp);
-    
-    return 1;  // Success
 }
