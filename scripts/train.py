@@ -41,11 +41,10 @@ sys.path.insert(0, _project_root)
 if not os.path.exists(os.path.join(_project_root, "src", "gametrainer")):
     print(f"[!!] ERROR: Cannot find src/gametrainer package!")
     print(f"     Current working directory: {os.getcwd()}")
-  ww  print(f"     Script location: {os.path.abspath(__file__)}")
+    print(f"     Script location: {os.path.abspath(__file__)}")
     print(f"     Project root: {_project_root}")
     print(f"     Please run from project root: python scripts/train.py small")
     sys.exit(1)
-wwdd
 
 # =============================================================================
 # DEPENDENCY MANAGEMENT
@@ -211,6 +210,14 @@ def create_action_logging_callback():
                     print()
 
             return True
+
+        def _on_rollout_end(self) -> None:
+            """Called when the buffer is full and learning starts."""
+            print("\n" + "="*70)
+            print("[ROLLOUT END] Collected 1024 steps.")
+            print(">>> STARTING GPU UPDATE PHASE (LEARNING) <<<")
+            print("The bot will pause for a moment while the neural network weights are updated.")
+            print("="*70 + "\n")
 
     return ActionLoggingCallback
 

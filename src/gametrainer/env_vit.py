@@ -359,26 +359,59 @@ class StardewViTEnv(gym.Env):
             self.input.escape()
 
     def _focus_game_window(self, title):
-        """Focus the game window to ensure it receives input."""
+        """
+        Focus the game window to ensure it receives input.
+        
+        Teacher Note: This is critical but dangerous. If we hang here,
+        training stops. We use a safe implementation that tries to find
+        the window and bring it to front, but gives up easily if it fails.
+        """
         try:
             import win32gui
             import win32con
 
-            hwnd = None
-            def callback(h, _):
-                nonlocal hwnd
-                if win32gui.IsWindowVisible(h):
-                    if title.lower() in win32gui.GetWindowText(h).lower():
-                        hwnd = h
-                        return False
+            # Find the largest window with the title (same logic as ScreenCapture)
+            # This avoids grabbing tooltips or hidden windows
+            target_hwnd = None
+            max_area = 0
+            partial_lower = title.lower()
+
+            def callback(hwnd, _):
+                nonlocal target_hwnd, max_area
+                if win32gui.IsWindowVisible(hwnd):
+                    window_title = win32gui.GetWindowText(hwnd)
+                    if partial_lower in window_title.lower():
+                        try:
+                            rect = win32gui.GetWindowRect(hwnd)
+                            w = rect[2] - rect[0]
+                            h = rect[3] - rect[1]
+                            area = w * h
+                            if area > max_area:
+                                max_area = area
+                                target_hwnd = hwnd
+                        except Exception:
+                            pass
                 return True
 
             win32gui.EnumWindows(callback, None)
 
-            if hwnd:
-                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                win32gui.SetForegroundWindow(hwnd)
+            if target_hwnd:
+                # If it's not the foreground window, try to switch
+                if win32gui.GetForegroundWindow() != target_hwnd:
+                    # Restore if minimized
+                    if win32gui.IsIconic(target_hwnd):
+                        win32gui.ShowWindow(target_hwnd, win32con.SW_RESTORE)
+                    
+                    # Bring to front safely
+                    try:
+                        win32gui.SetForegroundWindow(target_hwnd)
+                    except Exception:
+                        # Sometimes Windows blocks this call. That's fine.
+                        # We can try a "force" via Alt key simulation if really needed,
+                        # but for now let's just fail silently to keep training running.
+                        pass
         except Exception:
+            # Never crash the training loop just because focus failed
             pass
 
     def render(self):

@@ -138,63 +138,67 @@ class ScreenCapture:
         print(f"Capture region set to custom rect: {self._region}")
         return True
 
-    def set_region_from_window(self, window_title: str) -> bool:
+    def set_region_from_window(self, window_title: str, retry_count: int = 5) -> bool:
         """
         Set capture region to match a window by its title.
 
         Args:
             window_title: The title of the window to find (partial match)
+            retry_count: How many times to retry if window is not found or too small
 
         Returns:
-            True if window found and region set, False otherwise
+            True if a valid game window was found, False otherwise
 
-        Teacher Note: This uses the Windows API (win32gui) to find a window
-        by its title and get its position/size. The window doesn't need to
-        be in focus, but it does need to be visible (not minimized).
+        Teacher Note: We added a MIN_AREA check. If we find a window named
+        "Stardew Valley" but it's tiny (like 160x28), we ignore it and retry.
+        This gives the user time to open the game and ensures we don't
+        accidentally capture a background process or tooltip.
         """
         if not HAS_WIN32:
             print("win32gui not available - can't find windows by title")
-            print("Install with: pip install pywin32")
             return False
 
-        # Find the window
-        hwnd = self._find_window_by_title(window_title)
-        if hwnd is None:
-            print(f"Window not found: '{window_title}'")
-            return False
+        # Minimum area for a window to be considered "The Game"
+        # 800x600 = 480,000 pixels. Anything smaller is likely a tooltip.
+        MIN_AREA = 800 * 600
+        
+        import time
 
-        # Get the window's position and size
-        rect = win32gui.GetWindowRect(hwnd)
-        x, y, right, bottom = rect
-        width = right - x
-        height = bottom - y
+        for attempt in range(retry_count):
+            # Find the largest window
+            hwnd = self._find_window_by_title(window_title)
+            
+            if hwnd:
+                rect = win32gui.GetWindowRect(hwnd)
+                x, y, right, bottom = rect
+                width = right - x
+                height = bottom - y
+                area = width * height
 
-        self._region = {
-            "left": x,
-            "top": y,
-            "width": width,
-            "height": height
-        }
+                if area >= MIN_AREA:
+                    self._region = {
+                        "left": x,
+                        "top": y,
+                        "width": width,
+                        "height": height
+                    }
+                    actual_title = win32gui.GetWindowText(hwnd)
+                    print(f"SUCCESS: Captured '{actual_title}' ({width}x{height})")
+                    return True
+                else:
+                    print(f"Attempt {attempt+1}: Found window, but too small ({width}x{height}). Ignoring...")
+            else:
+                print(f"Attempt {attempt+1}: Window '{window_title}' not found.")
+            
+            if attempt < retry_count - 1:
+                time.sleep(1) # Wait a second before retrying
 
-        # Get actual window title for confirmation
-        actual_title = win32gui.GetWindowText(hwnd)
-        print(f"Capture region set to window '{actual_title}': {self._region}")
-        return True
+        print(f"FAILED: Could not find a valid game window for '{window_title}' after {retry_count} attempts.")
+        return False
 
     def _find_window_by_title(self, partial_title: str) -> Optional[int]:
         """
         Find the largest window handle by partial title match.
-
-        Args:
-            partial_title: Part of the window title to search for
-
-        Returns:
-            Window handle (hwnd) of the largest matching window, or None
-
-        Teacher Note: Some games (and Windows itself) have multiple windows
-        with the same name (tooltips, overlays, hidden engines). We look for
-        all matches and pick the one with the largest area, assuming that's
-        the actual game window.
         """
         candidates = []
         partial_lower = partial_title.lower()
@@ -203,14 +207,11 @@ class ScreenCapture:
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
                 if partial_lower in title.lower():
-                    # Get size to verify it's the main window
                     try:
                         rect = win32gui.GetWindowRect(hwnd)
                         width = rect[2] - rect[0]
                         height = rect[3] - rect[1]
                         area = width * height
-                        
-                        # Only consider windows that actually have a size
                         if area > 0:
                             candidates.append((area, hwnd))
                     except Exception:
@@ -224,12 +225,6 @@ class ScreenCapture:
 
         # Sort by area descending and return the largest hwnd
         candidates.sort(key=lambda x: x[0], reverse=True)
-        
-        # Log if we found multiple candidates
-        if len(candidates) > 1:
-            print(f"Found {len(candidates)} windows matching '{partial_title}'.")
-            print(f"Picking largest: {candidates[0][0]:,} pixels area.")
-
         return candidates[0][1]
 
     def grab(self) -> Optional[np.ndarray]:
