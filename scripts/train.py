@@ -34,8 +34,18 @@ import subprocess
 import numpy as np
 
 # Add project root to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _project_root)
 
+# Verify we can find the gametrainer package
+if not os.path.exists(os.path.join(_project_root, "src", "gametrainer")):
+    print(f"[!!] ERROR: Cannot find src/gametrainer package!")
+    print(f"     Current working directory: {os.getcwd()}")
+  ww  print(f"     Script location: {os.path.abspath(__file__)}")
+    print(f"     Project root: {_project_root}")
+    print(f"     Please run from project root: python scripts/train.py small")
+    sys.exit(1)
+wwdd
 
 # =============================================================================
 # DEPENDENCY MANAGEMENT
@@ -266,26 +276,42 @@ ViT Sizes:
 # =============================================================================
 
 def main():
-    # Parse command-line arguments
-    args = parse_args()
+    try:
+        # Parse command-line arguments
+        print("[DEBUG] Starting train.py...")
+        args = parse_args()
+        print(f"[DEBUG] Parsed arguments: size={args.size}, steps={args.steps}, freeze={args.freeze}")
 
-    print("=" * 60)
-    print("GAMETRAINER - ViT EDITION")
-    print("=" * 60)
-    print()
+        print("=" * 60)
+        print("GAMETRAINER - ViT EDITION")
+        print("=" * 60)
+        print()
 
-    # 1. Check and install dependencies
-    if not check_all_dependencies():
-        print("\n[!!] Some dependencies failed to install.")
-        print("     Try manually: pip install -e .[rl]")
-        response = input("     Continue anyway? (y/n): ")
-        if response.lower() != 'y':
+        # 1. Check and install dependencies
+        if not check_all_dependencies():
+            print("\n[!!] Some dependencies failed to install.")
+            print("     Try manually: pip install -e .[rl]")
+            response = input("     Continue anyway? (y/n): ")
+            if response.lower() != 'y':
+                print("Exiting...")
+                return
+
+        # 2. Import modules now that dependencies are verified
+        print("\nLoading modules...")
+        try:
+            do_imports()
+            print("[OK] All modules loaded\n")
+        except Exception as e:
+            print(f"\n[!!] Failed to import modules: {e}")
+            print(f"     Error type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
             return
-
-    # 2. Import modules now that dependencies are verified
-    print("\nLoading modules...")
-    do_imports()
-    print("[OK] All modules loaded\n")
+    except Exception as e:
+        print(f"\n[!!] Fatal error in main(): {e}")
+        import traceback
+        traceback.print_exc()
+        return
 
     # 3. Check C++ extension
     print("Checking C++ input extension...")
@@ -468,4 +494,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nScript interrupted by user.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n[!!] Unhandled exception: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

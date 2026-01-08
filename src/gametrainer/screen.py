@@ -183,32 +183,54 @@ class ScreenCapture:
 
     def _find_window_by_title(self, partial_title: str) -> Optional[int]:
         """
-        Find a window handle by partial title match.
+        Find the largest window handle by partial title match.
 
         Args:
             partial_title: Part of the window title to search for
 
         Returns:
-            Window handle (hwnd) if found, None otherwise
+            Window handle (hwnd) of the largest matching window, or None
 
-        Teacher Note: We iterate through all top-level windows and check
-        if our search string is contained in the window title. This is
-        case-insensitive to make it easier to use.
+        Teacher Note: Some games (and Windows itself) have multiple windows
+        with the same name (tooltips, overlays, hidden engines). We look for
+        all matches and pick the one with the largest area, assuming that's
+        the actual game window.
         """
-        result = None
+        candidates = []
         partial_lower = partial_title.lower()
 
         def callback(hwnd, _):
-            nonlocal result
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
                 if partial_lower in title.lower():
-                    result = hwnd
-                    return False  # Stop enumeration
-            return True  # Continue enumeration
+                    # Get size to verify it's the main window
+                    try:
+                        rect = win32gui.GetWindowRect(hwnd)
+                        width = rect[2] - rect[0]
+                        height = rect[3] - rect[1]
+                        area = width * height
+                        
+                        # Only consider windows that actually have a size
+                        if area > 0:
+                            candidates.append((area, hwnd))
+                    except Exception:
+                        pass
+            return True
 
         win32gui.EnumWindows(callback, None)
-        return result
+
+        if not candidates:
+            return None
+
+        # Sort by area descending and return the largest hwnd
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        
+        # Log if we found multiple candidates
+        if len(candidates) > 1:
+            print(f"Found {len(candidates)} windows matching '{partial_title}'.")
+            print(f"Picking largest: {candidates[0][0]:,} pixels area.")
+
+        return candidates[0][1]
 
     def grab(self) -> Optional[np.ndarray]:
         """

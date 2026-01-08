@@ -14,18 +14,34 @@ GameTrainer is a **local Reinforcement Learning (RL)** system for game automatio
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────────────────┐     ┌─────────────────┐
-│  Screen Capture │ ──► │  RL Agent (PPO/DQN on GPU)   │ ──► │ Input Simulate  │
-│   (mss/opencv)  │     │   (stable-baselines3/torch)  │     │   (SendInput)   │
+┌─────────────────┐     ┌──────────────────────────────┐     
+┌─────────────────┐
+│  Screen Capture │ ──► │  RL Agent (PPO/ViT on GPU)   │ ──► │ Input Simulate  │
+│   (mss/opencv)  │     │   (SB3 + timm ViT-Base)      │     │   (SendInput)   │
 └─────────────────┘     └──────────────────────────────┘     └─────────────────┘
 ```
 
 ## Reinforcement Learning Strategy
 
-We use `gymnasium` and `stable-baselines3` to create a standard RL environment.
+We use `gymnasium` and `stable-baselines3` with a custom **Vision Transformer (ViT)** feature extractor.
 
 ### 1. Perception (The Eyes)
-Instead of searching for specific "red pixels" for health, the system feeds the game frame (downscaled/processed) into a **Convolutional Neural Network (CNN)**. The model learns which visual features matter (e.g., bar length, objects) on its own.
+We have moved beyond standard CNNs to use **Vision Transformers**.
+- **Model:** ViT-Base or ViT-Small (via `timm`), pre-trained on ImageNet.
+- **Input:** **224x224 RGB**. We do *not* convert to grayscale or aggressively downscale to 84x84. Color is vital for health/energy bars.
+- **Why ViT?** Global Attention. In Stardew, the energy bar (top-right) and hotbar (bottom) are spatially distant but contextually related. ViTs connect these distinct screen regions immediately via self-attention, whereas CNNs require deep layering to find these relationships.
+
+#### Vision Transformer (ViT) Details
+| Model Variant | Parameters | VRAM | Use Case |
+| :--- | :--- | :--- | :--- |
+| **Tiny** | ~5.7M | ~3GB | Rapid testing; verifies pipeline works. |
+| **Small** | ~22M | ~6GB | **Recommended Default.** Best balance of speed/smarts. |
+| **Base** | ~86M | ~12GB+ | Maximum capability; slower training. |
+
+**Important Note on Resolution:**
+Regardless of the model size (Tiny/Small/Base), the input is **always 224x224 RGB**.
+- **The "Squish":** The game's 1080p screen is downscaled to 224x224.
+- **Trade-off:** We sacrifice fine text readability for **speed** and **transfer learning** (leveraging ImageNet weights). The AI sees "blobs" and "shapes" (green bar = energy) rather than reading specific numbers.
 
 ### 2. Action (The Hands)
 The agent outputs discrete actions (e.g., `Move Up`, `Use Tool`, `Eat`) or continuous values depending on the specific task configuration.
@@ -38,15 +54,15 @@ We define a reward function to guide learning:
 
 ### 4. Training Loop (The Brain)
 - **Local & Fast:** Runs entirely on the 9070xt GPU.
-- **Iterative:** The agent tries actions, receives rewards, updates its neural weights, and tries again.
-- **Exploration:** The agent actively tries new strategies to discover optimal play, covering edge cases that a fixed rule set would miss.
+- **Transfer Learning:** By using pre-trained ViT weights, the agent already understands "shapes" and "objects" before the first frame, significantly speeding up convergence compared to training a CNN from scratch on pixels.
+- **Exploration:** The agent actively tries new strategies to discover optimal play.
 
 ## Environment & State
 
-The "Knowledge" of the system is now implicit within the trained neural network weights, not stored in human-readable JSON files.
+The "Knowledge" of the system is implicit within the Transformer's attention weights.
 
 ### Observation Space (Input)
-- **Visual:** Raw RGB frames from the game window (processed/grayscale/stacked).
+- **Visual:** 224x224 x 3 (RGB) frames.
 - **Auxiliary (Optional):** OCR text or critical numerical values (Energy %) can be fed as a separate vector if visual learning proves too slow for specific gauges.
 
 ### Action Space (Output)
