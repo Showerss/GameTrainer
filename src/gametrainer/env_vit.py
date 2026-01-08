@@ -121,14 +121,20 @@ class StardewViTEnv(gym.Env):
             region = self.cap.region
             self.logger.log(f"WINDOW FOUND: {region['width']}x{region['height']}")
 
-        # =====================================================================
-        # INTERNAL STATE
-        # =====================================================================
+        # Internal state
         self._steps_alive = 0
         self._stuck_counter = 0
         self._prev_frame_small = None  # For movement detection
         self._prev_energy_pct = None
+        self._prev_notification_region = None  # For loot/notification detection
         self._episode_reward = 0.0
+
+        # Anti-spam tracking
+        # Teacher Note: The agent will exploit any "safe" action that doesn't get
+        # punished. ESC and NO-OP are perfect examples - they don't trigger stuck
+        # detection or click penalties. We need to track and punish repetition.
+        self._last_actions = []  # Rolling window of recent actions
+        self._consecutive_passive = 0  # Count of ESC/NO-OP/mouse-aim in a row
 
         # Action names for logging
         self._action_names = [
@@ -189,15 +195,20 @@ class StardewViTEnv(gym.Env):
 
         # Execute action multiple times (frame skipping)
         for _ in range(self.FRAME_SKIP):
+            # Capture state BEFORE action for interaction checking
+            # We need this to see if our click actually changed anything
+            frame_before = self.cap.grab()
+
             self._take_action(action)
             time.sleep(0.03)  # 30ms between frames
 
+            # Capture state AFTER action
             raw_frame = self.cap.grab()
             if raw_frame is None:
                 # Window lost - return empty observation
                 return np.zeros((3, 224, 224), dtype=np.uint8), 0.0, True, False, {}
 
-            reward = self._calculate_reward(raw_frame, action)
+            reward = self._calculate_reward(raw_frame, action, frame_before)
             total_reward += reward
 
         # Get processed observation
@@ -217,18 +228,48 @@ class StardewViTEnv(gym.Env):
 
         return obs, total_reward, terminated, truncated, info
 
-    def _calculate_reward(self, frame, action):
+    def _calculate_reward(self, frame, action, frame_before=None):
         """
         Calculate reward based on game state.
-
-        Teacher Note: This is the SAME reward logic as before.
-        The ViT processes what it SEES, but rewards define what's GOOD.
-        We still need to tell the agent what behavior we want.
         """
         reward = 0.0
 
         # -----------------------------------------------------------------
-        # A. MOVEMENT DETECTION
+        # A. INTERACTION CHECK (Did clicking do anything?)
+        # -----------------------------------------------------------------
+        # Actions 5 (Left Click) and 6 (Right Click)
+        if action in [5, 6] and frame_before is not None:
+            interact_reward = self._calculate_interaction_reward(frame_before, frame)
+            reward += interact_reward
+
+        # -----------------------------------------------------------------
+        # B. NOTIFICATION/LOOT DETECTION (Bottom-Left)
+        # -----------------------------------------------------------------
+        # Teacher Note: Stardew pops up "+1 Wood" or "Quest Complete" in the 
+        # bottom-left. We watch this area for sudden pixel changes.
+        h, w = frame.shape[:2]
+        # Bottom-left 25% area
+        notif_y_start = int(h * 0.7)
+        notif_x_end = int(w * 0.3)
+        notif_region = frame[notif_y_start:h, 0:notif_x_end]
+        
+        # Shrink and grayscale for robust comparison
+        notif_small = cv2.resize(notif_region, (64, 64))
+        notif_gray = cv2.cvtColor(notif_small, cv2.COLOR_BGR2GRAY)
+
+        if self._prev_notification_region is not None:
+            # Check for sudden appearance of text/icons
+            notif_diff = cv2.absdiff(notif_gray, self._prev_notification_region).mean()
+            
+            # Threshold: 8.0 is enough to catch appearing text but ignore minor lighting shifts
+            if notif_diff > 8.0:
+                reward += 1.0
+                self.logger.log(f"[LOOT/NOTIF] Detected change in bottom-left! Diff: {notif_diff:.1f}")
+
+        self._prev_notification_region = notif_gray.copy()
+
+        # -----------------------------------------------------------------
+        # C. MOVEMENT DETECTION
         # -----------------------------------------------------------------
         # Shrink frame for fast comparison
         frame_small = cv2.resize(frame, (64, 64))
@@ -261,7 +302,7 @@ class StardewViTEnv(gym.Env):
         self._prev_frame_small = frame_gray.copy()
 
         # -----------------------------------------------------------------
-        # B. ENERGY DETECTION (approximate via green pixels in bottom-right)
+        # D. ENERGY DETECTION (approximate via green pixels in bottom-right)
         # -----------------------------------------------------------------
         h, w = frame.shape[:2]
         energy_region = frame[int(h*0.75):h, int(w*0.9):w]
@@ -284,12 +325,12 @@ class StardewViTEnv(gym.Env):
             self._prev_energy_pct = energy_pct
 
         # -----------------------------------------------------------------
-        # C. SURVIVAL BASELINE
+        # E. SURVIVAL BASELINE
         # -----------------------------------------------------------------
         reward += 0.001  # Tiny reward for staying alive
 
         # -----------------------------------------------------------------
-        # D. PERIODIC LOGGING
+        # F. PERIODIC LOGGING
         # -----------------------------------------------------------------
         if self._steps_alive % 100 == 0:
             energy_str = f"{self._prev_energy_pct:.0%}" if self._prev_energy_pct else "?"
@@ -302,6 +343,66 @@ class StardewViTEnv(gym.Env):
             )
 
         return reward
+
+    def _calculate_interaction_reward(self, frame_before, frame_after):
+        """
+        Check if pixels around the cursor changed after a click.
+        Returns positive reward if changed, small penalty if not.
+        """
+        try:
+            import win32gui
+            
+            # 1. Get Global Cursor Pos
+            flags, hcursor, (cx, cy) = win32gui.GetCursorInfo()
+            
+            # 2. Get Window Region
+            region = self.cap.region
+            if not region:
+                return 0.0
+                
+            # 3. Convert to Local Coordinates relative to the frame we captured
+            # Note: frame_before/after are BGR numpy arrays of the captured region
+            lx = cx - region["left"]
+            ly = cy - region["top"]
+            
+            # Check bounds
+            h, w = frame_before.shape[:2]
+            if lx < 0 or lx >= w or ly < 0 or ly >= h:
+                return 0.0 # Cursor outside game window
+                
+            # 4. Define ROI (Region of Interest) around cursor
+            # 40x40 box (20px radius)
+            radius = 20
+            x1 = max(0, lx - radius)
+            y1 = max(0, ly - radius)
+            x2 = min(w, lx + radius)
+            y2 = min(h, ly + radius)
+            
+            # 5. Extract and Compare
+            # Use Grayscale for simpler comparison
+            roi_before = cv2.cvtColor(frame_before[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY)
+            roi_after = cv2.cvtColor(frame_after[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY)
+            
+            diff = cv2.absdiff(roi_before, roi_after).mean()
+            
+            # 6. Reward Logic
+            # Threshold: How much pixel change constitutes a "hit"?
+            # A swinging tool animation is a large change. A menu button press is a small change.
+            # 5.0 is a conservative threshold (0-255 scale).
+            if diff > 5.0:
+                # Significant change! We hit something or clicked a button.
+                # Log it occasionally so we know it's working
+                if self._steps_alive % 50 == 0:
+                    self.logger.log(f"[INTERACT] Successful click! Diff: {diff:.1f}")
+                return 0.5
+            else:
+                # No change. We clicked on static background or thin air.
+                # Small penalty to discourage spamming clicks on nothing.
+                return -0.05
+                
+        except Exception:
+            # Fallback if win32gui fails or other issues
+            return 0.0
 
     def reset(self, seed=None, options=None):
         """Reset environment for new episode."""
@@ -317,6 +418,7 @@ class StardewViTEnv(gym.Env):
         self._stuck_counter = 0
         self._prev_frame_small = None
         self._prev_energy_pct = None
+        self._prev_notification_region = None
         self._episode_reward = 0.0
 
         # Grab initial frame

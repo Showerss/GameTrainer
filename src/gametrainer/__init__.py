@@ -22,7 +22,7 @@ from src.gametrainer.logger import Logger
 from src.gametrainer.screen import ScreenCapture
 from src.gametrainer.input import InputController
 from src.gametrainer.config import ConfigLoader
-from src.gametrainer.env import StardewEnv
+from src.gametrainer.env_legacy import StardewEnv
 
 __all__ = [
     "Logger",
