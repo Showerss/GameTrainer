@@ -217,6 +217,17 @@ class StardewViTEnv(gym.Env):
         self._steps_alive += 1
         self._episode_reward += total_reward
 
+        # Periodic logging (once per step, not per frame)
+        if self._steps_alive % 100 == 0:
+            energy_str = f"{self._prev_energy_pct:.0%}" if self._prev_energy_pct else "?"
+            self.logger.log(
+                f"[STEP {self._steps_alive:5d}] "
+                f"Action: {self._action_names[action]:8s} | "
+                f"Reward: {total_reward:+.3f} | "
+                f"Energy: {energy_str} | "
+                f"Passive: {self._consecutive_passive}"
+            )
+
         terminated = False
         truncated = self._steps_alive > 10000  # Episode length limit
 
@@ -260,11 +271,13 @@ class StardewViTEnv(gym.Env):
         if self._prev_notification_region is not None:
             # Check for sudden appearance of text/icons
             notif_diff = cv2.absdiff(notif_gray, self._prev_notification_region).mean()
-            
-            # Threshold: 8.0 is enough to catch appearing text but ignore minor lighting shifts
-            if notif_diff > 8.0:
+
+            # Threshold raised to 15.0 to reduce false positives from UI animations
+            # Only log occasionally to reduce spam (every 500 steps or on big changes)
+            if notif_diff > 15.0:
                 reward += 1.0
-                self.logger.log(f"[LOOT/NOTIF] Detected change in bottom-left! Diff: {notif_diff:.1f}")
+                if notif_diff > 30.0 or self._steps_alive % 500 == 0:
+                    self.logger.log(f"[LOOT/NOTIF] Diff: {notif_diff:.1f}")
 
         self._prev_notification_region = notif_gray.copy()
 
@@ -330,18 +343,62 @@ class StardewViTEnv(gym.Env):
         reward += 0.001  # Tiny reward for staying alive
 
         # -----------------------------------------------------------------
-        # F. PERIODIC LOGGING
+        # F. ANTI-SPAM: Penalize passive/repetitive actions
         # -----------------------------------------------------------------
-        if self._steps_alive % 100 == 0:
-            energy_str = f"{self._prev_energy_pct:.0%}" if self._prev_energy_pct else "?"
-            self.logger.log(
-                f"[STEP {self._steps_alive:5d}] "
-                f"Action: {self._action_names[action]:8s} | "
-                f"Reward: {reward:+.3f} | "
-                f"Energy: {energy_str} | "
-                f"Stuck: {self._stuck_counter}"
-            )
+        # Teacher Note: The agent discovered that ESC, NO-OP, and mouse-aim
+        # actions are "safe" because they don't trigger stuck detection or
+        # click penalties. We need to make passive play costly.
 
+        # Define passive actions: NO-OP (0), mouse aims (7-10), ESC (11)
+        passive_actions = {0, 7, 8, 9, 10, 11}
+
+        if action in passive_actions:
+            self._consecutive_passive += 1
+
+            # Escalating penalty: gets worse the longer you stay passive
+            # Starts at -0.02, caps at -0.5 after 25 consecutive passive actions
+            passive_penalty = -0.02 * min(self._consecutive_passive, 25)
+            reward += passive_penalty
+
+            # Extra penalty specifically for ESC spam
+            if action == 11:  # ESC
+                reward -= 0.05  # ESC always costs something
+
+            # Log when it's getting bad
+            if self._consecutive_passive == 10:
+                self.logger.log(f"[PASSIVE] Warning: {self._consecutive_passive} passive actions in a row!")
+            elif self._consecutive_passive % 25 == 0 and self._consecutive_passive > 0:
+                self.logger.log(f"[PASSIVE] Critical: {self._consecutive_passive} passive actions! Penalty: {passive_penalty:.2f}")
+        else:
+            # Active action taken - reset counter
+            if self._consecutive_passive > 5:
+                self.logger.log(f"[ACTIVE] Broke passive streak of {self._consecutive_passive}")
+            self._consecutive_passive = 0
+
+        # Track action history for repetition detection (last 10 actions)
+        self._last_actions.append(action)
+        if len(self._last_actions) > 10:
+            self._last_actions.pop(0)
+
+        # Penalize if last 5 actions are all the same (any action)
+        if len(self._last_actions) >= 5:
+            last_5 = self._last_actions[-5:]
+            if len(set(last_5)) == 1:  # All same action
+                reward -= 0.1  # Repetition penalty
+
+        # -----------------------------------------------------------------
+        # G. LOW ENERGY ONGOING PENALTY
+        # -----------------------------------------------------------------
+        # Teacher Note: Previously we only penalized when energy DROPPED.
+        # But the agent learned to just stay at low energy forever.
+        # Now we apply ongoing pressure to seek food/sleep.
+        if self._prev_energy_pct is not None:
+            if self._prev_energy_pct < 0.10:  # Below 10%
+                reward -= 0.15  # Strong penalty - you're exhausted!
+            elif self._prev_energy_pct < 0.20:  # Below 20%
+                reward -= 0.05  # Moderate penalty - go eat something
+
+        # Logging moved to step() to avoid duplicates from FRAME_SKIP loop
         return reward
 
     def _calculate_interaction_reward(self, frame_before, frame_after):
@@ -420,6 +477,8 @@ class StardewViTEnv(gym.Env):
         self._prev_energy_pct = None
         self._prev_notification_region = None
         self._episode_reward = 0.0
+        self._last_actions = []
+        self._consecutive_passive = 0
 
         # Grab initial frame
         frame = self.cap.grab()
