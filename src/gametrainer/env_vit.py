@@ -109,6 +109,10 @@ class StardewViTEnv(gym.Env):
         # =====================================================================
         self.cap = ScreenCapture()
         self.input = InputController()
+        
+        # [NEW] Interface Manager for robust UI detection
+        from src.gametrainer.interface import InterfaceManager
+        self.interface = InterfaceManager()
 
         # Find game window
         found = self.cap.set_region_from_window("Stardew Valley")
@@ -217,7 +221,11 @@ class StardewViTEnv(gym.Env):
         self._steps_alive += 1
         self._episode_reward += total_reward
 
-        # Periodic logging (once per step, not per frame)
+        # Periodic logging and Interface Scan (once per step, not per frame)
+        if self._steps_alive % 30 == 0:
+            # Scan for UI templates (Energy Icon, etc) every 3 seconds (assuming 10 FPS)
+            self.interface.find_all(raw_frame)
+
         if self._steps_alive % 100 == 0:
             energy_str = f"{self._prev_energy_pct:.0%}" if self._prev_energy_pct else "?"
             self.logger.log(
@@ -315,10 +323,10 @@ class StardewViTEnv(gym.Env):
         self._prev_frame_small = frame_gray.copy()
 
         # -----------------------------------------------------------------
-        # D. ENERGY DETECTION (approximate via green pixels in bottom-right)
+        # D. ENERGY DETECTION (Robust via InterfaceManager)
         # -----------------------------------------------------------------
-        h, w = frame.shape[:2]
-        energy_region = frame[int(h*0.75):h, int(w*0.9):w]
+        # Use our new Template Matching system to find the bar
+        energy_region = self.interface.get_energy_region(frame)
 
         if energy_region.size > 0:
             hsv = cv2.cvtColor(energy_region, cv2.COLOR_BGR2HSV)
