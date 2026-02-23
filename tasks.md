@@ -1,7 +1,9 @@
 # GameTrainer - Task Tracking
 
-> **Last Updated**: 2026-02-01  
-> **Current Sprint**: Documentation & Initial Setup
+> **Last Updated**: 2026-02-23  
+> **Current Sprint**: Documentation & alignment with RL implementation
+
+**Alignment note:** The codebase implements a **vision-based RL pipeline** (ViT + PPO, Gymnasium, mss/OpenCV, C++ input only). Design docs (`architecture.md`, `design.md`) have been updated to describe this. The "Backlog: Core Features" section below lists tasks from the **original** unimplemented design (Menu, Orchestrator, C++ CV/AI) and is kept for reference; current work is RL-focused (e.g. profile wiring, reward tuning, tests).
 
 ## Task Legend
 - `[ ]` - Not started
@@ -19,26 +21,21 @@
 - [x] Create `design.md` with detailed implementation design
 - [x] Create `context.md` with project state tracking
 - [x] Create `tasks.md` (this file) for task management
+- [x] Align `architecture.md` with current RL implementation
+- [x] Align `design.md` with current RL implementation (current implementation section + original as reference)
 
-### Next Steps
-- [ ] Review existing Python code
-  - [ ] Identify current structure and patterns
-  - [ ] Document any deviations from proposed design
-  - [ ] Note areas needing refactoring
-- [ ] Review existing C++ code
-  - [ ] Understand current CV implementation
-  - [ ] Understand current AI implementation
-  - [ ] Document integration approach
-- [ ] Update documentation based on code review
-  - [ ] Align `architecture.md` with reality
-  - [ ] Align `design.md` with actual implementation
-  - [ ] Update `context.md` with findings
+### Next Steps (RL codebase)
+- [ ] Wire `ConfigLoader` / profiles into env and train script (window title, template dir, regions)
+- [ ] Add automated unit tests for screen, config, interface (and env where feasible)
+- [ ] Optional: update `context.md` with findings from alignment
 
 ---
 
-## Backlog: Core Features
+## Backlog: Core Features (Original Design — Reference Only)
 
-### Python Components
+*The following were from the pre-RL design (Menu, Orchestrator, C++ CV/AI). Superseded by the current RL implementation; kept for reference.*
+
+### Python Components (Original Proposal)
 - [ ] Main Menu System
   - [ ] Implement Menu and MenuItem classes
   - [ ] Add input validation
@@ -55,7 +52,7 @@
   - [ ] Add status reporting
   - [ ] Write integration tests
 
-### C++ Components
+### C++ Components (Original Proposal)
 - [ ] Computer Vision Module
   - [ ] Implement screen capture (platform-specific)
   - [ ] Add template matching detection
@@ -73,7 +70,7 @@
   - [ ] Add safety checks
   - [ ] Write unit tests
 
-### Integration
+### Integration (Original Proposal)
 - [ ] Python ↔ C++ Communication
   - [ ] Define C API exports
   - [ ] Create Python ctypes wrappers
