@@ -1,15 +1,43 @@
 # GameTrainer - Detailed Design
 
-> **Last Updated**: 2026-02-01  
-> **Status**: Initial design documentation
+> **Last Updated**: 2026-02-23  
+> **Status**: Aligned with current RL implementation; original proposed design retained as reference.
 
 ## Purpose
 
-This document details the implementation-level design decisions, class structures, and module interactions. While `architecture.md` covers the "what" and "why" at a high level, this document covers the "how" at a code level.
+This document details implementation-level design decisions, class structures, and module interactions. **The project currently implements a vision-based RL pipeline** (ViT + PPO). The first section below describes the **current implementation**; the remainder is the **original proposed design** (Menu, Orchestrator, C++ CV/AI), which was superseded by the RL pivot and is kept for reference only.
 
-## Module Design
+---
 
-### Python Modules
+## Current Implementation (RL Pipeline)
+
+The codebase implements the architecture described in **[docs/design.md](docs/design.md)** and **[architecture.md](architecture.md)**. Key modules and files:
+
+| Module | File(s) | Responsibility |
+|--------|---------|----------------|
+| **Entry** | `main.py` | CLI: `train` / `play` → subprocess to scripts. |
+| **Training / play** | `scripts/train.py`, `scripts/play.py` | Create env, PPO model (ViT extractor), run `learn()` or inference; checkpoints, deps. |
+| **Environment** | `src/gametrainer/env_vit.py` | `StardewViTEnv`: gymnasium env, 224×224 RGB obs, discrete actions, reward (movement, energy, notifications, interaction, anti-spam). Uses ScreenCapture, InputController, InterfaceManager. |
+| **Screen capture** | `src/gametrainer/screen.py` | `ScreenCapture`: mss-based capture; set region by window title or fullscreen; `grab()` → BGR numpy. |
+| **Input** | `src/gametrainer/input.py` | `InputController`: high-level keys/mouse; delegates to C++ `clib` (SendInput). |
+| **UI detection** | `src/gametrainer/interface.py` | `InterfaceManager`: template matching for UI (e.g. energy bar); fallback regions. |
+| **Config / profiles** | `src/gametrainer/config.py` | `ConfigLoader`: load profile dirs (e.g. `regions.yaml`). Not yet wired into env/train. |
+| **ViT feature extractor** | `src/gametrainer/vit_extractor.py` | Custom SB3 feature extractor (ViT-Tiny/Small/Base, timm); 224×224 input; optional freeze. |
+| **Logger** | `src/gametrainer/logger.py` | `Logger`: timestamped session logs (e.g. for training debug). |
+
+**C++**: Only the input extension (`clib`, built via setup.py) exists; it exposes SendInput for keyboard/mouse. There is no C++ CV or AI engine.
+
+**Design patterns in current code**: Env as single place for reward and step logic (no separate Orchestrator). ConfigLoader and profile layout support future multi-game use (Strategy-like swap by profile). InputController is a thin facade over `clib`.
+
+---
+
+## Original Proposed Design (Reference — Not Implemented)
+
+The following sections describe the **initial** design (Main Menu, ConfigManager/GameConfig, GameOrchestrator, C++ CV/AI/Input). The project **pivoted to the RL implementation** above; this content is retained for reference and learning only.
+
+## Module Design (Original Proposal)
+
+### Python Modules (Proposed)
 
 #### 1. Main Menu / UI Module
 
@@ -671,7 +699,9 @@ def test_full_training_loop():
 
 ---
 
-## Open Design Questions
+## Open Design Questions (Original Plan — For Reference)
+
+*Current integration: Python + C extension for input only. The following applied to the unimplemented C++ CV/AI design.*
 
 1. **C++/Python Integration Method**:
    - [ ] ctypes (current assumption)
@@ -696,16 +726,18 @@ def test_full_training_loop():
 
 ---
 
-## Next Steps
+## Next Steps (Original Plan — Superseded)
 
-1. Implement basic Python menu structure
-2. Create C++ stub modules with mock implementations
-3. Establish Python ↔ C++ communication
-4. Implement screen capture (platform-specific)
-5. Add simple template-based detection
-6. Implement rule-based AI strategy
-7. Add input automation with safety checks
+*The following referred to the unimplemented Menu/Orchestrator/C++ CV/AI plan. Current next steps are instead: profile wiring (ConfigLoader → env/train), more automated tests, and optional doc/UX improvements.*
+
+1. ~~Implement basic Python menu structure~~ (replaced by CLI entry + scripts)
+2. ~~Create C++ stub modules~~ (only input `clib` exists)
+3. ~~Establish Python ↔ C++ communication~~ (done for input only)
+4. ~~Implement screen capture~~ (done in Python via mss)
+5. ~~Add simple template-based detection~~ (done in InterfaceManager)
+6. ~~Implement rule-based AI strategy~~ (replaced by ViT + PPO)
+7. ~~Add input automation with safety checks~~ (done: InputController + clib)
 
 ---
 
-**Note**: This design will evolve as implementation progresses. Update this document when making significant design changes.
+**Note**: The **current** implementation is the RL pipeline (see "Current Implementation" at the top and [docs/design.md](docs/design.md)). Update this document when making significant design changes to the existing codebase.

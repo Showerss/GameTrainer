@@ -1,13 +1,141 @@
 # GameTrainer - System Architecture
 
-> **Last Updated**: 2026-02-01  
-> **Status**: Initial architecture documentation
+> **Last Updated**: 2026-02-23  
+> **Status**: Aligned with current RL implementation
 
 ## Overview
 
-GameTrainer is a hybrid Python/C++ application that combines computer vision, AI, and game automation to create an intelligent training assistant for games.
+GameTrainer is a **vision-based Reinforcement Learning (RL)** system. The agent learns from screen pixels using a Vision Transformer (ViT) and Proximal Policy Optimization (PPO). Screen capture and image processing are in **Python** (mss, OpenCV); only **input injection** uses a **C++** extension (Windows SendInput) for reliability. There is no separate C++ CV or AI engine—the "AI" is the neural policy (ViT + MLP) trained with Stable-Baselines3.
 
-## High-Level Architecture
+**Canonical RL design**: See **[docs/design.md](docs/design.md)** for the RL-specific architecture (observation space, action space, reward, data flow).
+
+---
+
+## Current Implementation: High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph "Entry & Scripts"
+        Main[main.py]
+        Train[scripts/train.py]
+        Play[scripts/play.py]
+    end
+    
+    subgraph "Python - RL & Perception"
+        Env[StardewViTEnv - gymnasium]
+        Screen[ScreenCapture - mss]
+        Interface[InterfaceManager - template matching]
+        ViT[ViT Feature Extractor - timm/SB3]
+        Config[ConfigLoader - profiles]
+    end
+    
+    subgraph "C++ Extension"
+        Clib[clib - SendInput]
+    end
+    
+    subgraph "External"
+        Game[Target Game]
+    end
+    
+    Main --> Train
+    Main --> Play
+    Train --> Env
+    Play --> Env
+    Env --> Screen
+    Env --> Interface
+    Env --> Input
+    Env --> ViT
+    Input[InputController] --> Clib
+    Clib --> Game
+    Screen --> Game
+```
+
+## Current Technology Stack
+
+### Python (primary)
+- **Entry**: `main.py` → subprocess to `scripts/train.py` or `scripts/play.py` (no graphical menu; CLI only).
+- **Screen capture**: `mss` in `src/gametrainer/screen.py` (`ScreenCapture`). Region set by window title or fullscreen.
+- **Perception**: OpenCV for resize/normalize; **Vision Transformer** (timm) in `src/gametrainer/vit_extractor.py` as SB3 custom feature extractor (224×224 RGB).
+- **RL**: Gymnasium env in `src/gametrainer/env_vit.py`; PPO from Stable-Baselines3 in scripts; observation = image, action = discrete (e.g. 12 actions).
+- **UI detection**: `src/gametrainer/interface.py` (`InterfaceManager`) — template matching for energy bar etc.; optional fallback regions.
+- **Config**: `src/gametrainer/config.py` (`ConfigLoader`) — loads game profiles (e.g. `regions.yaml`). Not yet wired into env/train (window title and paths currently hardcoded).
+
+### C++ (input only)
+- **Purpose**: Reliable keyboard/mouse injection for games (Windows SendInput).
+- **Surface**: Python `InputController` in `src/gametrainer/input.py` calls `src.gametrainer.clib` (C extension built via setup.py).
+
+### What is *not* implemented (vs original design)
+- **No** Main Menu / MenuItem / Orchestrator (no Facade over C++ CV/AI).
+- **No** C++ CV module or C++ AI decision engine (rule-based or otherwise). Vision and "AI" are the ViT + PPO policy in Python.
+
+## Current System Components
+
+### 1. Entry point (`main.py`)
+- Parses CLI for `train` or `play`; launches `scripts/train.py` or `scripts/play.py` via subprocess.
+
+### 2. Training / play scripts (`scripts/train.py`, `scripts/play.py`)
+- Build Gymnasium env (`StardewViTEnv`), create or load PPO model (ViT feature extractor), run `model.learn()` or inference. Handle checkpoints and dependencies.
+
+### 3. Environment (`src/gametrainer/env_vit.py` — `StardewViTEnv`)
+- **Observation**: 224×224 RGB (channel-first). **Action**: Discrete (e.g. 12: movement, mouse, ESC).
+- Uses `ScreenCapture`, `InputController`, `InterfaceManager`; implements reward (movement, energy, notifications, interaction, anti-spam, etc.).
+
+### 4. Screen capture (`src/gametrainer/screen.py` — `ScreenCapture`)
+- Sets region by window title or fullscreen; `grab()` returns BGR numpy array. Uses `mss`.
+
+### 5. Input (`src/gametrainer/input.py` — `InputController`)
+- High-level API (e.g. `move_up()`, `mouse_click()`); delegates to C++ `clib` for SendInput.
+
+### 6. UI detection (`src/gametrainer/interface.py` — `InterfaceManager`)
+- Template matching for UI elements (e.g. energy icon); provides regions for reward logic.
+
+### 7. Config / profiles (`src/gametrainer/config.py` — `ConfigLoader`)
+- Loads profile dirs (e.g. `regions.yaml`). Ready for multi-game use; not yet connected to env or train script.
+
+### 8. ViT feature extractor (`src/gametrainer/vit_extractor.py`)
+- Custom SB3 feature extractor (ViT-Tiny/Small/Base via timm); 224×224 input; optional freeze backbone.
+
+## Current Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant main.py
+    participant train.py
+    participant Env
+    participant Screen
+    participant ViT
+    participant PPO
+    participant Input
+    participant clib
+    participant Game
+    
+    User->>main.py: python main.py train
+    main.py->>train.py: subprocess
+    train.py->>Env: Create StardewViTEnv
+    Env->>Screen: set_region_from_window / grab
+    train.py->>train.py: PPO(..., policy_kwargs=ViT)
+    
+    loop Training
+        Env->>Screen: grab()
+        Screen-->>Env: frame BGR
+        Env->>Env: preprocess 224x224 RGB, reward
+        Env-->>train.py: obs, reward, done, info
+        PPO->>PPO: policy(obs) -> action
+        train.py->>Env: step(action)
+        Env->>Input: move_up / mouse_click / ...
+        Input->>clib: send_key / send_mouse_*
+        clib->>Game: SendInput
+    end
+```
+
+---
+
+## Original Design (Reference — Not Implemented)
+
+The following described an earlier, **unimplemented** plan: Python Menu + Orchestrator + Config talking to C++ CV, C++ AI engine, and C++ Input. The project **pivoted to the RL implementation** above; this is kept for reference only.
+
+### Original High-Level Architecture
 
 ```mermaid
 graph TB
@@ -38,161 +166,52 @@ graph TB
     Screen --> Game
 ```
 
-## Technology Stack
+### Original Component Intent (reference)
+- **UI**: Menu + MenuItem (Command pattern); **Config**: GameConfig + ConfigManager; **Orchestrator**: Facade over C++ CV/AI/Input.
+- **C++ CV**: Screen capture + game detection; **C++ AI**: Strategy-based decision engine; **C++ Input**: Keyboard/mouse with humanization.
+- Only the **input** part exists today, as the `clib` extension used by `InputController`.
 
-### Python Components
-- **Purpose**: High-level logic, UI, and system orchestration
-- **Why Python**: 
-  - Rapid development for UI and business logic
-  - Rich ecosystem for configuration and data handling
-  - Easy integration with C++ via ctypes/pybind11
-- **Trade-offs**: 
-  - ✅ Fast iteration, readable code
-  - ❌ Slower execution for performance-critical tasks
-
-### C++ Components
-- **Purpose**: Computer vision, AI inference, and input automation
-- **Why C++**: 
-  - Real-time performance requirements (CV processing, input timing)
-  - Direct memory access for screen capture
-  - Low-latency input simulation
-- **Trade-offs**: 
-  - ✅ High performance, low latency
-  - ❌ Longer development time, more complex debugging
-
-### Integration Strategy
-- **Approach**: Python calls C++ shared libraries (.dll/.so)
-- **Why**: Leverages strengths of both languages
-- **Alternative Considered**: Pure Python with OpenCV
-  - Rejected because: Input automation and CV processing need native performance
-
-## System Components
-
-### 1. User Interface Layer (Python)
-**Responsibility**: Present options to user, gather input, display results
-
-**Design Pattern**: MVC (Model-View-Controller)
-- **View**: Console/GUI rendering
-- **Controller**: Input handlers and menu navigation
-- **Model**: Game state and configuration
-
-**Why MVC**: Separates presentation from logic, making it easier to swap UI implementations (console → GUI) without changing core logic.
-
-### 2. Orchestration Layer (Python)
-**Responsibility**: Coordinate between UI, configuration, and C++ modules
-
-**Design Pattern**: Facade Pattern
-- Provides simplified interface to complex C++ subsystems
-- Handles error translation and logging
-- Manages lifecycle of C++ components
-
-**Why Facade**: C++ modules have complex initialization and state management. Facade hides this complexity from UI layer.
-
-### 3. Computer Vision Module (C++)
-**Responsibility**: Capture screen, detect game elements, track state
-
-**Design Considerations**:
-- **Performance**: Must process frames at 30-60 FPS
-- **Accuracy**: Balance speed vs detection quality
-- **Memory**: Efficient buffer management for frame data
-
-**Interview Relevance**: Image processing pipelines, optimization techniques, memory management
-
-### 4. AI Decision Engine (C++)
-**Responsibility**: Analyze game state, make decisions, plan actions
-
-**Design Pattern**: Strategy Pattern
-- Different AI strategies for different game scenarios
-- Swappable algorithms without changing core engine
-
-**Why Strategy**: Games have different phases (early game, combat, exploration) requiring different decision-making approaches.
-
-### 5. Input Automation (C++)
-**Responsibility**: Send keyboard/mouse inputs to game with precise timing
-
-**Design Considerations**:
-- **Timing Precision**: Microsecond-level accuracy
-- **Anti-Detection**: Humanized input patterns
-- **Safety**: Input validation and rate limiting
-
-## Data Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Python UI
-    participant Python Orchestrator
-    participant C++ CV
-    participant C++ AI
-    participant C++ Input
-    participant Game
-    
-    User->>Python UI: Start Training
-    Python UI->>Python Orchestrator: Initialize Session
-    Python Orchestrator->>C++ CV: Start Screen Capture
-    
-    loop Training Loop
-        C++ CV->>C++ CV: Capture Frame
-        C++ CV->>C++ AI: Send Game State
-        C++ AI->>C++ AI: Analyze & Decide
-        C++ AI->>C++ Input: Execute Action
-        C++ Input->>Game: Send Input
-        C++ CV-->>Python Orchestrator: Status Update
-        Python Orchestrator-->>Python UI: Display Progress
-    end
-    
-    User->>Python UI: Stop Training
-    Python UI->>Python Orchestrator: Cleanup
-    Python Orchestrator->>C++ CV: Stop Capture
-```
+---
 
 ## Design Principles Applied
 
 ### 1. Separation of Concerns
-- UI doesn't know about C++ implementation details
-- C++ modules don't know about Python UI
-- Each component has single, well-defined responsibility
+- Env does not depend on PPO/training script internals; scripts depend on env interface only.
+- Input layer (Python + clib) is the only C++ boundary; screen and "AI" are pure Python.
 
 ### 2. Language-Appropriate Responsibilities
-- Python: Orchestration, configuration, user interaction
-- C++: Performance-critical, real-time operations
+- Python: Screen capture (mss), image processing (OpenCV), RL (Gymnasium, SB3, ViT), config, UI detection.
+- C++: Input injection only (SendInput for game compatibility).
 
 ### 3. Modularity
-- Components can be developed and tested independently
-- Easy to swap implementations (e.g., different CV algorithms)
+- Env, screen, input, interface, config, ViT extractor are separate modules; train/play scripts compose them.
 
 ### 4. Extensibility
-- New game support: Add new CV detection rules
-- New AI strategies: Implement Strategy interface
-- New UI: Implement against Orchestrator interface
+- New game: New profile (regions, templates) and/or new env; ConfigLoader is ready. ViT/PPO unchanged.
+- New ViT size: Add extractor variant in `vit_extractor.py` and wire in `train.py`.
 
 ## Scalability Considerations
 
 ### Current Scale
-- Single game instance
-- Local execution
-- Single-threaded CV/AI pipeline
+- Single game instance (Stardew Valley); window title and paths hardcoded in env/train.
+- Local execution (GPU training via PyTorch/SB3).
+- Single-threaded training loop (env step → policy → action).
 
 ### Future Growth Paths
-1. **Multi-threading**: Parallel CV processing and AI decision-making
-2. **Multi-game**: Support multiple games simultaneously
-3. **Cloud**: Offload AI training to remote servers
-4. **Analytics**: Collect and analyze training data
+1. **Multi-game**: Wire `ConfigLoader` and profiles into env/train (window title, template dir, regions).
+2. **Distributed training**: SB3 supports vectorized envs; could add more envs or async sampling later.
+3. **Analytics**: TensorBoard and session logs already in place; extend as needed.
 
 ## Technical Debt & Future Refactoring
 
-*To be populated as project develops*
+- **Profile wiring**: `ConfigLoader` exists but is not used by `env_vit.py` or `scripts/train.py`.
+- **Platform**: Windows-only (win32gui, SendInput); no abstraction for other OSes.
 
-## Open Questions
+## Open Questions (current)
 
-1. **C++/Python Integration**: ctypes vs pybind11 vs cython?
-   - Need to evaluate based on performance and ease of use
-   
-2. **CV Library**: OpenCV vs custom implementation?
-   - OpenCV is feature-rich but heavy; custom is lean but more work
-   
-3. **AI Approach**: Rule-based vs ML-based?
-   - Rule-based is simpler to start; ML is more powerful but requires training data
+1. **Profile integration**: When to load profile (window title, regions, template dir) in env/train?
+2. **Cross-platform**: Stub or document non-Windows behavior for screen/input?
+3. **ViT vs larger resolution**: 384×384 or frame stacking if 224×224 proves limiting?
 
 ## Learning Resources
 
