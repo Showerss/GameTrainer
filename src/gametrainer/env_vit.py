@@ -194,6 +194,9 @@ class StardewViTEnv(gym.Env):
             truncated: Whether max steps reached
             info: Additional information dict
         """
+        # Validate action: SB3 Discrete(12) yields 0-11; clamp for safety (e.g. loaded model mismatch)
+        action = int(np.clip(action, 0, self.action_space.n - 1))
+
         total_reward = 0.0
         raw_frame = None
 

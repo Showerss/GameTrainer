@@ -9,8 +9,10 @@ Modules:
     - logger: Timestamped session logging
     - screen: Fast screen capture using mss
     - input: Keyboard/mouse simulation via C++ extension
-    - env: Gymnasium environment for RL training
-    - events: Event bus for component communication
+    - env_vit: Gymnasium environment (ViT-based) for RL training
+    - interface: Template matching for UI detection
+    - vit_extractor: ViT feature extractor for SB3
+    - events: Event bus (placeholder)
     - dependencies: Auto-installation of optional packages
 """
 
@@ -22,12 +24,12 @@ from src.gametrainer.logger import Logger
 from src.gametrainer.screen import ScreenCapture
 from src.gametrainer.input import InputController
 from src.gametrainer.config import ConfigLoader
-from src.gametrainer.env_legacy import StardewEnv
+from src.gametrainer.env_vit import StardewViTEnv
 
 __all__ = [
     "Logger",
     "ScreenCapture",
     "InputController",
     "ConfigLoader",
-    "StardewEnv",
+    "StardewViTEnv",
 ]

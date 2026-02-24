@@ -56,6 +56,10 @@ Every AI assistant working on this project MUST maintain these files:
 - Blockers and open questions
 - Next steps and future considerations
 
+### 5. `CHANGELOG.md`
+- Append-only record of notable changes (fixes, features, docs).
+- **Never overwrite or remove existing changelog content;** only add new entries under the appropriate version or "Unreleased" section.
+
 ## Documentation Update Protocol
 
 **When to update:**
@@ -63,6 +67,7 @@ Every AI assistant working on this project MUST maintain these files:
 - `context.md` - When project state changes significantly
 - `design.md` - When implementing new features or refactoring
 - `architecture.md` - When adding major components or changing system structure
+- `CHANGELOG.md` - When shipping fixes, features, or notable docs; **append only** (do not overwrite or delete existing entries)
 
 **Format:**
 - Use clear markdown with headers and sections

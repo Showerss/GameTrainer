@@ -167,6 +167,10 @@ profiles/
 
 The core engine code never changes - only the profile folder is swapped.
 
+## Changelog
+
+- **Never overwrite the changelog.** The file `CHANGELOG.md` is append-only. When making changes that warrant a release note, add a new entry under the appropriate version or "Unreleased" section. Do not remove or rewrite existing changelog content.
+
 ## Code Style & Documentation Philosophy
 
 **This is an educational codebase.** All code should be written as if teaching a student:

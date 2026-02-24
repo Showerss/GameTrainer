@@ -18,7 +18,9 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stable_baselines3 import PPO
-from src.gametrainer.env import StardewEnv
+from src.gametrainer.env_vit import StardewViTEnv
+
+# Note: Script describes CNN transfer learning; same ideas apply to ViT (freeze backbone vs fine-tune).
 
 
 def inspect_model(model_path: str):
