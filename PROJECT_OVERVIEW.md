@@ -1,23 +1,28 @@
-# CLAUDE.md
+# GameTrainer — Project Overview
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This document describes what GameTrainer is, how it works, and how it’s built. It’s written so that both humans (e.g. a CS student) and AI assistants can follow the full picture in one place.
 
-## Project Overview
+---
 
-GameTrainer is a **local Reinforcement Learning (RL)** system for game automation. It leverages high-end hardware (specifically the user's **9070xt GPU**) to train an autonomous agent that learns to play Stardew Valley through trial and error.
+## What GameTrainer Is
 
-**Pivot Note (Jan 2026):** We have moved AWAY from the previous "video upload + manual pixel detection" strategy.
-- **No more pixel hunting:** Manual coordinate/color definitions are unscalable and brittle. The agent uses neural networks (CNNs) to perceive the game state directly from visual input.
-- **No more video uploads:** We do not send data to the cloud. Training happens locally to allow the agent to learn from unlimited gameplay steps and edge cases without API costs or latency.
-- **Active Learning:** The goal is an agent that improves over time via RL, rather than a static bot that "fails safe" when confused.
+GameTrainer is a **local Reinforcement Learning (RL)** system for game automation. You run it on your own machine (and GPU); it learns to play a game by looking at the screen and sending keyboard/mouse input—no cloud, no memory reading, no game modification.
+
+**Current target:** Stardew Valley. The agent is trained with a **Vision Transformer (ViT)** and **PPO** so it improves over time from trial and error instead of following hand-written rules.
+
+**Design choices (Jan 2026 and onward):**
+- **Pixels in, actions out:** The agent sees the same screen you do (captured and downscaled) and learns from that. No manual coordinate or color definitions.
+- **Local only:** All training and playing happens on your hardware (e.g. a 9070xt-class GPU). No data is sent to the cloud.
+- **Learning, not scripting:** The goal is an agent that gets better with experience (RL), not a fixed bot that only does what you programmed.
 
 ## Architecture
 
+The pipeline is three steps: capture the game window, run the neural network, send input back to the game.
+
 ```
-┌─────────────────┐     ┌──────────────────────────────┐     
-┌─────────────────┐
-│  Screen Capture │ ──► │  RL Agent (PPO/ViT on GPU)   │ ──► │ Input Simulate  │
-│   (mss/opencv)  │     │   (SB3 + timm ViT-Base)      │     │   (SendInput)   │
+┌─────────────────┐     ┌──────────────────────────────┐     ┌─────────────────┐
+│  Screen Capture │ ──► │  RL Agent (PPO + ViT on GPU)   │ ──► │ Input Simulate  │
+│   (mss/opencv)  │     │   (Stable-Baselines3 + timm)  │     │ (C++ SendInput) │
 └─────────────────┘     └──────────────────────────────┘     └─────────────────┘
 ```
 
@@ -44,7 +49,7 @@ Regardless of the model size (Tiny/Small/Base), the input is **always 224x224 RG
 - **Trade-off:** We sacrifice fine text readability for **speed** and **transfer learning** (leveraging ImageNet weights). The AI sees "blobs" and "shapes" (green bar = energy) rather than reading specific numbers.
 
 ### 2. Action (The Hands)
-The agent outputs discrete actions (e.g., `Move Up`, `Use Tool`, `Eat`) or continuous values depending on the specific task configuration.
+The agent outputs **discrete actions** only. Each step it picks one of 12 actions: no-op, movement (W/A/S/D), left/right mouse click, mouse aim (up/down/left/right), and ESC. The exact mapping is in the table in "Action Space (Output)" below.
 
 ### 3. Reward (The Teacher)
 We define a reward function to guide learning:
@@ -62,30 +67,40 @@ We define a reward function to guide learning:
 The "Knowledge" of the system is implicit within the Transformer's attention weights.
 
 ### Observation Space (Input)
-- **Visual:** 224x224 x 3 (RGB) frames.
-- **Auxiliary (Optional):** OCR text or critical numerical values (Energy %) can be fed as a separate vector if visual learning proves too slow for specific gauges.
+- **Visual:** 224×224×3 (RGB) frames. The only observation the agent gets today.
+- **Auxiliary (optional / future):** OCR or numeric gauges (e.g. energy %) could be added as an extra input later if needed.
 
 ### Action Space (Output)
-- **Discrete:** Mapping specific indices to key presses (e.g., `0` = W, `1` = A, `2` = S, `3` = D, `4` = Use Tool).
-- **MultiDiscrete:** For combining movement + action simultaneously.
+The environment uses a **single discrete action space** with 12 options:
 
-### Game Profiles
-Profiles now store:
-- **Hyperparameters:** Learning rate, batch size, PPO/DQN settings.
-- **Checkpoints:** Saved `.zip` models of the trained agent.
-- **Reward Config:** Definitions of what constitutes "good" behavior for that specific game.
+| Index | Action        | Index | Action        |
+| :---  | :---          | :---   | :---          |
+| 0     | NO-OP         | 6      | Right Click   |
+| 1     | W (up)        | 7      | Mouse Up      |
+| 2     | S (down)      | 8      | Mouse Down    |
+| 3     | A (left)      | 9      | Mouse Left    |
+| 4     | D (right)     | 10     | Mouse Right   |
+| 5     | Left Click    | 11     | ESC           |
+
+### Where things live
+- **Checkpoints and hyperparameters:** Saved `.zip` models and training settings live in the repo (e.g. `models/ppo_stardew_vit/`, `scripts/train.py`). Reward logic is in the environment code.
+- **Per-game config (profiles):** See the next section.
 
 ## Game Profiles (Multi-Game Support)
 
-The engine is game-agnostic. Each game is defined by a **profile** - a configuration folder containing everything game-specific:
+The engine is designed to be game-agnostic: in theory you swap a **profile** (a folder of config and assets) to target a different game. Right now, only Stardew Valley is wired in; profile loading exists in code (`ConfigLoader`) but is not yet connected to the training or play scripts (window title and paths are hardcoded).
+
+**How the bot actually runs:** It runs on the **trained neural network** (PPO + ViT) saved to disk. You train with `python main.py train`, then play with `python main.py play`. There is no separate “rule engine” or “decision tree” in the loop—just the policy network.
+
+**Intended profile layout** (for when profiles are wired in):
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    CORE ENGINE (shared)                      │
-│  - Screen capture                                            │
-│  - Template matching system                                  │
-│  - Decision tree executor                                    │
-│  - Input simulation                                          │
+│  - Screen capture (mss)                                      │
+│  - RL agent (PPO + ViT)                                      │
+│  - Template matching (UI detection, e.g. energy bar)        │
+│  - Input simulation (C++ SendInput)                           │
 └─────────────────────────────────────────────────────────────┘
                             │
             ┌───────────────┼───────────────┐
@@ -96,76 +111,24 @@ The engine is game-agnostic. Each game is defined by a **profile** - a configura
      └────────────┘  └────────────┘  └────────────┘
 ```
 
-### Profile Structure
+### Profile structure (planned)
 
 ```
 profiles/
 └── stardew_valley/
     ├── profile.yaml          # Main config (resolution, input mappings)
-    ├── recordings/           # Gameplay videos for training
-    │   ├── raw/              # Original recorded footage
-    │   │   ├── session_001.mp4
-    │   │   └── session_002.mp4
-    │   └── analyzed/         # Videos that have been processed
-    │       └── session_001.mp4
-    ├── templates/            # Images to match on screen (extracted from videos)
-    │   ├── crops/
-    │   │   ├── tomato_ripe.png
-    │   │   └── tomato_growing.png
-    │   ├── ui/
-    │   │   ├── energy_bar.png
-    │   │   └── inventory_full.png
-    │   └── objects/
-    │       └── chest.png
-    ├── regions.yaml          # Where to look for UI elements (learned from videos)
-    │   # date_display: {x: 1200, y: 10, w: 100, h: 30}
-    │   # energy_bar: {x: 1250, y: 600, w: 50, h: 200}
-    ├── knowledge/            # Wiki data, strategies (optional supplement)
-    │   ├── calendar.json     # Events, festivals
-    │   └── crops.json        # Growth times, prices
-    └── rules/                # Decision tree definitions (generated from video analysis)
-        ├── priorities.yaml   # Master priority list
-        └── subtrees/
-            ├── farming.yaml
-            └── navigation.yaml
+    ├── templates/            # Images to match on screen (e.g. energy icon)
+    │   └── *.png
+    ├── regions.yaml          # UI element locations (optional override)
+    └── knowledge/            # Optional wiki/strategy data (JSON)
 ```
 
-### Profile Components
-
-| Component | Purpose | Example |
-|-----------|---------|---------|
-| **recordings/** | Gameplay videos for Claude to analyze | `session_001.mp4` |
-| **templates/** | Images to find on screen (auto-extracted) | `tomato_ripe.png` |
-| **regions.yaml** | Fixed UI element locations (learned from video) | `energy_bar: {x: 1250, y: 600}` |
-| **knowledge/** | External game data (wiki, guides) - optional | `festivals.json` |
-| **rules/** | Decision tree logic (generated from video analysis) | `if energy < 20 → eat` |
-| **profile.yaml** | Input mappings, resolution, settings | `harvest_key: "mouse1"` |
-
-### Creating a New Game Profile (Video-Based Workflow)
-
-1. **Record Gameplay:** Capture 5-30 minutes of gameplay video showing various scenarios
-   - Play normally, demonstrating the actions you want the bot to learn
-   - Include edge cases: low health situations, inventory management, etc.
-
-2. **Upload to Claude:** Send video clips to Claude API for analysis
-   - Claude watches the video and identifies UI elements, game states, patterns
-   - **This is the only paid API cost** - everything after is free
-
-3. **Auto-Extract Training Data:** Claude generates:
-   - Template images (cropped from video frames)
-   - Region definitions (where UI elements are located)
-   - Decision rules (when to take which actions)
-   - Action mappings (what inputs achieve what)
-
-4. **Review & Refine:** Manually review the generated rules
-   - Adjust priorities, fix any misidentifications
-   - Add supplementary knowledge from wikis if needed
-
-5. **Run Locally (Free Forever):** The bot now runs using local decision trees
-   - No more API calls during gameplay
-   - All knowledge is stored in the profile folder
-
-The core engine code never changes - only the profile folder is swapped.
+| Component      | Purpose |
+|----------------|---------|
+| **profile.yaml** | Input mappings, resolution, game window title. |
+| **templates/**   | Images used for template matching (e.g. energy bar). |
+| **regions.yaml** | Where UI elements appear; used by vision/reward logic when loaded. |
+| **knowledge/**   | Optional external data (e.g. calendars, crop info). |
 
 ## Changelog
 
@@ -192,17 +155,20 @@ Example comment style:
 ## Build & Run
 
 ```bash
-pip install -e .      # Install dependencies and build C++ extensions
-python main.py        # Run the application
-pytest tests/         # Run tests
+pip install -e .           # Core deps + C++ input extension
+pip install -e ".[rl]"     # RL stack (gymnasium, SB3, torch, timm) — needed for train/play
+python main.py train      # Train the agent
+python main.py play       # Run a trained agent
+pytest tests/             # Run tests
 ```
 
 ## Dependencies
 
-- **Screen Capture & Recording:** mss, opencv-python, numpy, ffmpeg (for video encoding)
-- **Video Analysis (Training):** anthropic SDK with video support
-- **Input Simulation:** pyadirectinput, custom C++ SendInput wrapper
-- **GUI:** tkinter
+- **Screen capture:** mss, opencv-python, numpy
+- **RL stack:** gymnasium, stable-baselines3, torch, timm (see `setup.py` extras: `pip install -e ".[rl]"`)
+- **Input simulation:** Custom C++ extension (`clib`) using Windows SendInput—no pyautogui/pyadirectinput
+- **Config:** PyYAML for profile/region config
+- **Optional / future:** A GUI (e.g. tkinter) and a proper setup/installer run for dependencies are aspirational; the current flow is CLI (`main.py train` / `main.py play`) and `pip install -e .`
 
 ## Resource Usage
 
