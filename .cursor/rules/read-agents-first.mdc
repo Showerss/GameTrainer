@@ -1,0 +1,11 @@
+---
+description: Always read AGENTS.md first for repo context
+alwaysApply: true
+---
+
+# Read `AGENTS.md` first
+
+- Before making any code or documentation changes, read `AGENTS.md`.
+- Treat `AGENTS.md` as the authoritative technical context and constraints for this repo.
+- Keep `README.md` human-readable; keep deep/agent-only detail in `AGENTS.md`.
+
