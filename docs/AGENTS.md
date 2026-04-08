@@ -45,6 +45,7 @@ From the architecture/design docs, the implementation is organized around:
 - `src/gametrainer/input.py`: `InputController` facade over the C++ extension.
 - `src/gametrainer/vit_extractor.py`: SB3 feature extractor using `timm` ViT variants.
 - `src/gametrainer/config.py`: `ConfigLoader` for profiles (exists; **not fully wired** everywhere yet).
+- `src/gametrainer/tui.py`: Retro TUI menu launcher (used when running `python main.py` with no args).
 
 If the code differs from these expectations, treat **the code as the source of truth** and update docs accordingly.
 

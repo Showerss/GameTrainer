@@ -17,7 +17,7 @@ Modules:
 """
 
 __version__ = "2.0"
-__author__ = "GameTrainer"
+__author__ = "Phillip"
 
 # Convenient imports for users of the package
 from src.gametrainer.logger import Logger

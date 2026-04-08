@@ -24,6 +24,19 @@ GameTrainer runs entirely on your machine (GPU included). It captures the game w
 
 ## Quickstart
 
+### Retro TUI (recommended)
+
+If you run GameTrainer with no args, you’ll get a retro-style menu that can:
+
+- show name + version + “authored by”
+- show the changelog
+- launch training
+- launch play/inference
+
+```bash
+python main.py
+```
+
 ### Installation
 
 1. Install Python 3.10+.

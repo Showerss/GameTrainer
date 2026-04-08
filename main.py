@@ -5,6 +5,7 @@ This is the entry point for the GameTrainer CLI.
 Use this to launch training or inference sessions.
 
 Usage:
+    python main.py         - Launch the retro TUI menu
     python main.py train   - Start training the agent
     python main.py play    - Run a trained agent
 """
@@ -18,8 +19,7 @@ VALID_MODES = ("train", "play")
 
 def main():
     if len(sys.argv) < 2:
-        _print_usage()
-        sys.exit(1)
+        return _launch_tui()
 
     mode = sys.argv[1].lower().strip()
 
@@ -45,6 +45,7 @@ def main():
         sys.exit(1)
     if result.returncode != 0:
         sys.exit(result.returncode)
+    return 0
 
 
 def _print_usage():
@@ -52,6 +53,7 @@ def _print_usage():
     print("GameTrainer - Local Reinforcement Learning for Games")
     print("=" * 50)
     print("\nUsage:")
+    print("  python main.py         - Launch retro TUI menu")
     print("  python main.py train   - Start training")
     print("  python main.py play    - Run trained agent")
     print("\nOr run scripts directly:")
@@ -59,5 +61,21 @@ def _print_usage():
     print("  python scripts/play.py")
 
 
+def _launch_tui() -> int:
+    """
+    Launch the retro TUI menu.
+
+    Kept separate so CLI usage remains unchanged for automation.
+    """
+    try:
+        from src.gametrainer.tui import run_tui
+    except Exception as e:
+        print(f"[!!] Failed to launch TUI: {type(e).__name__}: {e}")
+        print("\nFalling back to CLI usage.\n")
+        _print_usage()
+        return 1
+    return int(run_tui())
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Action validation in `StardewViTEnv.step()`:** Actions are now validated and clamped to the valid range `[0, action_space.n - 1]` (as int) before execution. Prevents silent no-ops or errors when the policy returns an out-of-range value (e.g. from a mismatched loaded model).
 - **Hardware/accelerator detection (`src/gametrainer/hardware.py`):** Added a device picker and a startup banner so training/play runs choose the best available accelerator (CUDA / MPS / CPU) without hard-requiring CUDA.
+- **Retro TUI launcher (`src/gametrainer/tui.py`):** Added a retro-style menu (version/author, changelog view, Train, Play) and updated `main.py` so running `python main.py` launches the TUI by default.
 
 ### Documentation
 
