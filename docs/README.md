@@ -207,6 +207,29 @@ This is an **educational codebase**. Changes should favor clarity and “teachab
 
 ---
 
+## Glossary
+
+- **AI**: Artificial Intelligence.
+- **CNN**: Convolutional Neural Network.
+- **CUDA**: NVIDIA’s GPU computing platform (used by PyTorch for acceleration).
+- **Gym / Gymnasium**: The standard Python API for RL environments (observation/action spaces + `step()`/`reset()`).
+- **ImageNet**: Large image dataset commonly used for pretraining vision models.
+- **Inference**: Running a trained model to choose actions (no learning / no weight updates).
+- **mss**: A Python library for fast screen capture.
+- **OCR**: Optical Character Recognition (extracting text from pixels).
+- **OpenCV**: Open Source Computer Vision Library (image processing utilities).
+- **PPO**: Proximal Policy Optimization (the RL algorithm used for training the policy).
+- **RL**: Reinforcement Learning (learning by trial-and-error using rewards).
+- **ROI**: Region of Interest (a sub-rectangle of the screen/frame to focus processing on).
+- **SB3**: Stable-Baselines3 (a widely used RL library that provides PPO and training utilities).
+- **SendInput**: Windows API used for keyboard/mouse input injection (this project uses a C++ wrapper/extension).
+- **Template matching**: A computer-vision technique that finds a small image (template) within a larger image (frame), often used for UI detection.
+- **Transfer learning**: Starting from pretrained model weights (e.g., ImageNet) to speed up learning on a new task.
+- **ViT**: Vision Transformer (a transformer architecture adapted for images, using attention over patches).
+- **VRAM**: GPU memory.
+
+---
+
 ## Where to look next
 
 - **Humans**: you’re here in `README.md` (this is the canonical narrative).
