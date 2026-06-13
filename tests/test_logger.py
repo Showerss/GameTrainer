@@ -2,10 +2,10 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
-# Make the core logger module importable.
-sys.path.append(str(Path(__file__).resolve().parents[1] / "src/python"))
-from core.logger import Logger
+# Project root = parent of tests/
+_project_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_project_root))
+from src.gametrainer.logger import Logger
 
 
 def test_log_creates_file_with_message():

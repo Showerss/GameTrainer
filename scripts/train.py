@@ -136,12 +136,14 @@ def do_imports():
     """Import training modules after dependencies are verified."""
     global PPO, DummyVecEnv, CheckpointCallback, BaseCallback
     global StardewViTEnv, ViTFeaturesExtractor, ViTSmallFeaturesExtractor, ViTTinyFeaturesExtractor
+    global detect_accelerator, print_accelerator_banner
 
     from stable_baselines3 import PPO
     from stable_baselines3.common.vec_env import DummyVecEnv
     from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 
     from src.gametrainer.env_vit import StardewViTEnv
+    from src.gametrainer.hardware import detect_accelerator, print_accelerator_banner
     from src.gametrainer.vit_extractor import (
         ViTFeaturesExtractor,
         ViTSmallFeaturesExtractor,
@@ -367,6 +369,10 @@ def main():
 
     print(f"{'='*60}\n")
 
+    # 6.5 Pick accelerator/device (so behavior is explicit on any machine)
+    accel = detect_accelerator(prefer_gpu=True)
+    print_accelerator_banner(accel)
+
     # 7. Policy kwargs
     policy_kwargs = dict(
         features_extractor_class=features_extractor_class,
@@ -406,7 +412,7 @@ def main():
                 model = PPO.load(
                     path,
                     env=env,
-                    device="auto",
+                    device=accel.chosen,
                     tensorboard_log=LOG_DIR,
                 )
                 print(f"  [OK] Model loaded successfully!")
@@ -423,7 +429,7 @@ def main():
             policy_kwargs=policy_kwargs,
             verbose=1,
             tensorboard_log=LOG_DIR,
-            device="auto",
+            device=accel.chosen,
             learning_rate=1e-4,
             n_steps=1024,
             batch_size=32,

@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stable_baselines3 import PPO
 from src.gametrainer.env_vit import StardewViTEnv
+from src.gametrainer.hardware import detect_accelerator, print_accelerator_banner
 
 # Check both model directories (old CNN and new ViT)
 MODEL_DIRS = [
@@ -32,6 +33,9 @@ MODEL_DIRS = [
 
 
 def main():
+    accel = detect_accelerator(prefer_gpu=True)
+    print_accelerator_banner(accel)
+
     # Find best model across all directories
     model_path = None
 
@@ -69,7 +73,7 @@ def main():
     print(f"Loading model: {model_path}")
 
     try:
-        model = PPO.load(model_path)
+        model = PPO.load(model_path, device=accel.chosen)
         print("  [OK] Model loaded successfully")
     except Exception as e:
         print(f"  [!!] Failed to load model: {e}")
