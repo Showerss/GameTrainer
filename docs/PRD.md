@@ -8,7 +8,7 @@
 ## 1. The one-paragraph pitch
 
 GameTrainer connects a **game** to an **AI** through a **standard link**, so the AI can learn to play by looking at the screen, taking actions, and getting a score. We are not trying to invent a new AI. We are building the *plumbing* — the part that lets any game and any brain snap together — and proving it works by starting tiny and scaling up.
-We have brains and we have bodies, but no agreed-on way to wire them together. I'm building that standard wiring — and proving it by snapping different brains and worlds into the same socket.
+
 ---
 
 ## 2. The mental model (read this before anything else)
@@ -204,3 +204,37 @@ Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly
 ## 9. For the AI coding assistant
 
 Build in milestone order (M0 → M6). Do **not** scaffold later phases early. After each milestone, stop and confirm the "Done when…" check passes before continuing. Keep the Gymnasium contract (`reset`, `step`) untouched across every environment.
+
+---
+
+## 10. Glossary (the words to know)
+
+Learn these five first — everything else hangs off them:
+
+| Term | Plain meaning | In our metaphor |
+| :--- | :--- | :--- |
+| **Environment** | The game, in code | The **Ground** |
+| **Agent** | The AI that plays | The **AI** |
+| **Observation** | What the game shows the AI | "Here's the screen" |
+| **Action** | What the AI does | "Press right" |
+| **Reward** | The score the game gives back | "Good: +1" |
+
+The link itself:
+
+| Term | Plain meaning |
+| :--- | :--- |
+| **Gymnasium** | The standard socket every game and AI plugs into |
+| **`step()`** | One turn of the loop: take an action, get back observation + reward |
+| **`reset()`** | Start a fresh attempt |
+| **Episode** | One full attempt, start to finish (one life, one round) |
+| **Action space** | The list of legal moves |
+| **Observation space** | The shape of what the AI can see |
+
+The learning (borrowed brain):
+
+| Term | Plain meaning |
+| :--- | :--- |
+| **Reinforcement Learning (RL)** | Learning by trial, error, and reward — the whole field |
+| **Policy** | The AI's current strategy; training = improving it |
+| **PPO** | The specific learning recipe we borrow |
+| **Exploration vs exploitation** | Try new things vs. stick with what works |
