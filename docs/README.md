@@ -2,7 +2,7 @@
 
 A **local, vision-based Reinforcement Learning (RL)** system that learns to play games from **pixels** and sends **keyboard/mouse inputs** back to the game.
 
-> **AI agents:** Read `AGENTS.md` first. It is the authoritative technical context, constraints, and working agreements for this repo.
+> **Developers / AI agents:** Read `docs/PRD.md` first. It is the authoritative technical context, module breakdown, and working agreements for this repo.
 
 ---
 
@@ -18,7 +18,7 @@ GameTrainer runs entirely on your machine (GPU included). It captures the game w
 
 - **Single-player only**: intended for local, offline experimentation on games you own and control.
 - **No memory reading / no game modification**: pixels-in, actions-out only.
-- **User override / window focus**: the agent is designed to lock to the target window and to pause when the user takes over (see `AGENTS.md` for the authoritative behavior expectations and constraints).
+- **User override / window focus**: the agent is designed to lock to the target window and to pause when the user takes over (see `docs/PRD.md` for authoritative behavior expectations and module constraints).
 
 ---
 
@@ -58,18 +58,33 @@ pip install -e ".[rl]"
 python main.py train
 ```
 
-Or pick a ViT size:
+Or pick a ViT size / tune options directly:
 
 ```bash
-python scripts/train.py small   # recommended default
-python scripts/train.py tiny    # faster, lower VRAM
-python scripts/train.py base    # strongest, higher VRAM
+python scripts/train.py small              # recommended default
+python scripts/train.py tiny              # faster, lower VRAM
+python scripts/train.py base              # strongest, higher VRAM
+python scripts/train.py small --freeze    # freeze ViT backbone
+python scripts/train.py small --steps 50000
 ```
 
 ### Play (inference only)
 
 ```bash
 python main.py play
+# or directly:
+python scripts/play.py
+```
+
+### Dev tools
+
+```bash
+pytest          # run tests
+black .         # format
+mypy .          # type-check
+
+# Interactive input sanity check (requires target game open)
+python tests/test_input.py
 ```
 
 ---
@@ -170,9 +185,9 @@ This section is for **high-level design pivots** (why the direction changed). Fo
 - **Why**: to build something that generalizes better, matches the “learning not scripting” goal, and leverages transfer learning from pretrained vision backbones.
 - **Consequences**: environment/reward design became the primary “control surface”; C++ scope shrank to input injection only.
 
-### 2026-02 (Docs): Multi-file documentation → monolithic README + dense AGENTS
+### 2026-02 (Docs): Multi-file documentation → monolithic README + dense PRD
 
-- **What changed**: human-facing docs were consolidated into this `README.md`, and technical/agent-oriented context was centralized into `AGENTS.md`.
+- **What changed**: human-facing docs were consolidated into this `README.md`, and technical/agent-oriented context was centralized into `docs/PRD.md`.
 - **Why**: reduce markdown sprawl while still supporting deep, consistent AI assistance.
 
 ---
@@ -246,5 +261,5 @@ This is an **educational codebase**. Changes should favor clarity and “teachab
 ## Where to look next
 
 - **Humans**: you’re here in `README.md` (this is the canonical narrative).
-- **AI / deep technical context**: `AGENTS.md` (authoritative constraints, repo truths, and expectations).
-- **Code change notes**: `CHANGELOG.md` (append-only).
+- **Deep technical context / module breakdown**: `docs/PRD.md` (authoritative constraints, architecture, and working agreements).
+- **Code change notes**: `docs/CHANGELOG.md` (append-only).
