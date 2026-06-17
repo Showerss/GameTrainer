@@ -1,85 +1,240 @@
-## Commands
+# GameTrainer — PRD v2
 
-```bash
-# Install core dependencies (also compiles the C++ input extension)
-pip install -e .
+> A system that teaches an AI to play games by watching the screen and learning by trial and error.
+> **The real point of this project is the architecture:** a clean, swappable link between *any* game world and *any* AI brain.
 
-# Install RL stack (torch, stable-baselines3, gymnasium, timm, tensorboard)
-pip install -e ".[rl]"
+---
 
-# Install dev tools (pytest, black, mypy)
-pip install -e ".[dev]"
+## 1. The one-paragraph pitch
 
-# Run the retro TUI menu (interactive launcher)
-python main.py
+GameTrainer connects a **game** to an **AI** through a **standard link**, so the AI can learn to play by looking at the screen, taking actions, and getting a score. We are not trying to invent a new AI. We are building the *plumbing* — the part that lets any game and any brain snap together — and proving it works by starting tiny and scaling up.
 
-# Train directly (routes to scripts/train.py with no size arg = small ViT)
-python main.py train
+---
 
-# Train with options
-python scripts/train.py small              # recommended
-python scripts/train.py tiny               # fast/low VRAM
-python scripts/train.py base               # max capability
-python scripts/train.py small --freeze     # freeze ViT backbone
-python scripts/train.py small --steps 50000
+## 2. The mental model (read this before anything else)
 
-# Play / inference
-python main.py play
-python scripts/play.py
+Three big parts:
 
-# Tests
-pytest
+| Part | What it is | Its job |
+| :--- | :--- | :--- |
+| **Ground** | The game world | 1) Show what's happening (**observation**) &nbsp; 2) Grade the AI (**reward**) |
+| **AI** | The player | Look, decide, act |
+| **Link** | The Gymnasium API | The standard socket both plug into |
 
-# Format / type-check
-black .
-mypy .
+The **AI** is itself three pieces:
 
-# Interactive input sanity check (requires Stardew Valley open)
-python tests/test_input.py
-```
+- **Eyes** → a Vision Transformer (ViT). *Only sees.* Turns pixels into a summary.
+- **Brain** → PPO (from stable-baselines3). *Only decides.* Learns what's good.
+- **Hands** → a Python input library. *Only acts.* Presses keys.
 
-## Architecture
-
-### Pipeline overview
+The whole thing is one tiny loop, forever:
 
 ```
-Screen (mss) → StardewViTEnv → PPO (SB3) ← ViTFeaturesExtractor (timm)
-                    ↓
-              InputController → C++ clib (Windows SendInput)
+observe  →  act  →  reward  →  repeat
 ```
 
-**Entry point** — `main.py` parses one optional argument (`train` / `play`) and delegates to `scripts/train.py` or `scripts/play.py`. No args launches the `rich`-based TUI in `src/gametrainer/tui.py`.
+**What we build vs. borrow:**
 
-### Gym environment — `src/gametrainer/env_vit.py`
+- ✅ **We build:** the Ground (game worlds) and the Link (the socket + profiles).
+- 🔁 **We borrow:** the Brain (PPO) and the Eyes backbone (a pretrained ViT).
 
-`StardewViTEnv` is the RL environment. Key design decisions:
-- **Observation**: `(3, 224, 224)` uint8 channel-first RGB — matches ViT's native input size so positional embeddings need no interpolation.
-- **Action space**: `Discrete(12)` — WASD, left/right click, 4-direction mouse aim, ESC, NO-OP.
-- **Reward** is computed in `_calculate_reward()` — this is the primary "teaching surface". It currently uses pixel-diff for movement, click-interaction, loot notification detection (bottom-left region), energy bar tracking via HSV, and escalating penalties for passive/repetitive actions.
-- `InterfaceManager` is called every 30 steps (not every frame) to locate UI templates via OpenCV template matching.
+---
 
-### ViT feature extractor — `src/gametrainer/vit_extractor.py`
+## 3. Scope — the crawl-first plan
 
-Wraps a `timm` ViT model as an SB3 `BaseFeaturesExtractor`. Three concrete classes: `ViTFeaturesExtractor` (base, 768-dim), `ViTSmallFeaturesExtractor` (384-dim), `ViTTinyFeaturesExtractor` (192-dim). SB3's `CnnPolicy` is used with `policy_kwargs` pointing to these classes — the "Cnn" name is misleading, it just denotes the policy type that accepts custom feature extractors.
+We do **NOT** start on Stardew Valley. It has no clear score and messy rewards. We earn our way up:
 
-ImageNet normalization is applied in `forward()` before the ViT processes the frame.
+1. **CartPole** (built-in game) → prove the link + borrowed brain work. *Build nothing.*
+2. **Tiny GridWorld** (our own game) → prove we can author a Ground with its own reward.
+3. **Add the Eyes** → make the agent learn from a *picture* of the grid instead of from numbers.
+4. **Add the Hands** → drive a real, simple game window with Python key-presses.
+5. **Stardew (stretch / later)** → it becomes *just another profile*.
 
-### Training script — `scripts/train.py`
+**Non-goals (on purpose, for now):**
 
-Auto-detects and resumes the latest checkpoint in `models/ppo_stardew_vit/`. Checkpoint naming: `stardew_vit_<N>_steps.zip`; final saves: `final_model.zip` / `interrupted_model.zip`. TensorBoard logs go to `logs/vit/`.
+- ❌ No control discovery — controls are hard-typed in a profile. (Discovering them is two hard problems stacked; skip it.)
+- ❌ No memory reading / process injection.
+- ❌ No C++ in v1. Python hands are fast enough to start.
+- ❌ No cloud / paid APIs. Local only.
 
-### Input — `src/gametrainer/input.py` + `src/cpp/clib.cpp`
+---
 
-**Windows-only.** The C++ extension (`clib`) calls the Windows `SendInput` API directly. It must be compiled before any actions reach the game — `pip install -e .` handles this via `setup.py`. The extension is imported as `src.gametrainer.clib`. Screen capture (`src/gametrainer/screen.py`) uses `mss` and locks to the game window by title.
+## 4. Architecture — components & the contract
 
-### UI detection — `src/gametrainer/interface.py`
+Everything hangs off **one contract**: the Gymnasium environment interface.
 
-`InterfaceManager` loads PNG templates from `src/gametrainer/templates/` at startup and runs OpenCV `matchTemplate` to locate UI elements (e.g. `energy_icon.png`). The templates directory may not exist yet; the manager just warns and continues. Coordinates are cached in `self.locations` between scans.
+```python
+# Every "Ground" MUST look like this. This is the socket.
+observation = env.reset()
+observation, reward, done, info = env.step(action)
+```
 
-### Config / profiles — `src/gametrainer/config.py`
+If a Ground obeys that, **any** brain can plug in. That swappability *is* the architecture flex.
 
-`ConfigLoader` loads YAML profile files from `profiles/<game>/`. **Not yet connected to training** — `StardewViTEnv` still hardcodes `"Stardew Valley"` as the window title. Profile wiring is in-progress work.
+- **`GameEnvironment`** — wraps a game. Holds a **Perception** (eyes), an **InputController** (hands), a **RewardCalculator**, and a **Profile**.
+- **`Perception`** — swappable. `NumericPerception` early on; `VisionPerception` (ViT) later.
+- **`InputController`** — swappable. `NullInput` (programmatic, for CartPole/GridWorld); `KeyboardInput` (Python lib, for real games).
+- **`RewardCalculator`** — turns game state into a score.
+- **`Profile`** — loads `profile.yaml` (key mappings, settings). Adding a new game = adding a profile.
+- **`Agent`** — *borrowed*. PPO from stable-baselines3. We don't write this.
 
-### Package structure note
+---
 
-The package is `src.gametrainer` (not bare `gametrainer`). Scripts manually insert the project root into `sys.path` so imports work when run from the repo root. Always run scripts from the project root, not from inside `scripts/`.
+## 5. UML class diagram
+
+```mermaid
+classDiagram
+    class GymEnvironment {
+        <<interface>>
+        +reset() observation
+        +step(action) tuple
+        +render()
+        +observation_space
+        +action_space
+    }
+
+    class GameEnvironment {
+        -Profile profile
+        -Perception perception
+        -InputController hands
+        -RewardCalculator rewarder
+        +reset() observation
+        +step(action) tuple
+    }
+
+    class Perception {
+        <<interface>>
+        +observe(raw) observation
+    }
+    class NumericPerception {
+        +observe(raw) observation
+    }
+    class VisionPerception {
+        -ViT model
+        +observe(image) observation
+    }
+
+    class InputController {
+        <<interface>>
+        +send(action)
+    }
+    class NullInput {
+        +send(action)
+    }
+    class KeyboardInput {
+        +send(action)
+    }
+
+    class RewardCalculator {
+        +score(state) float
+    }
+
+    class Profile {
+        +key_map
+        +settings
+        +load(path)
+    }
+
+    class Agent {
+        <<borrowed: stable-baselines3 PPO>>
+        +learn()
+        +predict(observation) action
+    }
+
+    GymEnvironment <|-- GameEnvironment
+    Perception <|-- NumericPerception
+    Perception <|-- VisionPerception
+    InputController <|-- NullInput
+    InputController <|-- KeyboardInput
+
+    GameEnvironment *-- Perception
+    GameEnvironment *-- InputController
+    GameEnvironment *-- RewardCalculator
+    GameEnvironment *-- Profile
+    Agent ..> GymEnvironment : trains on
+```
+
+---
+
+## 6. Suggested libraries (imports)
+
+| Library | Role | Phase |
+| :--- | :--- | :--- |
+| `gymnasium` | The Link (the socket standard) | 1 |
+| `stable-baselines3` | The Brain (borrowed PPO) | 1 |
+| `torch` | Runs the models | 1 |
+| `numpy` | Number crunching everywhere | 1 |
+| `pyyaml` | Loads `profile.yaml` | 2 |
+| `tensorboard` | Watch training improve | 1 |
+| `timm` | The Eyes (pretrained ViT) | 3 |
+| `opencv-python` | Resize / process screen images | 3 |
+| `mss` | Fast screen capture of a real game | 4 |
+| `pydirectinput` | The Hands (sends key presses) | 4 |
+
+> ⚠️ **AMD note (your RX 9070 XT):** GPU PyTorch on AMD (ROCm) can be fiddly. Good news — CartPole and GridWorld train fine on **CPU**, so you don't need the GPU working until Phase 3 (the ViT). Sort ROCm out before then, or start the ViT phase small.
+
+---
+
+## 7. SMART timeline (light pace — a few hours/week)
+
+Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly when to move on. Weeks are rough at light hours — slide them if life happens.
+
+| # | Goal | Done when… | ~Time |
+| :--- | :--- | :--- | :--- |
+| **M0** | Setup | Repo + virtualenv created, libs installed, a script runs CartPole with random actions for 100 steps without crashing. | Week 1 |
+| **M1** | Borrow the brain | PPO trains on CartPole through your runner; average reward clearly rises vs. the random baseline. | Week 2–3 |
+| **M2** | Build your own Ground | A `GridWorld` env obeys the Gymnasium contract; a random agent runs, then PPO learns to reach the goal. | Week 4–5 |
+| **M3** | Add the Eyes | `VisionPerception` feeds a *picture* of GridWorld to the ViT; PPO still learns (slower is fine). | Week 6–8 |
+| **M4** | Make it swappable | `Profile` + `RewardCalculator` exist; switching between CartPole and GridWorld is **config-only**, no code edits. | Week 9–10 |
+| **M5** | Add the Hands | `KeyboardInput` sends real key presses; the loop drives a tiny real game window end-to-end. | Week 11–13 |
+| **M6** | *(Stretch)* Stardew | A `stardew.yaml` profile loads and the agent does *something* sensible on screen. | Later |
+
+**The win condition for a portfolio:** finishing **M4** already proves the whole thesis — any ground, any brain, one socket. Everything after is bonus.
+
+---
+
+## 8. Risks & honest notes
+
+- **Reward from pixels is brittle.** Reading a score off the screen for a real game is error-prone — that's why Stardew is last and simple worlds come first.
+- **Keep the contract strict.** If you ever break the `reset()` / `step()` shape to "make it work," you lose swappability — the one thing that matters. Don't.
+- **Light hours = scope discipline.** Resist jumping to Stardew. The boring CartPole step is what teaches the loop that scales to everything.
+
+---
+
+## 9. For the AI coding assistant
+
+Build in milestone order (M0 → M6). Do **not** scaffold later phases early. After each milestone, stop and confirm the "Done when…" check passes before continuing. Keep the Gymnasium contract (`reset`, `step`) untouched across every environment.
+
+---
+
+## 10. Glossary (the words to know)
+
+Learn these five first — everything else hangs off them:
+
+| Term | Plain meaning | In our metaphor |
+| :--- | :--- | :--- |
+| **Environment** | The game, in code | The **Ground** |
+| **Agent** | The AI that plays | The **AI** |
+| **Observation** | What the game shows the AI | "Here's the screen" |
+| **Action** | What the AI does | "Press right" |
+| **Reward** | The score the game gives back | "Good: +1" |
+
+The link itself:
+
+| Term | Plain meaning |
+| :--- | :--- |
+| **Gymnasium** | The standard socket every game and AI plugs into |
+| **`step()`** | One turn of the loop: take an action, get back observation + reward |
+| **`reset()`** | Start a fresh attempt |
+| **Episode** | One full attempt, start to finish (one life, one round) |
+| **Action space** | The list of legal moves |
+| **Observation space** | The shape of what the AI can see |
+
+The learning (borrowed brain):
+
+| Term | Plain meaning |
+| :--- | :--- |
+| **Reinforcement Learning (RL)** | Learning by trial, error, and reward — the whole field |
+| **Policy** | The AI's current strategy; training = improving it |
+| **PPO** | The specific learning recipe we borrow |
+| **Exploration vs exploitation** | Try new things vs. stick with what works |
