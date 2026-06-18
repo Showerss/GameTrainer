@@ -37,6 +37,28 @@ If you run GameTrainer with no args, you’ll get a retro-style menu that can:
 python main.py
 ```
 
+### M0 — Verify setup (random actions)
+
+```bash
+# Run CartPole for 100 steps with random actions and print the baseline reward
+python scripts/run_cartpole.py
+```
+
+### M1 — Train PPO on CartPole
+
+```bash
+# Train PPO on CartPole (proves the borrowed brain works)
+python scripts/train_cartpole.py
+
+# Longer run — higher reward ceiling
+python scripts/train_cartpole.py --steps 50000
+
+# Watch the agent play during evaluation
+python scripts/train_cartpole.py --render
+```
+
+The script prints a **pass/fail verdict** at the end comparing trained reward to the M0 random baseline.
+
 ### Installation
 
 1. Install Python 3.10+.
@@ -85,6 +107,9 @@ mypy .          # type-check
 
 # Interactive input sanity check (requires target game open)
 python tests/test_input.py
+
+# Watch CartPole training reward in real time (M1)
+tensorboard --logdir logs/cartpole
 ```
 
 ---

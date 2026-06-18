@@ -31,3 +31,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Docs consolidation and glossary:** Consolidated docs into `docs/README.md` + `docs/AGENTS.md` + `docs/CHANGELOG.md` and added a glossary section defining common acronyms (RL, PPO, ViT, SB3, VRAM, etc.).
 
 ---
+
+## [M1] — Borrow the Brain
+
+### Added
+
+- **CartPole PPO training script (`scripts/train_cartpole.py`):** New focused training script for Milestone M1. Trains a `stable-baselines3` PPO agent with `MlpPolicy` on `CartPole-v1` for 25,000 timesteps (configurable via `--steps`). Uses `EvalCallback` to log mean reward every 2,000 steps and `CheckpointCallback` to save models to `models/ppo_cartpole/`. Prints a clear pass/fail verdict at the end by comparing the best mean reward against the M0 random baseline (~22 reward/episode). Includes a `--render` flag to watch evaluation episodes live.
+
+### Changed
+
+- **Baseline stats in `scripts/run_cartpole.py`:** Added per-episode reward tracking (episodes completed, mean reward per episode) to the output summary. The docstring now notes that this mean reward is the M0 random-action baseline that M1 must beat. The 100-step random loop itself is unchanged.
+- **Quickstart docs (`docs/README.md`):** Added M0 and M1 quickstart sections and a TensorBoard tip for `logs/cartpole`.
