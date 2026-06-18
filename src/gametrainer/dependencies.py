@@ -26,13 +26,15 @@ def ensure_dependencies(required_packages: Dict[str, str] = None) -> None:
     Following clean code principles: Single Responsibility - handles dependency management.
     """
     if required_packages is None:
-        # Default optional dependencies for GameTrainer
-        # pywin32 is imported as 'win32gui', but installed as 'pywin32'
+        # Default optional dependencies for GameTrainer.
+        # pywin32 is Windows-only; importing it on macOS raises ImportError at install time.
         required_packages = {
             'tqdm': 'tqdm',
             'rich': 'rich',
-            'pywin32': 'win32gui'
         }
+        if sys.platform == "win32":
+            # pywin32 is imported as 'win32gui' but installed as 'pywin32'
+            required_packages['pywin32'] = 'win32gui'
     
     missing_packages: List[str] = []
     

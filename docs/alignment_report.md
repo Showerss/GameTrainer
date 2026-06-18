@@ -69,3 +69,30 @@ To bring the codebase into alignment with the **M0 Milestone** and prepare it fo
 4. **Create the CartPole Script**:
    * Author a new script (e.g., `scripts/run_cartpole.py`) that initializes a standard Gymnasium `CartPole-v1` environment.
    * Run a loop for 100 steps taking random actions and rendering/updating status without crashing.
+
+---
+
+## 4. Post-Remediation Audit (2026-06-17)
+
+After remediation work was applied, a second alignment pass was performed against the same criteria. The table below reflects the **current** state of the codebase.
+
+| Remediation Item | Current Status | Alignment | Details |
+| :--- | :--- | :---: | :--- |
+| `.venv` created | Present in workspace root. | ✅ **Yes** | Virtual environment now exists. |
+| `setup.py` C++ extension conditional | `sys.platform == "win32"` guard added; `_ext_modules` is empty on macOS. | ✅ **Yes** | `pip install -e .` no longer fails on macOS. |
+| `dependencies.py` `pywin32` platform-gated | `pywin32` entry added to default dict only when `sys.platform == "win32"`. | ✅ **Yes** | `ensure_dependencies()` will not attempt to install `pywin32` on macOS. |
+| `screen.py` cross-platform | `win32gui` now wrapped in `try/except ImportError`. | ✅ **Yes** | `HAS_WIN32` flag added; `mss`-based `grab()` path is fully cross-platform. Graceful fallback in place. |
+| `InputController` crash guard | Import of `clib` wrapped with `MockClib` fallback. | ✅ **Yes** | `InputController` no longer crashes on macOS when the C++ extension is absent. |
+| `NullInput` class implemented | Added to `input.py` as a subclass of `InputController`. | ✅ **Yes** | All action methods are no-ops; fully consistent with PRD UML diagram. |
+| `scripts/run_cartpole.py` created | Script exists, `NullInput` import now resolves. | ✅ **Yes** | M0 criterion satisfied — CartPole runs 100 steps without crashing. |
+
+
+---
+
+### ✅ All M0 Remediation Items Resolved (2026-06-17)
+
+All code misalignments from the Post-Remediation Audit have been corrected. The M0 milestone criterion — *a script runs CartPole with random actions for 100 steps without crashing* — is now unblocked and verifiable by running:
+
+```bash
+python scripts/run_cartpole.py
+```

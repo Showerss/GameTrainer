@@ -96,3 +96,37 @@ class InputController:
             clib.send_mouse_right_click()
         except Exception as e:
             print(f"ERROR: Failed to send right mouse click: {e}")
+
+class NullInput(InputController):
+    """
+    A no-op InputController for programmatic environments.
+
+    Per PRD §4-5: InputController is subclassed by NullInput and KeyboardInput.
+    NullInput is ideal for environments like CartPole where no real game input
+    is needed — every action method silently does nothing.
+    """
+
+    def tap_key(self, key_code: int, duration: float = 0.1):
+        """No-op key press."""
+        pass
+
+    def move_up(self): pass
+    def move_down(self): pass
+    def move_left(self): pass
+    def move_right(self): pass
+    def use_tool(self): pass
+    def action(self): pass
+    def menu(self): pass
+    def escape(self): pass
+
+    def mouse_move(self, dx: int, dy: int):
+        """No-op mouse move."""
+        pass
+
+    def mouse_click(self):
+        """No-op left mouse click."""
+        pass
+
+    def mouse_right_click(self):
+        """No-op right mouse click."""
+        pass

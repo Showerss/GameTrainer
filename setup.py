@@ -6,7 +6,24 @@ The 'ext_modules' section defines our C++ extension for input simulation.
 We use C++ for input because it needs direct access to Windows APIs.
 """
 
+import sys
 from setuptools import setup, Extension
+
+# Only compile the C++ input-injection extension on Windows.
+# Per PRD v1 constraints: Python-only, CPU-first for early phases; no C++ on macOS.
+_ext_modules = []
+if sys.platform == "win32":
+    _ext_modules = [
+        Extension(
+            "src.gametrainer.clib",
+            sources=[
+                "src/cpp/clib.cpp",
+            ],
+            include_dirs=["include"],
+            libraries=["user32", "kernel32"],
+        )
+    ]
+
 
 setup(
     name="gametrainer",
@@ -16,19 +33,7 @@ setup(
         "src.gametrainer",
     ],
 
-    # C++ Extension for input simulation
-    # Teacher Note: This compiles our C++ code into a Python-importable module.
-    # We use a single unified C++ file (clib.cpp) for simplicity.
-    ext_modules=[
-        Extension(
-            "src.gametrainer.clib",
-            sources=[
-                "src/cpp/clib.cpp",
-            ],
-            include_dirs=["include"],
-            libraries=["user32", "kernel32"],
-        )
-    ],
+    ext_modules=_ext_modules,
 
     # Python dependencies
     install_requires=[
