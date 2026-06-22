@@ -62,17 +62,21 @@ The script prints a **pass/fail verdict** at the end comparing trained reward to
 ### Installation
 
 1. Install Python 3.10+.
-2. Install in editable mode (this also builds the C++ input extension):
-
-```bash
-pip install -e .
-```
-
-3. Install RL dependencies (torch/SB3/gymnasium/timm, etc.):
+2. Install the project plus its RL dependencies (torch/SB3/gymnasium/timm, etc.).
+   This is everything you need for M0–M1 (CartPole) — **no C++ compiler required**:
 
 ```bash
 pip install -e ".[rl]"
 ```
+
+> **The C++ input extension is _not_ built by default.** Early milestones press no
+> real keys (they use a no-op input stub), so there's nothing to compile. You only
+> need it at **M5**, when the agent drives a real game. To build it then (Windows,
+> requires Visual C++ Build Tools), set the opt-in flag first:
+>
+> ```powershell
+> $env:GAMETRAINER_BUILD_CPP = "1"; pip install -e ".[rl]"
+> ```
 
 ### Train
 

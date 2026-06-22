@@ -6,20 +6,28 @@ The 'ext_modules' section defines our C++ extension for input simulation.
 We use C++ for input because it needs direct access to Windows APIs.
 """
 
+import os
 import sys
 from setuptools import setup, Extension
 
-# Only compile the C++ input-injection extension on Windows.
+# The C++ input-injection extension ("the hands") is OPT-IN — not built by default.
+#
+# Why: early milestones (M0-M1 CartPole, M2 GridWorld) never press real keys; they
+# use the NullInput stub, so there is nothing to compile. A plain `pip install -e .`
+# should not drag in the MSVC compiler just to run CartPole.
+#
+# When you actually need it (M5, real keyboard input), opt in by setting this
+# environment variable before installing (Windows + Visual C++ Build Tools):
+#     GAMETRAINER_BUILD_CPP=1
 # Per PRD v1 constraints: Python-only, CPU-first for early phases; no C++ on macOS.
 _ext_modules = []
-if sys.platform == "win32":
+if sys.platform == "win32" and os.environ.get("GAMETRAINER_BUILD_CPP") == "1":
     _ext_modules = [
         Extension(
             "src.gametrainer.clib",
             sources=[
                 "src/cpp/clib.cpp",
             ],
-            include_dirs=["include"],
             libraries=["user32", "kernel32"],
         )
     ]
