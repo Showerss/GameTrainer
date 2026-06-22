@@ -14,6 +14,10 @@ import os
 import sys
 import gymnasium as gym
 
+# Print UTF-8 so any status glyphs don't crash on Windows consoles (cp1252).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 # Add project root to path for imports
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _project_root)

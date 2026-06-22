@@ -56,7 +56,7 @@ setup(
             "anthropic",  # Claude API for knowledge compilation
         ],
         "rl": [
-            "gymnasium",         # Standard API for RL environments
+            "gymnasium[classic-control]",  # Standard API for RL envs; extra pulls pygame for CartPole rendering
             "stable-baselines3", # RL algorithms (PPO, DQN, etc.)
             "torch",             # Deep learning backend
             "tensorboard",       # Training visualization

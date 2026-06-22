@@ -38,6 +38,10 @@ import sys
 import argparse
 import numpy as np
 
+# Print UTF-8 so status glyphs (≥, ×, ✅) don't crash on Windows consoles (cp1252).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 # Add project root to path so we can import from src/
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _project_root)
