@@ -65,8 +65,10 @@ Everything hangs off **one contract**: the Gymnasium environment interface.
 
 ```python
 # Every "Ground" MUST look like this. This is the socket.
-observation = env.reset()
-observation, reward, done, info = env.step(action)
+observation, info = env.reset()
+observation, reward, terminated, truncated, info = env.step(action)
+# terminated = the episode ended naturally (goal reached / pole fell)
+# truncated  = the episode was cut short (e.g. ran out of time)
 ```
 
 If a Ground obeys that, **any** brain can plug in. That swappability *is* the architecture flex.
