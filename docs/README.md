@@ -10,8 +10,6 @@ A **local, vision-based Reinforcement Learning (RL)** system that learns to play
 
 GameTrainer runs entirely on your machine (GPU included). It captures the game window, feeds frames into a **PPO** agent with a **Vision Transformer (ViT)** feature extractor, then injects inputs via a **C++ SendInput** wrapper. It does **not** read game memory and does **not** modify the game process.
 
-**Current target game:** Stardew Valley (the design is intended to be game-agnostic via profiles, but profile wiring is still in progress).
-
 ---
 
 ## Safety, ethics, and scope
@@ -24,7 +22,7 @@ GameTrainer runs entirely on your machine (GPU included). It captures the game w
 
 ## Quickstart
 
-### Retro TUI (recommended)
+### Retro TUI 
 
 If you run GameTrainer with no args, you’ll get a retro-style menu that can:
 
