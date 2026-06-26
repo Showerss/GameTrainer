@@ -10,13 +10,15 @@ import time
 import random
 from typing import Tuple
 
-# Import our custom C++ extension
-# Note: This might fail if the extension isn't built yet
+# Import our custom C++ "hands" extension (only built at M5; see setup.py).
 try:
     import src.gametrainer.clib as clib
 except ImportError:
-    print("WARNING: C++ extension not found. Input simulation will not work.")
-    # Mock for testing/linting without build
+    # No compiled extension found. This is EXPECTED for M0-M2 (CartPole/GridWorld):
+    # those use NullInput and never inject real input, so there's nothing to load.
+    # Opt in to the build at M5 via GAMETRAINER_BUILD_CPP=1. Fall back to a no-op
+    # mock so imports keep working everywhere.
+    print("[input] C++ input extension not loaded - fine for CartPole/GridWorld; needed at M5.")
     class MockClib:
         def send_key(self, code): pass
         def send_mouse_move(self, x, y): pass

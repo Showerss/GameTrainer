@@ -10,8 +10,6 @@ A **local, vision-based Reinforcement Learning (RL)** system that learns to play
 
 GameTrainer runs entirely on your machine (GPU included). It captures the game window, feeds frames into a **PPO** agent with a **Vision Transformer (ViT)** feature extractor, then injects inputs via a **C++ SendInput** wrapper. It does **not** read game memory and does **not** modify the game process.
 
-**Current target game:** Stardew Valley (the design is intended to be game-agnostic via profiles, but profile wiring is still in progress).
-
 ---
 
 ## Safety, ethics, and scope
@@ -24,7 +22,7 @@ GameTrainer runs entirely on your machine (GPU included). It captures the game w
 
 ## Quickstart
 
-### Retro TUI (recommended)
+### Retro TUI 
 
 If you run GameTrainer with no args, you’ll get a retro-style menu that can:
 
@@ -37,20 +35,46 @@ If you run GameTrainer with no args, you’ll get a retro-style menu that can:
 python main.py
 ```
 
+### M0 — Verify setup (random actions)
+
+```bash
+# Run CartPole for 100 steps with random actions and print the baseline reward
+python scripts/run_cartpole.py
+```
+
+### M1 — Train PPO on CartPole
+
+```bash
+# Train PPO on CartPole (proves the borrowed brain works)
+python scripts/train_cartpole.py
+
+# Longer run — higher reward ceiling
+python scripts/train_cartpole.py --steps 50000
+
+# Watch the agent play during evaluation
+python scripts/train_cartpole.py --render
+```
+
+The script prints a **pass/fail verdict** at the end comparing trained reward to the M0 random baseline.
+
 ### Installation
 
 1. Install Python 3.10+.
-2. Install in editable mode (this also builds the C++ input extension):
-
-```bash
-pip install -e .
-```
-
-3. Install RL dependencies (torch/SB3/gymnasium/timm, etc.):
+2. Install the project plus its RL dependencies (torch/SB3/gymnasium/timm, etc.).
+   This is everything you need for M0–M1 (CartPole) — **no C++ compiler required**:
 
 ```bash
 pip install -e ".[rl]"
 ```
+
+> **The C++ input extension is _not_ built by default.** Early milestones press no
+> real keys (they use a no-op input stub), so there's nothing to compile. You only
+> need it at **M5**, when the agent drives a real game. To build it then (Windows,
+> requires Visual C++ Build Tools), set the opt-in flag first:
+>
+> ```powershell
+> $env:GAMETRAINER_BUILD_CPP = "1"; pip install -e ".[rl]"
+> ```
 
 ### Train
 
@@ -85,6 +109,9 @@ mypy .          # type-check
 
 # Interactive input sanity check (requires target game open)
 python tests/test_input.py
+
+# Watch CartPole training reward in real time (M1)
+tensorboard --logdir logs/cartpole
 ```
 
 ---
