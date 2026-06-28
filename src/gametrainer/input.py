@@ -14,11 +14,13 @@ from typing import Tuple
 try:
     import src.gametrainer.clib as clib
 except ImportError:
-    # No compiled extension found. This is EXPECTED for M0-M2 (CartPole/GridWorld):
-    # those use NullInput and never inject real input, so there's nothing to load.
-    # Opt in to the build at M5 via GAMETRAINER_BUILD_CPP=1. Fall back to a no-op
-    # mock so imports keep working everywhere.
-    print("[input] C++ input extension not loaded - fine for CartPole/GridWorld; needed at M5.")
+    # No compiled extension found. Expected for M0–M2 (CartPole/GridWorld).
+    import warnings
+    warnings.warn(
+        "[input] C++ input extension not loaded (fine for CartPole/GridWorld; needed at M5).",
+        RuntimeWarning,
+        stacklevel=2,
+    )
     class MockClib:
         def send_key(self, code): pass
         def send_mouse_move(self, x, y): pass
