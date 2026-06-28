@@ -22,7 +22,7 @@ GameTrainer runs entirely on your machine (GPU included). It captures the game w
 
 ## Quickstart
 
-### Retro TUI 
+### Retro TUI
 
 If you run GameTrainer with no args, you’ll get a retro-style menu that can:
 
