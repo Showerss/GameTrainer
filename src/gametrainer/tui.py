@@ -31,6 +31,10 @@ console = Console()
 class TuiConfig:
     project_name: str = "GameTrainer"
     changelog_relpath: str = "docs/CHANGELOG.md"
+    # M0/M1 surface: the CartPole scripts are where the project actually is today.
+    verify_script_relpath: str = "scripts/run_cartpole.py"
+    train_cartpole_script_relpath: str = "scripts/train_cartpole.py"
+    # M3+ surface: the ViT + game path (advanced, not the current milestone).
     train_script_relpath: str = "scripts/train.py"
     play_script_relpath: str = "scripts/play.py"
 
@@ -81,11 +85,13 @@ def _header(cfg: TuiConfig) -> Panel:
 def _menu() -> Panel:
     menu = Text()
     menu.append("Choose an option:\n\n", style="bold")
-    menu.append("  [1] Train (learn)\n")
-    menu.append("  [2] Play (inference)\n")
-    menu.append("  [3] View changelog\n")
-    menu.append("  [4] Update / install deps (pip)\n")
-    menu.append("  [5] Quit\n")
+    menu.append("  [1] Verify setup - CartPole, random actions (M0)\n")
+    menu.append("  [2] Train CartPole - borrowed PPO brain (M1)\n")
+    menu.append("  [3] Train ViT agent - advanced, later milestones (M3+)\n")
+    menu.append("  [4] Play (inference)\n")
+    menu.append("  [5] View changelog\n")
+    menu.append("  [6] Update / install deps (pip)\n")
+    menu.append("  [7] Quit\n")
     return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
 
 
@@ -119,23 +125,34 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
         console.print(_header(cfg))
         console.print(_menu())
 
-        choice = IntPrompt.ask("Selection", choices=["1", "2", "3", "4", "5"], default="5")
+        choice = IntPrompt.ask("Selection", choices=["1", "2", "3", "4", "5", "6", "7"], default="7")
 
         if choice == 1:
+            # M0: prove the Gymnasium link with random actions. No training, no ViT.
+            console.print("\nLaunching CartPole setup check (random actions)...\n")
+            return _run_script(cfg.verify_script_relpath)
+
+        if choice == 2:
+            # M1: train the borrowed PPO brain on CartPole (the current milestone).
+            console.print("\nLaunching CartPole training (PPO)...\n")
+            return _run_script(cfg.train_cartpole_script_relpath)
+
+        if choice == 3:
+            # M3+: the ViT + game path. Advanced; not the current milestone.
             # Let user optionally choose ViT size without forcing it.
             size = Prompt.ask("ViT size", choices=["tiny", "small", "base"], default="small")
             freeze = Prompt.ask("Freeze backbone?", choices=["y", "n"], default="n") == "y"
             args: list[str] = [size]
             if freeze:
                 args.append("--freeze")
-            console.print("\nLaunching training...\n")
+            console.print("\nLaunching ViT training (advanced)...\n")
             return _run_script(cfg.train_script_relpath, extra_args=args)
 
-        if choice == 2:
+        if choice == 4:
             console.print("\nLaunching play/inference...\n")
             return _run_script(cfg.play_script_relpath)
 
-        if choice == 3:
+        if choice == 5:
             root = _project_root()
             path = (root / cfg.changelog_relpath).resolve()
             console.clear()
@@ -144,7 +161,7 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             Prompt.ask("\nPress Enter to return", default="")
             continue
 
-        if choice == 4:
+        if choice == 6:
             console.clear()
             console.print(_header(cfg))
             console.print(Panel("Choose what to install:\n\n  [1] Core (.)\n  [2] Core + RL (.[rl])\n  [3] Back", border_style="green"))
