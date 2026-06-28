@@ -68,8 +68,8 @@ M0_RANDOM_BASELINE = 22.0
 # CartPole max is 500; PPO usually reaches 100–500 within 25k steps.
 PASS_THRESHOLD = M0_RANDOM_BASELINE * 2  # 44
 
-MODEL_DIR = "models/ppo_cartpole"
-LOG_DIR = "logs/cartpole"
+MODEL_DIR = os.path.join(_project_root, "models", "ppo_cartpole")
+LOG_DIR = os.path.join(_project_root, "logs", "cartpole")
 
 DEFAULT_TIMESTEPS = 25_000
 CHECKPOINT_FREQ = 5_000
