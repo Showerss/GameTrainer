@@ -32,6 +32,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [M2] — Build Your Own Ground (GridWorld)
+
+First milestone where we **build** a Ground instead of borrowing one. GridWorld is
+ours, but it obeys the exact same Gymnasium contract as CartPole, so the borrowed
+PPO brain plugs in unchanged — that swappability is the whole point.
+
+### Added
+
+- **GridWorld environment (`src/gametrainer/gridworld.py`):** A 5×5 walk-to-the-goal `gymnasium.Env`. Start fixed at `(0,0)`, goal fixed at `(4,4)`. `Discrete(4)` actions (up/down/left/right; walking into a wall stays put), `Box` observation of the agent's `(row, col)`. Reward `-0.01` per step, `+1.0` on the goal; episodes `terminated` on the goal and `truncated` at a 100-step cap. Reward logic lives directly inside the env (no Profile/RewardCalculator abstraction yet — that's M4).
+- **GridWorld contract tests (`tests/test_gridworld.py`):** Lock the Gymnasium contract — `reset()` returns `(obs, info)` with `obs` inside the observation space, `step()` returns the 5-tuple, reaching the goal sets `terminated` with the goal reward, exceeding the step cap sets `truncated`, and `stable-baselines3`'s `check_env` runs clean (skips gracefully if SB3 isn't installed).
+- **GridWorld random baseline runner (`scripts/run_gridworld.py`):** Runs a random agent for 20 episodes and prints the mean reward per episode — the M2 baseline that PPO must beat (~`-0.3`; random walking wastes steps on the small grid). Wires in `NullInput` to keep the eyes→brain→hands shape visible, consistent with `run_cartpole.py`.
+- **GridWorld PPO training script (`scripts/train_gridworld.py`):** Trains a `stable-baselines3` PPO agent with `MlpPolicy` on GridWorld for 25,000 timesteps (configurable via `--steps`). Uses `EvalCallback` to log mean reward every 2,000 steps and `CheckpointCallback` to save models to `models/ppo_gridworld/`. Prints a pass/fail verdict comparing the best mean reward against the random baseline (pass threshold `+0.5`) plus a greedy 20-episode goal-reach check. A `--render` flag prints the learned path step-by-step at the end. **Result:** PPO learns the optimal 8-step path — `+0.93` mean reward, 20/20 goals reached — satisfying M2's "Done when."
+
+### Changed
+
+- **TUI menu (`src/gametrainer/tui.py`):** Added two M2 options — `[3] Run GridWorld` (random baseline) and `[4] Train GridWorld` (PPO) — that launch the two scripts above. Subsequent menu items (ViT/Play/Changelog/Deps/Quit) renumbered accordingly.
+
+---
+
 ## [M1] — Borrow the Brain
 
 ### Added
