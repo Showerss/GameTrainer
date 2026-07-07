@@ -88,3 +88,65 @@ def test_check_env_passes():
 
     sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
     sb3_checker.check_env(GridWorldEnv())
+
+
+def test_each_action_moves_the_right_way():
+    """From a middle cell (2,2), every move lands exactly one square over.
+
+    The contract tests above only exercise DOWN/RIGHT (the goal path). This
+    pins all four directions so a swapped action id can't slip through.
+    """
+    # Where the agent should be after each action, starting from (2, 2).
+    expected = {
+        GridWorldEnv.UP: (1, 2),
+        GridWorldEnv.DOWN: (3, 2),
+        GridWorldEnv.LEFT: (2, 1),
+        GridWorldEnv.RIGHT: (2, 3),
+    }
+
+    for action, (want_row, want_col) in expected.items():
+        env = GridWorldEnv()
+        env.reset()
+        # Walk to the middle: (0,0) -> (2,2) with two DOWNs and two RIGHTs.
+        env.step(GridWorldEnv.DOWN)
+        env.step(GridWorldEnv.DOWN)
+        env.step(GridWorldEnv.RIGHT)
+        env.step(GridWorldEnv.RIGHT)
+
+        obs, _, _, _, _ = env.step(action)
+        assert (int(obs[0]), int(obs[1])) == (want_row, want_col)
+
+
+def test_walls_block_movement():
+    """At the top-left corner, UP and LEFT do nothing — walls stop the agent."""
+    env = GridWorldEnv()
+    env.reset()  # agent starts at (0, 0)
+
+    obs, _, _, _, _ = env.step(GridWorldEnv.UP)
+    assert (int(obs[0]), int(obs[1])) == (0, 0)
+
+    obs, _, _, _, _ = env.step(GridWorldEnv.LEFT)
+    assert (int(obs[0]), int(obs[1])) == (0, 0)
+
+
+def test_ordinary_step_pays_step_cost():
+    """A normal move (not onto the goal) costs STEP_COST and doesn't end the game."""
+    env = GridWorldEnv()
+    env.reset()
+
+    obs, reward, terminated, truncated, info = env.step(GridWorldEnv.DOWN)
+    assert reward == GridWorldEnv.STEP_COST
+    assert terminated is False
+    assert truncated is False
+
+
+def test_reset_places_agent_at_start():
+    """reset() always drops the agent back on the start square (0, 0)."""
+    env = GridWorldEnv()
+    env.reset()
+    # Move away so we know reset truly sends the agent home.
+    env.step(GridWorldEnv.DOWN)
+    env.step(GridWorldEnv.RIGHT)
+
+    obs, _ = env.reset()
+    assert (int(obs[0]), int(obs[1])) == GridWorldEnv.START
