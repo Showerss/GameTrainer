@@ -12,8 +12,6 @@ Mirrors tests/test_logger.py: same path-insertion trick, same plain functions.
 import sys
 from pathlib import Path
 
-import numpy as np
-
 # Project root = parent of tests/  (so `from src.gametrainer...` works)
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
