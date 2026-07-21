@@ -21,7 +21,7 @@ The capture region can be:
 """
 
 import numpy as np
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict
 import mss
 import mss.tools
 
