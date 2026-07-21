@@ -76,7 +76,11 @@ class GridWorldEnv(gym.Env):
 
     def step(self, action):
         """One move. Returns (obs, reward, terminated, truncated, info)."""
-        action = int(action)
+        # Normalize action (SB3 may return a 1-element array) and clamp to Discrete range.
+        action_arr = np.asarray(action)
+        if action_arr.shape != ():
+            action = action_arr.item()
+        action = int(np.clip(action, 0, self.action_space.n - 1))
 
         # Propose the move, clamped to the grid so walls simply stop us.
         if action == self.UP:
@@ -93,8 +97,8 @@ class GridWorldEnv(gym.Env):
         # Score the move and decide whether the game is over.
         reached_goal = (self.row, self.col) == self.GOAL
         reward = self.GOAL_REWARD if reached_goal else self.STEP_COST
-        terminated = reached_goal                 # won the game
-        truncated = self._steps >= self.MAX_STEPS  # ran out of moves
+        terminated = reached_goal  # won the game
+        truncated = (self._steps >= self.MAX_STEPS) and not reached_goal  # ran out of moves
 
         info = {"steps": self._steps}
         return self._get_obs(), reward, terminated, truncated, info
