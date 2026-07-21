@@ -6,9 +6,6 @@ input commands. We use C++ for the actual injection because it's more
 reliable for games than Python libraries like pyautogui.
 """
 
-import time
-import random
-from typing import Tuple
 
 # Import our custom C++ "hands" extension (only built at M5; see setup.py).
 try:
