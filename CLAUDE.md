@@ -61,6 +61,56 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Testing Policy
+
+**Test the promises, not the plumbing.**
+
+A test earns its place when something would break *silently* without it. Ask: how
+likely is this to break, and how bad is it if it breaks quietly? If both are low,
+skip the test — and say so out loud.
+
+### Always test
+
+- **The Gymnasium contract** (`reset()` / `step()` shapes). This is the one promise
+  the whole project rests on: any Ground must plug into any Brain. A contract test
+  here is worth ten tests anywhere else.
+- **Logic with a single right answer:** rewards, movement rules, walls, termination.
+  Fast, deterministic, cheap to keep forever.
+
+### Deliberately don't test
+
+- Menu wiring, print statements, argument parsing — glue that fails loudly the
+  first time you run it.
+- Anything where writing the test costs more than the bug it would catch.
+
+A skip is a decision, not a gap. Write the *why* next to it in the milestone to-do.
+
+### Tests vs. experiments — keep these separate
+
+- A **test** is fast and deterministic: same input, same answer, every time. It runs
+  on every change.
+- An **experiment** asks "did the agent actually learn?" It is slow and random — it
+  can pass today and fail tomorrow on identical code. It belongs in a **script that
+  prints a PASS/FAIL verdict**, run by hand once per milestone.
+
+Never put an experiment in the test suite. Training only gets slower from M3 on, and
+a test you learn to skip is worse than no test at all.
+
+### Red-first, where it fits
+
+Lead with a failing test for anything under "always test" — the red test is the spec,
+and the code chases it. Don't perform the ritual on glue code.
+
+### Closing a milestone
+
+Write the "Done when…" in one sentence **before** starting. Then:
+
+- **Don't move it mid-milestone.** If you discover a better standard, it applies to
+  the *next* milestone — never retroactively to finished work.
+- **Closed** = contract tests green **and** the milestone's experiment script prints PASS.
+- "Free of errors" is not achievable and isn't the goal. Tests buy **change
+  confidence** — the freedom to edit without fear. A test that doesn't buy that, cut.
+
 ---
 
 ## Who I am (this matters more than the code)

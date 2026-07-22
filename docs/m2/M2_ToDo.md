@@ -4,8 +4,8 @@
 > a random agent runs, then PPO learns to reach the goal.
 >
 > **Done when…** Mean reward clearly beats the random baseline and the agent
-> reaches the goal consistently — captured as the **Brick 0 end-to-end test
-> going green** (see "How we build M2", below).
+> reaches the goal consistently — captured as the **Brick 0 guardrail printing
+> PASS** (see "How we build M2", below).
 
 This is the first milestone where we **build a Ground** instead of borrowing one.
 CartPole (M0/M1) was borrowed; GridWorld is ours. The `reset()` / `step()` shape
@@ -51,22 +51,31 @@ for when M3 swaps in a picture + ViT).
 that **red**), then write just enough code to make it *pass* (**green**). The test
 is the spec; the code chases the test.
 
-M2 follows two test-first rules:
+M2 follows the project testing policy (see **CLAUDE.md §5**), which comes down to
+three rules:
 
-1. **A whole-slice guardrail goes in *before* anything else (Brick 0).** It's one
-   end-to-end test for the entire M2 vertical slice: build GridWorld → train PPO →
-   reach the goal and beat the random baseline. It starts **red on purpose**
-   (marked `xfail`, "expected to fail") because nothing downstream exists yet.
-   It's the North Star — **M2 is "done" the moment we flip that test green.**
+1. **The finish line is written down first (Brick 0).** One whole-slice check for
+   the entire M2 vertical: build GridWorld → train PPO → reach the goal and beat
+   the random baseline. It's the North Star — **M2 is "done" when this passes.**
 
-2. **Every brick opens with its own narrow test.** Before touching the
+2. **Bricks with a right answer open with a narrow red test.** Before touching the
    implementation, write one small failing test that pins down just *that* brick's
-   job, then make it pass. Narrow = checks one thing (a shape, a number, a
-   transition), not the whole world.
+   job, then make it pass. Narrow = one thing (a shape, a number, a transition),
+   not the whole world. This covers the env and its rules.
 
-> Plain version: the Brick 0 e2e test says *where* we're going; the narrow
-> per-brick tests are the *stepping stones*. We don't write code without a red
-> test asking for it first.
+3. **Bricks that are glue get no test, on purpose.** Menu wiring and print
+   statements fail loudly the first time you run them; a test there costs more than
+   the bug it would catch. Skipping is a decision — the to-do records *why*.
+
+> Plain version: Brick 0 says *where* we're going; the narrow tests are the
+> *stepping stones*. We don't write real logic without a red test asking for it —
+> but we don't perform the ritual on plumbing either.
+
+**One important distinction.** Brick 0 trains a neural network, so it is an
+**experiment**, not a test: it's slow, and it's random enough to pass one day and
+fail the next on identical code. Experiments live in a **script that prints a
+PASS/FAIL verdict** (`scripts/train_gridworld.py`), run by hand at the end of the
+milestone — not in the `pytest` suite that runs on every change.
 
 ---
 
@@ -74,11 +83,11 @@ M2 follows two test-first rules:
 
 | # | Brick | File(s) | Done when… |
 | :--- | :--- | :--- | :--- |
-| **0** | **E2E guardrail — write this first** | `tests/test_m2_e2e.py` | Whole-slice test exists & runs, marked `xfail` (red on purpose). **Flipping it green closes M2.** |
+| **0** | **E2E guardrail — write this first** | `scripts/train_gridworld.py` verdict | The whole-slice run prints **PASS**: mean reward clearly beats the random baseline and the agent reaches the goal. **This closes M2.** |
 | 1 | 🔴 narrow test → build the env | `tests/test_gridworld.py` → `src/gametrainer/gridworld.py` | contract test written first; `check_env` passes; reset→2-tuple, step→5-tuple |
 | 2 | Broaden the contract tests | `tests/test_gridworld.py` | `pytest` green (goal terminates, step-cap truncates, obs in space) |
 | 3 | 🔴 narrow test → random baseline | `tests/test_run_gridworld.py` → `scripts/run_gridworld.py` | smoke test pins the runner; script prints a low/negative baseline |
-| 4 | 🔴 narrow test → PPO learns the goal | `tests/test_train_gridworld.py` → `scripts/train_gridworld.py` | mean reward clearly beats baseline → **flip Brick 0 green** |
+| 4 | 🔴 narrow test → PPO learns the goal | `tests/test_train_gridworld.py` → `scripts/train_gridworld.py` | mean reward clearly beats baseline → **Brick 0 prints PASS** |
 | 5 | Wire into TUI + changelog | `tui.py`, `docs/CHANGELOG.md` | New menu items launch the scripts |
 
 Brick 0 is the guardrail; Bricks 1–4 are the real work; Brick 5 is polish to match
@@ -93,18 +102,20 @@ how CartPole is wired.
 ## Brick details & verify checks
 
 ### Brick 0 — End-to-end guardrail (write this FIRST)
-**File:** `tests/test_m2_e2e.py`
-- One test that walks the whole M2 slice: make `GridWorldEnv` → train PPO for a
-  *small* budget → evaluate → assert mean reward beats a random baseline **and**
-  the agent reaches the goal within the step cap.
-- Mark it `@pytest.mark.xfail(reason="M2 not finished yet")` so it's red-but-allowed
-  until the slice is real. (Training is slow, so feel free to also tag it `slow`.)
+**File:** `scripts/train_gridworld.py` (its printed verdict)
+- One run that walks the whole M2 slice: make `GridWorldEnv` → train PPO on a
+  *real* budget → evaluate → print PASS/FAIL on whether mean reward beats the
+  random baseline **and** the agent reaches the goal within the step cap.
+- Write the bar down *now*, before the work: that's what makes it a guardrail.
 - This is the contract for the *whole milestone*, the same way `check_env` is the
   contract for a single env.
 
-> **Verify:** the test collects and runs; it reports `xfail` now, and only turns
-> green (an `xpass`) when M2 is genuinely done — at which point we delete the
-> `xfail` and it stands as a real passing test.
+> **Why a script and not a `pytest` test:** training is slow and random, so as a
+> test it would be flaky and we'd learn to skip it. As a script with a verdict, it
+> stays honest — we run it deliberately, once, and read the number.
+
+> **Verify:** run the script; it prints **PASS** with the mean reward and goal rate
+> beside the baseline it had to beat.
 
 ### Brick 1 — Build the GridWorld environment
 **File:** `tests/test_gridworld.py` (narrow test) → `src/gametrainer/gridworld.py`
@@ -148,13 +159,13 @@ Builds on Brick 1's narrow test — adds the rest of the contract:
 - **🔴 Test first:** write a narrow test — a *short* PPO run returns a trained
   model plus a numeric mean reward (and a PASS/FAIL verdict object). Keep the
   training budget tiny here; this test pins the *shape* of the output, not the
-  learning quality. The learning quality is what the **Brick 0 e2e test** judges.
+  learning quality. The learning quality is what the **Brick 0 guardrail** judges.
 - PPO with `MlpPolicy` (numbers in → small network, same as CartPole).
 - Checkpoints + `EvalCallback` + a printed **PASS/FAIL verdict** vs the Brick 3 baseline.
 
 > **Verify (this IS the milestone "Done when"):** mean reward clearly beats the
-> random baseline and the agent reaches the goal consistently — so now the
-> **Brick 0 e2e guardrail flips green**. Delete its `xfail` and watch it pass.
+> random baseline and the agent reaches the goal consistently — which is exactly
+> what the **Brick 0 guardrail** prints. Run it; read PASS; M2 closes.
 
 ### Brick 5 — Wire it in & document
 - Add GridWorld run/train options to the TUI menu (`src/gametrainer/tui.py`).
@@ -172,7 +183,11 @@ Builds on Brick 1's narrow test — adds the rest of the contract:
 
 - **One brick at a time.** Smallest next step only; stop at each checkpoint.
 - **Teach before coding.** Plain-English what & why first, then the code.
-- **Red before green.** Every brick starts with a small failing test; the Brick 0
-  e2e guardrail is the red light for the whole milestone.
+- **Red before green — where it fits.** Bricks with a right answer (env rules,
+  rewards, contract shapes) start with a small failing test. Glue bricks don't;
+  see CLAUDE.md §5.
+- **Test the promises, not the plumbing.** The Gymnasium contract is the promise.
+- **Don't move the finish line mid-milestone.** A better standard applies to the
+  *next* milestone, not backwards onto finished work.
 - **Never break the Gymnasium contract** (`reset()` / `step()` shapes) — it's the
   entire point of the project.
