@@ -73,7 +73,6 @@ This is MUCH faster than training from scratch.
 """
 
 import torch
-import torch.nn as nn
 import gymnasium as gym
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
@@ -158,7 +157,7 @@ class ViTFeaturesExtractor(BaseFeaturesExtractor):
             for param in self.vit.parameters():
                 param.requires_grad = False
             trainable = 0
-            print(f"  Trainable parameters: 0 (backbone frozen)")
+            print("  Trainable parameters: 0 (backbone frozen)")
         else:
             trainable = sum(p.numel() for p in self.vit.parameters() if p.requires_grad)
             print(f"  Trainable parameters: {trainable:,}")

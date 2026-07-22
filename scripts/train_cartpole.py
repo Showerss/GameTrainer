@@ -269,7 +269,7 @@ def main() -> int:
         print("     The borrowed brain (PPO) is working.")
     else:
         print("  ⚠️  BELOW THRESHOLD — reward didn't rise enough yet.")
-        print(f"     Try running with more steps: --steps 50000")
+        print("     Try running with more steps: --steps 50000")
         print("     (This can happen on short runs; it's not a bug.)")
 
     print("=" * 60)

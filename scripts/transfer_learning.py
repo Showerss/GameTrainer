@@ -18,7 +18,6 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stable_baselines3 import PPO
-from src.gametrainer.env_vit import StardewViTEnv
 
 # Note: Script describes CNN transfer learning; same ideas apply to ViT (freeze backbone vs fine-tune).
 
@@ -68,7 +67,7 @@ def inspect_model(model_path: str):
     total_params = sum(p.numel() for p in policy.parameters())
     cnn_params = sum(p.numel() for p in policy.features_extractor.parameters()) if hasattr(policy, 'features_extractor') else 0
 
-    print(f"\n[PARAMETER COUNTS]")
+    print("\n[PARAMETER COUNTS]")
     print(f"   Total parameters: {total_params:,}")
     print(f"   CNN parameters:   {cnn_params:,} ({100*cnn_params/total_params:.1f}% - reusable!)")
     print(f"   Other parameters: {total_params - cnn_params:,} ({100*(total_params-cnn_params)/total_params:.1f}%)")
