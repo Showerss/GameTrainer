@@ -11,7 +11,6 @@ It provides a clean menu for humans to:
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from dataclasses import dataclass

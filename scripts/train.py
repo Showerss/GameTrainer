@@ -39,11 +39,11 @@ sys.path.insert(0, _project_root)
 
 # Verify we can find the gametrainer package
 if not os.path.exists(os.path.join(_project_root, "src", "gametrainer")):
-    print(f"[!!] ERROR: Cannot find src/gametrainer package!")
+    print("[!!] ERROR: Cannot find src/gametrainer package!")
     print(f"     Current working directory: {os.getcwd()}")
     print(f"     Script location: {os.path.abspath(__file__)}")
     print(f"     Project root: {_project_root}")
-    print(f"     Please run from project root: python scripts/train.py small")
+    print("     Please run from project root: python scripts/train.py small")
     sys.exit(1)
 
 # =============================================================================
@@ -69,7 +69,7 @@ def ensure_package(install_name: str, import_name: str = None) -> bool:
         return True
     except ImportError:
         print(f"[!] {install_name} not found. Installing...")
-        print(f"    This may take a few minutes (especially for stable-baselines3)...")
+        print("    This may take a few minutes (especially for stable-baselines3)...")
         print(f"    Installing {install_name}...")
         try:
             # Show output in real-time so user can see progress
@@ -325,7 +325,7 @@ def main():
     # 3. Check C++ extension
     print("Checking C++ input extension...")
     try:
-        import src.gametrainer.clib as clib
+        import src.gametrainer.clib as clib  # noqa: F401  (imported only to test availability)
         print("  [OK] C++ input extension loaded")
     except ImportError:
         print("  [!!] WARNING: C++ input extension not found!")
@@ -345,7 +345,7 @@ def main():
 
     # 6. Select ViT variant based on argument
     print(f"\n{'='*60}")
-    print(f"CONFIGURATION")
+    print("CONFIGURATION")
     print(f"{'='*60}")
     print(f"  Model Size:     {args.size.upper()}")
     print(f"  Freeze Backbone: {args.freeze}")
@@ -353,19 +353,16 @@ def main():
 
     if args.size == "tiny":
         features_extractor_class = ViTTinyFeaturesExtractor
-        features_dim = 192
-        print(f"\n  ViT-Tiny: 5.7M params, 192-dim features")
-        print(f"  Best for: Quick experiments, limited VRAM (~3GB)")
+        print("\n  ViT-Tiny: 5.7M params, 192-dim features")
+        print("  Best for: Quick experiments, limited VRAM (~3GB)")
     elif args.size == "small":
         features_extractor_class = ViTSmallFeaturesExtractor
-        features_dim = 384
-        print(f"\n  ViT-Small: 22M params, 384-dim features")
-        print(f"  Best for: Good balance of speed and capability (~6GB)")
+        print("\n  ViT-Small: 22M params, 384-dim features")
+        print("  Best for: Good balance of speed and capability (~6GB)")
     else:  # base
         features_extractor_class = ViTFeaturesExtractor
-        features_dim = 768
-        print(f"\n  ViT-Base: 86M params, 768-dim features")
-        print(f"  Best for: Maximum capability (~12GB VRAM)")
+        print("\n  ViT-Base: 86M params, 768-dim features")
+        print("  Best for: Maximum capability (~12GB VRAM)")
 
     print(f"{'='*60}\n")
 
@@ -415,7 +412,7 @@ def main():
                     device=accel.chosen,
                     tensorboard_log=LOG_DIR,
                 )
-                print(f"  [OK] Model loaded successfully!")
+                print("  [OK] Model loaded successfully!")
                 break
             except Exception as e:
                 print(f"  [!!] Failed to load: {e}")
@@ -479,8 +476,8 @@ def main():
     try:
         # Check if progress bar is available
         try:
-            import tqdm
-            import rich
+            import tqdm  # noqa: F401  (imported only to test availability)
+            import rich  # noqa: F401  (imported only to test availability)
             progress_bar = True
         except ImportError:
             progress_bar = False

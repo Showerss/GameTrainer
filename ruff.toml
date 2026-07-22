@@ -1,0 +1,10 @@
+# Linter config for ruff.
+# Run with:  ruff check .
+
+exclude = [".venv", "build", "__pycache__", "gametrainer.egg-info"]
+
+[lint.per-file-ignores]
+# Scripts and tests add the project root to sys.path before importing from
+# src/, so their imports genuinely cannot sit at the top of the file.
+"scripts/*.py" = ["E402"]
+"tests/*.py" = ["E402"]
