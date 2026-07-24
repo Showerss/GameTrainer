@@ -27,13 +27,21 @@ from gymnasium import spaces
 class GridWorldEnv(gym.Env):
     """A 5x5 walk-to-the-goal world that follows the Gymnasium contract."""
 
-    metadata = {"render_modes": ["human"]}
+    metadata = {"render_modes": ["human", "rgb_array"]}
 
     # World shape (fixed for M2).
     SIZE = 5                 # 5x5 grid
     START = (0, 0)           # top-left corner
     GOAL = (4, 4)            # bottom-right corner
     MAX_STEPS = 100          # truncation cap: out of moves after this many
+
+    # Drawing numbers (M3). 224x224 is not a style choice: pretrained ViTs
+    # accept exactly that size. The 5x5 board is blown up to fill it, so the
+    # picture is deliberately chunky -- 45-pixel squares, no smoothing.
+    IMAGE_SIZE = 224
+    EMPTY_COLOR = (40, 40, 40)       # dark grey
+    GOAL_COLOR = (0, 200, 0)         # green
+    AGENT_COLOR = (255, 255, 255)    # white
 
     # Reward numbers.
     STEP_COST = -0.01        # every step costs a little
@@ -103,8 +111,32 @@ class GridWorldEnv(gym.Env):
         info = {"steps": self._steps}
         return self._get_obs(), reward, terminated, truncated, info
 
+    def _render_rgb(self):
+        """Draw the grid as a (224, 224, 3) uint8 picture.
+
+        Start from an all-empty canvas, then paint the two squares that matter.
+        Each grid square owns a block of pixels: square i covers columns
+        i*224//5 up to (i+1)*224//5. Integer division keeps the blocks exact
+        and gap-free even though 224 doesn't divide evenly by 5.
+        """
+        image = np.full(
+            (self.IMAGE_SIZE, self.IMAGE_SIZE, 3), self.EMPTY_COLOR, dtype=np.uint8
+        )
+        # Goal first, agent second: when the agent lands ON the goal, it paints
+        # over the green and stays visible.
+        squares = ((self.GOAL, self.GOAL_COLOR), ((self.row, self.col), self.AGENT_COLOR))
+        for (r, c), color in squares:
+            r0, r1 = r * self.IMAGE_SIZE // self.SIZE, (r + 1) * self.IMAGE_SIZE // self.SIZE
+            c0, c1 = c * self.IMAGE_SIZE // self.SIZE, (c + 1) * self.IMAGE_SIZE // self.SIZE
+            image[r0:r1, c0:c1] = color
+        return image
+
     def render(self):
-        """Print the grid as text: A = agent, G = goal, . = empty."""
+        """Show the grid. Picture if render_mode="rgb_array", else printed text."""
+        if self.render_mode == "rgb_array":
+            return self._render_rgb()
+
+        # Text mode (the M2 default): A = agent, G = goal, . = empty.
         for r in range(self.SIZE):
             cells = []
             for c in range(self.SIZE):
