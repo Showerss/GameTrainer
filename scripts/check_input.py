@@ -1,9 +1,21 @@
 """
-Quick test script to verify input is working.
-Run this with Stardew Valley open.
+Quick check script to verify input is working.
+Run this with Stardew Valley open:
+
+    python scripts/check_input.py
+
+Not a pytest test: it is interactive and needs a game window open, so it lives
+in scripts/ rather than tests/.
 """
 
+import os
+import sys
 import time
+
+# Add project root to path for imports
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _project_root)
+
 from src.gametrainer.input import InputController
 
 print("=" * 60)

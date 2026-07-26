@@ -12,8 +12,6 @@ Modules:
     - env_vit: Gymnasium environment (ViT-based) for RL training
     - interface: Template matching for UI detection
     - vit_extractor: ViT feature extractor for SB3
-    - events: Event bus (placeholder)
-    - dependencies: Auto-installation of optional packages
 """
 
 __version__ = "2.0"
