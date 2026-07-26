@@ -123,6 +123,7 @@ Write the "Done when…" in one sentence **before** starting. Then:
 1. **One brick at a time.** Do the smallest next step only. Never scaffold future phases ahead of where we are.
 2. **Teach as you go.** *Before* writing code: say in plain English what we're about to do and why. *After*: explain what it does in 2–3 simple lines.
 3. **Stop at every checkpoint.** At each milestone's "Done when…", pause. Confirm I actually get it before moving on — ask me to say it back in my own words if it's a new idea.
+4. With every brick that gets completed please write short of a summary as possible Within that milestone's folder such that with every Sprint retrospective that I generate the steps throughout each Sprint were clearly documented  
 5. **If I seem lost, slow down — don't pile on.** Switch to a metaphor or a smaller example. More detail is the wrong move; simpler is the right one.
 ## The shared language (use these words, they're how I think)
  
