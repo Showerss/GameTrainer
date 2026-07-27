@@ -32,6 +32,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [M3] — Add the Eyes (GridWorld through a ViT)
+
+M2 handed PPO two numbers, `(row, col)`. M3 hands it a **picture** of the same
+world and nothing else. Same Ground, same borrowed brain, same Gymnasium
+contract — the only thing that changed is the **sense organ** in between. PPO
+was not touched.
+
+### Added
+
+- **GridWorld draws itself (`src/gametrainer/gridworld.py`):** `render_mode="rgb_array"` returns a `(224, 224, 3)` uint8 image of the board — the 5×5 grid upscaled, blocky on purpose, because pretrained ViTs expect exactly 224×224. The existing text renderer is unchanged and stays the default. Tests in `tests/test_gridworld_pixels.py`.
+- **Pixel observation wrapper (`src/gametrainer/perception.py` → `PixelObservation`):** A `gymnasium.ObservationWrapper` that swaps the observation from `(row, col)` to the image. `GridWorldEnv` is never edited and never learns the wrapper exists, so M2's tests stayed green untouched. The agent can no longer see its coordinates **at all** — that's the point. Tests in `tests/test_pixel_observation.py`.
+- **ViT feature extractor (`src/gametrainer/vit_extractor.py` → `ViTTinyFeaturesExtractor`):** One 224×224 picture in, 192 numbers out, using a pretrained `vit_tiny_patch16_224` with the backbone **frozen** (0 trainable parameters — borrowed eyes stay borrowed). Chosen over ViT-Base (86M params) because M3 runs on CPU. Test asserts the width PPO reads matches the width the extractor actually produces. Adds `timm` to the `rl` extra in `setup.py`.
+- **Vision task wrappers (`src/gametrainer/gridworld.py` → `RandomStart`, `make_vision_task`):** A GridWorld that **cannot be solved without looking** — random start square, goal moved to the centre, 25-move budget. Built as wrappers only; `GridWorldEnv` itself is still unedited. Tests in `tests/test_random_start.py` assert that a blind agent and a random agent both fail here, so the flaw below cannot silently return.
+- **Pixels-only training script (`scripts/train_gridworld_vit.py`):** `PPO("CnnPolicy", ...)` with `policy_kwargs` pointing at the frozen ViT. Measures the random baseline **live every run** (M2 hardcoded `-0.3`, and that number was wrong), trains, evaluates greedily, then prints a PASS/FAIL verdict plus wall-clock time. **Result: PASS** — live baseline `+0.48`, trained `+0.99`, goal reached in **100%** of greedy episodes, `reset()`/`step()` shapes unchanged, 19.2 min on CPU.
+
+### Fixed
+
+- **GridWorld was solvable blind.** The first pixels-only run scored `+0.905` and looked like a win, but the agent never used the picture: its action probabilities were identical on every square — a fixed 53% DOWN / 47% RIGHT coin flip — and a hand-written blind agent matched it at `+0.907`. With the goal in a corner, "down or right" wins from anywhere, because walls stop you instead of costing you the run. The fault was the **Ground**, not the eyes; fixed by `make_vision_task()` above. Diagnostic scripts archived in `docs/m3/experiments/`.
+
+### Changed
+
+- **TUI menu (`src/gametrainer/tui.py`):** Added `[5] Train GridWorld with ViT eyes - pixels only (M3)`, which launches `scripts/train_gridworld_vit.py`. The old `[5] Train ViT agent` (the Stardew Track B reference script) moved to `[6]` and is relabelled so it no longer claims to be M3; Play/Changelog/Deps/Quit renumbered accordingly.
+
+---
+
 ## [M2] — Build Your Own Ground (GridWorld)
 
 First milestone where we **build** a Ground instead of borrowing one. GridWorld is
