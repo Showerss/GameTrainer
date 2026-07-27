@@ -51,6 +51,7 @@ setup(
         "pydantic",       # JSON schema validation for knowledge base
         "pyyaml",         # YAML config file parsing
         "pynput",         # Global keyboard/mouse input capture
+        "rich",           # Terminal formatting for the TUI menu (main.py's default path)
     ],
 
     # Optional dependencies for development
