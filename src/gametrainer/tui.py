@@ -36,7 +36,9 @@ class TuiConfig:
     # M2 surface: our own home-built Ground (GridWorld) — random baseline + PPO.
     run_gridworld_script_relpath: str = "scripts/run_gridworld.py"
     train_gridworld_script_relpath: str = "scripts/train_gridworld.py"
-    # M3+ surface: the ViT + game path (advanced, not the current milestone).
+    # M3 surface: the same Ground, but the agent sees only pixels through a ViT.
+    train_gridworld_vit_script_relpath: str = "scripts/train_gridworld_vit.py"
+    # Track B: the old Stardew ViT path, kept as reference (not a milestone step).
     train_script_relpath: str = "scripts/train.py"
     play_script_relpath: str = "scripts/play.py"
 
@@ -91,11 +93,12 @@ def _menu() -> Panel:
     menu.append("  [2] Train CartPole - borrowed PPO brain (M1)\n")
     menu.append("  [3] Run GridWorld - random actions, baseline (M2)\n")
     menu.append("  [4] Train GridWorld - borrowed PPO brain (M2)\n")
-    menu.append("  [5] Train ViT agent - advanced, later milestones (M3+)\n")
-    menu.append("  [6] Play (inference)\n")
-    menu.append("  [7] View changelog\n")
-    menu.append("  [8] Update / install deps (pip)\n")
-    menu.append("  [9] Quit\n")
+    menu.append("  [5] Train GridWorld with ViT eyes - pixels only (M3)\n")
+    menu.append("  [6] Train ViT agent on Stardew - Track B reference code\n")
+    menu.append("  [7] Play (inference)\n")
+    menu.append("  [8] View changelog\n")
+    menu.append("  [9] Update / install deps (pip)\n")
+    menu.append("  [10] Quit\n")
     return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
 
 
@@ -129,7 +132,11 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
         console.print(_header(cfg))
         console.print(_menu())
 
-        choice = IntPrompt.ask("Selection", choices=["1", "2", "3", "4", "5", "6", "7", "8", "9"], default="9")
+        choice = IntPrompt.ask(
+            "Selection",
+            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+            default="10",
+        )
 
         if choice == 1:
             # M0: prove the Gymnasium link with random actions. No training, no ViT.
@@ -152,7 +159,14 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             return _run_script(cfg.train_gridworld_script_relpath)
 
         if choice == 5:
-            # M3+: the ViT + game path. Advanced; not the current milestone.
+            # M3: the same GridWorld, but the agent sees only a picture of it,
+            # read through a frozen ViT. Slow on CPU — say so before it starts.
+            console.print("\nLaunching GridWorld pixel training (PPO + frozen ViT-Tiny)...")
+            console.print("[dim]This takes ~20 min on CPU. It prints a PASS/FAIL verdict at the end.[/dim]\n")
+            return _run_script(cfg.train_gridworld_vit_script_relpath)
+
+        if choice == 6:
+            # Track B: the old Stardew ViT path, kept as reference code.
             # Let user optionally choose ViT size without forcing it.
             size = Prompt.ask("ViT size", choices=["tiny", "small", "base"], default="small")
             freeze = Prompt.ask("Freeze backbone?", choices=["y", "n"], default="n") == "y"
@@ -162,11 +176,11 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             console.print("\nLaunching ViT training (advanced)...\n")
             return _run_script(cfg.train_script_relpath, extra_args=args)
 
-        if choice == 6:
+        if choice == 7:
             console.print("\nLaunching play/inference...\n")
             return _run_script(cfg.play_script_relpath)
 
-        if choice == 7:
+        if choice == 8:
             root = _project_root()
             path = (root / cfg.changelog_relpath).resolve()
             console.clear()
@@ -175,7 +189,7 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             Prompt.ask("\nPress Enter to return", default="")
             continue
 
-        if choice == 8:
+        if choice == 9:
             console.clear()
             console.print(_header(cfg))
             console.print(Panel("Choose what to install:\n\n  [1] Core (.)\n  [2] Core + RL (.[rl])\n  [3] Back", border_style="green"))
