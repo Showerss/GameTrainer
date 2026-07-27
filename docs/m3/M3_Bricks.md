@@ -1,6 +1,7 @@
 # M3 Bricks — sprint log
 
 One short entry per brick. Full evidence and numbers: `M3_Review.md`.
+Non-brick housekeeping (repo audit, logger fix): `M3_Cleanup.md`.
 
 **Status: 5 of 6 done. Milestone "Done when…" satisfied (Brick 4 prints PASS).**
 
