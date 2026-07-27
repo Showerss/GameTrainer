@@ -3,7 +3,7 @@
 One short entry per brick. Full evidence and numbers: `M3_Review.md`.
 Non-brick housekeeping (repo audit, logger fix): `M3_Cleanup.md`.
 
-**Status: 5 of 6 done. Milestone "Done when…" satisfied (Brick 4 prints PASS).**
+**Status: 6 of 6 done — M3 complete. Milestone "Done when…" satisfied (Brick 4 prints PASS).**
 
 ---
 
@@ -51,8 +51,25 @@ Re-run: live baseline +0.48, trained **+0.99**, **100%** goal rate, shapes
 unchanged → **PASS** in 19.2 min on CPU. Three new tests assert that blind and
 random agents can no longer pass, so this can't silently come back.
 
-### Brick 5 — Wire into TUI + changelog ⬜ not started
-`src/gametrainer/tui.py` · `docs/CHANGELOG.md`
+### Brick 5 — Wire into TUI + changelog ✅
+`src/gametrainer/tui.py` · `setup.py` · `docs/CHANGELOG.md`
 
-Add a "Train GridWorld with ViT eyes (M3)" menu option and an M3 changelog entry.
-No test planned, on purpose: menu wiring fails loudly the first time you run it.
+Gave the M3 run a front door. New menu item `[5] Train GridWorld with ViT eyes —
+pixels only (M3)` launches `train_gridworld_vit.py`; the old `[5]` (the Stardew
+Track B script) moved to `[6]` and lost its misleading "M3+" label, since two
+items both claiming M3 is how you launch the wrong one. Play/Changelog/Deps/Quit
+renumbered; Quit is now `[10]`. Added the M3 changelog section covering all six
+bricks, including the blind-agent bug and its fix.
+
+**The bug this brick found:** `rich` is imported by `tui.py` but was in **no**
+dependency list and wasn't installed — so `python main.py` had been dying into
+its error fallback and the TUI could not start at all. Pre-existing, unrelated to
+M3, and invisible until something actually tried to launch the menu. Added `rich`
+to `install_requires` (it's needed by `main.py`'s default path, so it's core, not
+an `rl` extra).
+
+No test, as planned — and it paid off exactly as the plan predicted: the wiring
+failed loudly on first run. Verified by launching it: menu renders, all 8 script
+paths resolve, option `[5]` reached "Contract check: OK → live baseline +0.25 →
+Training PPO on pixels" before being stopped early. Suite still 41 passed /
+1 skipped, `ruff` clean.
