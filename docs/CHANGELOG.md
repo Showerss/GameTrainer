@@ -1,34 +1,19 @@
 # Changelog
 
+
+> **Covers:** every change to this project, newest first.
+> **Status:** current. **Last verified:** 2026-07-27 (M3 closed).
+> **Authority:** this file owns *what happened and when*. `docs/PRD.md` owns *what
+> gets built next*. Written to `docs/DOC_STANDARD.md`.
+
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 **Important:** When maintaining this file, only **append** new entries. Never overwrite or remove existing changelog content.
 
----
-
-## [Unreleased]
-
-### Fixed
-
-- **Package imports (`src/gametrainer/__init__.py`):** Replaced broken import from non-existent `env_legacy` with `env_vit`. Package now exports `StardewViTEnv` instead of `StardewEnv`. Docstring updated to list actual modules (env_vit, interface, vit_extractor, etc.).
-- **Script import (`scripts/transfer_learning.py`):** Replaced import from non-existent `env` module with `src.gametrainer.env_vit.StardewViTEnv`. Added comment that transfer-learning concepts apply to ViT.
-- **Test import (`tests/test_logger.py`):** Fixed incorrect path and module. Replaced `sys.path` to `src/python` and `from core.logger import Logger` with project root and `from src.gametrainer.logger import Logger` so the test runs against the actual package.
-
-### Added
-
-- **Action validation in `StardewViTEnv.step()`:** Actions are now validated and clamped to the valid range `[0, action_space.n - 1]` (as int) before execution. Prevents silent no-ops or errors when the policy returns an out-of-range value (e.g. from a mismatched loaded model).
-- **Hardware/accelerator detection (`src/gametrainer/hardware.py`):** Added a device picker and a startup banner so training/play runs choose the best available accelerator (CUDA / MPS / CPU) without hard-requiring CUDA.
-- **Retro TUI launcher (`src/gametrainer/tui.py`):** Added a retro-style menu (version/author, changelog view, Train, Play) and updated `main.py` so running `python main.py` launches the TUI by default.
-
-### Documentation
-
-- **Design/architecture alignment:** `architecture.md` and `design.md` were updated to describe the current RL implementation (ViT + PPO, Python screen/input, C++ input only). Original (unimplemented) design kept as a reference section. `tasks.md` was updated with an alignment note and current next steps; backlog items from the original design marked as reference only.
-
-- **PROJECT_OVERVIEW.md overhaul:** Rewritten as the single narrative for both humans and AI (CS-student friendly). Removed all decision-tree wording and the “run using local decision trees” workflow; clarified that the bot runs on the trained PPO+ViT model only. Fixed architecture diagram (three clear boxes; core engine no longer lists “Decision tree executor”). Action space updated to match code (12 discrete actions with correct indices). Dependencies updated: removed ffmpeg; input described as C++ SendInput (`clib`), not pyadirectinput; GUI (tkinter) and setup/installer called out as aspirational. Profile section reframed: profiles are for per-game config when wired in; current run path is train → save model → play from model. Build & Run now includes `pip install -e ".[rl]"` for the RL stack.
-
-- **Docs consolidation and glossary:** Consolidated docs into `docs/README.md` + `docs/AGENTS.md` + `docs/CHANGELOG.md` and added a glossary section defining common acronyms (RL, PPO, ViT, SB3, VRAM, etc.).
+Milestone entries are newest-first. Work predating the milestone scheme is
+preserved at the **bottom** of this file under *Pre-milestone*.
 
 ---
 
@@ -49,7 +34,16 @@ was not touched.
 
 ### Fixed
 
-- **GridWorld was solvable blind.** The first pixels-only run scored `+0.905` and looked like a win, but the agent never used the picture: its action probabilities were identical on every square — a fixed 53% DOWN / 47% RIGHT coin flip — and a hand-written blind agent matched it at `+0.907`. With the goal in a corner, "down or right" wins from anywhere, because walls stop you instead of costing you the run. The fault was the **Ground**, not the eyes; fixed by `make_vision_task()` above. Diagnostic scripts archived in `docs/m3/experiments/`.
+- **GridWorld was solvable blind.** The first pixels-only run scored `+0.905` and looked like a win, but the agent never used the picture: its action probabilities were identical on every square — a fixed 53% DOWN / 47% RIGHT coin flip — and a hand-written blind agent matched it at `+0.907`. With the goal in a corner, "down or right" wins from anywhere, because walls stop you instead of costing you the run. The fault was the **Ground**, not the eyes; fixed by `make_vision_task()` above.
+
+  > **Citation corrected 2026-07-27.** This entry previously read "Diagnostic
+  > scripts archived in `docs/m3/experiments/`". That directory no longer exists —
+  > the diagnostics (a blind control agent, a blind-vs-sighted sweep across four
+  > task designs, and a step-budget calibration) and the raw run logs were removed
+  > in commit `fefadfb` when M3 closed. They are recoverable from `fefadfb^` if the
+  > result is ever challenged. The finding itself is preserved **here**, in
+  > `docs/m3/GameTrainer_5_M3_Review.pdf`, and — most durably — in
+  > `tests/test_random_start.py`, which fails if the flaw ever returns.
 
 ### Changed
 
@@ -86,3 +80,44 @@ PPO brain plugs in unchanged — that swappability is the whole point.
 
 - **Baseline stats in `scripts/run_cartpole.py`:** Added per-episode reward tracking (episodes completed, mean reward per episode) to the output summary. The docstring now notes that this mean reward is the M0 random-action baseline that M1 must beat. The 100-step random loop itself is unchanged.
 - **Quickstart docs (`docs/README.md`):** Added M0 and M1 quickstart sections and a TensorBoard tip for `logs/cartpole`.
+
+---
+
+## Pre-milestone — work before the changelog adopted milestone sections
+
+> **Moved, not rewritten (2026-07-27).** This section was previously titled
+> `[Unreleased]` and sat at the **top** of this file, above M3. That put the
+> project's oldest work in front of its newest and implied the entries were
+> pending rather than long since shipped. The content below is unchanged,
+> word for word.
+>
+> **Read it with three caveats:**
+>
+> - Most of it describes **Track B** — the Stardew-first prototype that predates
+>   the crawl-first plan (see `docs/ONBOARDING.md` §5). `StardewViTEnv`,
+>   `env_vit.py` and `transfer_learning.py` are *not* on the current path.
+> - **Two entries are still live:** `hardware.py` (device picker) and `tui.py`
+>   (the retro menu, since extended through M3).
+> - Every document named under *Documentation* — `architecture.md`, `design.md`,
+>   `tasks.md`, `PROJECT_OVERVIEW.md`, `docs/AGENTS.md` — **no longer exists.**
+>   These entries are a record of work done, not a guide to files you can open.
+
+### Fixed
+
+- **Package imports (`src/gametrainer/__init__.py`):** Replaced broken import from non-existent `env_legacy` with `env_vit`. Package now exports `StardewViTEnv` instead of `StardewEnv`. Docstring updated to list actual modules (env_vit, interface, vit_extractor, etc.).
+- **Script import (`scripts/transfer_learning.py`):** Replaced import from non-existent `env` module with `src.gametrainer.env_vit.StardewViTEnv`. Added comment that transfer-learning concepts apply to ViT.
+- **Test import (`tests/test_logger.py`):** Fixed incorrect path and module. Replaced `sys.path` to `src/python` and `from core.logger import Logger` with project root and `from src.gametrainer.logger import Logger` so the test runs against the actual package.
+
+### Added
+
+- **Action validation in `StardewViTEnv.step()`:** Actions are now validated and clamped to the valid range `[0, action_space.n - 1]` (as int) before execution. Prevents silent no-ops or errors when the policy returns an out-of-range value (e.g. from a mismatched loaded model).
+- **Hardware/accelerator detection (`src/gametrainer/hardware.py`):** Added a device picker and a startup banner so training/play runs choose the best available accelerator (CUDA / MPS / CPU) without hard-requiring CUDA.
+- **Retro TUI launcher (`src/gametrainer/tui.py`):** Added a retro-style menu (version/author, changelog view, Train, Play) and updated `main.py` so running `python main.py` launches the TUI by default.
+
+### Documentation
+
+- **Design/architecture alignment:** `architecture.md` and `design.md` were updated to describe the current RL implementation (ViT + PPO, Python screen/input, C++ input only). Original (unimplemented) design kept as a reference section. `tasks.md` was updated with an alignment note and current next steps; backlog items from the original design marked as reference only.
+
+- **PROJECT_OVERVIEW.md overhaul:** Rewritten as the single narrative for both humans and AI (CS-student friendly). Removed all decision-tree wording and the “run using local decision trees” workflow; clarified that the bot runs on the trained PPO+ViT model only. Fixed architecture diagram (three clear boxes; core engine no longer lists “Decision tree executor”). Action space updated to match code (12 discrete actions with correct indices). Dependencies updated: removed ffmpeg; input described as C++ SendInput (`clib`), not pyadirectinput; GUI (tkinter) and setup/installer called out as aspirational. Profile section reframed: profiles are for per-game config when wired in; current run path is train → save model → play from model. Build & Run now includes `pip install -e ".[rl]"` for the RL stack.
+
+- **Docs consolidation and glossary:** Consolidated docs into `docs/README.md` + `docs/AGENTS.md` + `docs/CHANGELOG.md` and added a glossary section defining common acronyms (RL, PPO, ViT, SB3, VRAM, etc.).

@@ -136,6 +136,7 @@ Write the "Done when…" in one sentence **before** starting. Then:
 - **Build in order: M0 → M6.** Don't jump ahead. Stardew is the *last* thing, not the first.
 - **v1 constraints:** Python only (no C++), no memory reading, local only.
 - **Hardware:** early phases run on CPU. The AMD GPU only matters at the ViT phase (M3) — don't let GPU setup block earlier steps.
+- **Docs are held to `docs/DOC_STANDARD.md`** — read it before writing or editing any `.md`. This repo is evidence of how I work, so the record must be current, non-contradictory, and reproducible. Never report a result without its baseline, hardware, and wall-clock time. Never delete a wrong result — correct it with a dated note. **In effect from M4.**
 
 ## When in doubt
  

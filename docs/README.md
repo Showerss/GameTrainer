@@ -1,4 +1,31 @@
-# GameTrainer
+# GameTrainer — Stardew-first design (ARCHIVED)
+
+> ## ⚠️ Archived — do not trust this as current
+>
+> **Covers:** the original *Stardew-Valley-first* design (**Track B**), as it stood
+> before the crawl-first pivot.
+> **Status:** **archived — historical reference.** Superseded by
+> [`docs/PRD.md`](PRD.md) (the plan) and [`docs/ONBOARDING.md`](ONBOARDING.md)
+> (the tour).
+> **Last verified:** 2026-07-27 — verified as an accurate record *of the old
+> design*. Its claims about the **current** system are wrong, deliberately left
+> unedited.
+>
+> **Specifically, the following on this page is not true today:**
+>
+> | This page says | Reality (per `docs/PRD.md`) |
+> | :--- | :--- |
+> | Runs on GPU | **CPU-first.** M0–M3 all ran on CPU. GPU is not required and is not used. |
+> | Input via a C++ `SendInput` extension | **No C++ in v1.** Not built, not used. Real key presses are M5. |
+> | 12-action space, multi-component reward | That's the Stardew env (`env_vit.py`, Track B). The live world is a 5×5 GridWorld: 4 actions, `-0.01`/step, `+1.0` on goal. |
+> | `python main.py train`, `scripts/train.py`, `scripts/play.py` | Track B entry points. The live path is `scripts/train_gridworld_vit.py` (M3). |
+> | `black`, `mypy` | The project uses **`ruff`** (`ruff check .`). |
+> | ViT-Small recommended, VRAM tables | M3 uses frozen **ViT-Tiny** on CPU. VRAM is irrelevant. |
+> | "this `README.md` is the canonical narrative" | It is not. `docs/PRD.md` is. |
+>
+> **Why it's kept:** the *Design pivot log* near the bottom is the only record of
+> why the project changed direction, and that reasoning is worth more than the
+> tidiness of deleting the file.
 
 A **local, vision-based Reinforcement Learning (RL)** system that learns to play games from **pixels** and sends **keyboard/mouse inputs** back to the game.
 
@@ -168,7 +195,10 @@ Reward is a multi-component signal that encourages progress (e.g., movement/inte
 
 ---
 
-## Current status (what’s true today)
+## Current status *(as written — now stale, see the archive notice at the top)*
+
+> **Superseded.** For the real current status, read `docs/ONBOARDING.md` §8.
+> Preserved below as written.
 
 - The codebase is aligned around the **RL pipeline** (Gymnasium env + Stable-Baselines3 PPO + ViT extractor).
 - The “original” older design (Menu/Orchestrator + C++ CV/AI engine) is **not implemented** and is treated as historical reference only.
@@ -287,6 +317,11 @@ This is an **educational codebase**. Changes should favor clarity and “teachab
 
 ## Where to look next
 
-- **Humans**: you’re here in `README.md` (this is the canonical narrative).
-- **Deep technical context / module breakdown**: `docs/PRD.md` (authoritative constraints, architecture, and working agreements).
-- **Code change notes**: `docs/CHANGELOG.md` (append-only).
+**This file is archived.** Go here instead:
+
+| You want… | Read |
+| :--- | :--- |
+| Orientation, and the real current status | [`docs/ONBOARDING.md`](ONBOARDING.md) |
+| The authoritative plan and constraints | [`docs/PRD.md`](PRD.md) |
+| What changed and when | [`docs/CHANGELOG.md`](CHANGELOG.md) |
+| How docs must be written | [`docs/DOC_STANDARD.md`](DOC_STANDARD.md) |
