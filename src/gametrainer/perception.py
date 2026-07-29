@@ -9,8 +9,7 @@ environment: every call passes straight through it, and it is allowed to change
 exactly one thing on the way out. Here that one thing is the observation.
 
 Why a wrapper and not a new environment:
-  - GridWorldEnv is never edited and never learns this exists, so M2's tests
-    keep passing untouched.
+  - This wrapper doesn't mutate the wrapped env's dynamics; it only swaps the observation.
   - Same Ground, same Brain (PPO), same Gymnasium contract -- we only change the
     sense organ in between. That swappability is the entire point of the project.
 
