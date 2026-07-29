@@ -226,10 +226,9 @@ def make_vision_task(render_mode="rgb_array"):
     agree on it exactly. Measuring the bar on a different game than the one being
     played is the specific mistake this milestone already made once.
 
-    Three stock-Gymnasium layers, none of which edit GridWorldEnv:
+    Two wrapper layers (only one touches GridWorldEnv directly):
       RandomStart  -- random square each episode, goal moved off the corner
       TimeLimit    -- Gymnasium's own step-budget wrapper
-    """
     return TimeLimit(
         RandomStart(GridWorldEnv(render_mode=render_mode)),
         max_episode_steps=VISION_TASK_STEP_CAP,
