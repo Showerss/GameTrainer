@@ -8,3 +8,5 @@ exclude = [".venv", "build", "__pycache__", "gametrainer.egg-info"]
 # src/, so their imports genuinely cannot sit at the top of the file.
 "scripts/*.py" = ["E402"]
 "tests/*.py" = ["E402"]
+# Archived M3 diagnostics — same sys.path pattern, kept as milestone evidence.
+"docs/m3/experiments/*.py" = ["E402"]
