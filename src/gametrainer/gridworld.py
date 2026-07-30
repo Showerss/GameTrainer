@@ -229,6 +229,7 @@ def make_vision_task(render_mode="rgb_array"):
     Two wrapper layers (only one touches GridWorldEnv directly):
       RandomStart  -- random square each episode, goal moved off the corner
       TimeLimit    -- Gymnasium's own step-budget wrapper
+    """
     return TimeLimit(
         RandomStart(GridWorldEnv(render_mode=render_mode)),
         max_episode_steps=VISION_TASK_STEP_CAP,

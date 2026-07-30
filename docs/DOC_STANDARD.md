@@ -1,7 +1,8 @@
 # Documentation Standard
 
 > **Covers:** every `.md` file in this repository.
-> **Status:** current. **Last verified:** 2026-07-27 (M3 closed).
+> **Status:** current. **Last verified:** 2026-07-30 (rule 6 extended with
+> `M<N>_Log.md` as M4 opened; rest of the file re-read and still accurate).
 > **Authority:** this file wins on *how* docs are written. `docs/PRD.md` wins on
 > *what* gets built.
 
@@ -96,12 +97,23 @@ An unlabelled reference is assumed Track A, so labelling Track B is mandatory.
 ```
 docs/m<N>/
 ├── M<N>_ToDo.md      # written FIRST — scope, design, bricks, "Done when…"
+├── M<N>_Log.md       # written DURING — one entry per brick, the day it closes
 ├── M<N>_Review.md    # written LAST — what happened, results table, what I'd redo
 └── *.pdf             # generated retrospectives, kept as the historical record
 ```
 
 `M<N>_ToDo.md` is the plan and must exist before the first brick.
-`M<N>_Review.md` is the retrospective and must exist before the milestone closes.
+`M<N>_Log.md` is the lab notebook and is filled in **as the work happens**, not
+reconstructed afterwards — it holds the run numbers, the decisions and the
+surprises that the review is later assembled from. `M<N>_Review.md` is the
+retrospective and must exist before the milestone closes.
+
+The three do not overlap (rule 2): the ToDo owns *the plan*, the Log owns *the
+record of doing it*, the Review owns *what it meant*.
+
+> **Added 2026-07-30 (M4).** M0–M3 have no `M<N>_Log.md` and are not expected to
+> grow one — per the scope note below, a new standard applies to the next
+> milestone, never retroactively.
 
 **Reviews are markdown in the repo.** PDFs are kept alongside as generated
 artefacts — markdown is what diffs, greps, and renders on GitHub.
