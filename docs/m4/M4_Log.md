@@ -35,7 +35,7 @@ keeping it.
 | **Milestone** | M4 — Make It Swappable (`Profile` + `RewardCalculator`) |
 | **Started** | 2026-07-30 (planning) |
 | **Branch** | `m4-implementation` |
-| **Current brick** | Brick 0 — the guardrail (pre-flight repair done) |
+| **Current brick** | Brick 1 — `Profile` loads and validates (Brick 0 done) |
 | **Hardware** | CPU (Windows 11, Python 3.14). GPU still not in play — M3 ran fine on CPU |
 | **Closed** | _(date, once Brick 7 ticks DOC_STANDARD rule 7)_ |
 
@@ -74,13 +74,42 @@ its *code* is one line short.
 
 ## Brick 0 — The guardrail (written first)
 
-**Status:** ⬜ not started
-**File(s):** `scripts/train_from_profile.py`
+**Status:** ✅ done 2026-07-31
+**File(s):** `scripts/train_from_profile.py` (referee only) + `tests/test_m4_verdict.py`
 
-- **The bar, in one sentence:** _(fill in)_
-- **What I built:** _(fill in)_
-- **What I learned:** _(fill in)_
-- **Verified by:** _(command + output)_
+- **The bar, in one sentence:** every profile's agent beats the baseline *measured
+  live in that same run* by the margin its own YAML demands, `reset()`/`step()`
+  shapes are unchanged, and the **source fingerprint is identical** across the runs
+  being compared.
+- **What I built:** the four referee pieces, no game yet — `source_fingerprint()`,
+  `check_contract_shapes()`, `measure_random_baseline(make_env)`, and the pure
+  `decide_verdict()`. Running the script today prints the bar and says plainly that
+  there is nothing to grade yet (exit 1), rather than faking a run.
+- **Decisions made here:**
+  - **One bar shape for three milestones.** M1 said "2× baseline", M2 "≥ +0.5",
+    M3 "live baseline + 0.40, goal ≥ 80%". One referee can't grade three shapes, so
+    all three are re-expressed in M3's: *live baseline + margin*, plus an optional
+    goal rate. CartPole's "2 × 22 = 44" becomes "baseline + 22" — same bar, now
+    measured instead of remembered. The M1–M3 scripts are untouched.
+  - **Goal rate is optional, and "not applicable" is explicit.** CartPole has no goal
+    to reach. A profile that demands `min_goal_rate` on a Ground that can't measure
+    one raises instead of silently passing.
+- **What I learned:** *the first version of the fingerprint was wrong, and it was
+  wrong in the exact way the milestone cares about.* `git ls-files "*.py"` lists only
+  files git already **tracks** — so the runner and its test, both brand new and
+  uncommitted, were **not in their own fingerprint**. Two runs of genuinely different
+  code would have printed the same hash and claimed the swap was proven. Fixed with
+  `-c -o --exclude-standard` (tracked + untracked, minus ignored) and pinned by
+  `test_fingerprint_covers_uncommitted_files`.
+- **Verified by:**
+  - Red first: `pytest tests/test_m4_verdict.py -q` → `ModuleNotFoundError:
+    No module named 'scripts.train_from_profile'`, then green at **10 passed**
+    (11 after the fingerprint fix).
+  - `python -m pytest tests/ -q` → **52 passed, 1 skipped in 2.32s** (CPU, Python 3.14).
+    Was 41 before this brick; the M0–M3 tests were not edited.
+  - `python -m ruff check .` → All checks passed.
+  - `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` → prints
+    the bar, the fingerprint, and the "nothing to grade yet" notice; exit code 1.
 
 ---
 
@@ -203,6 +232,9 @@ alternative and why it lost matters more than the choice.
 | 2026-07-30 | Profile carries the reward **numbers** | Profile names a calculator class only | "Config-only" isn't real if retuning the game needs a `.py` edit |
 | 2026-07-30 | CartPole declares `reward: builtin` | Pretend a `RewardCalculator` applies to it | We didn't build CartPole; we can't rescore it. Say so in the file |
 | 2026-07-30 | `M<N>_Log.md` added to DOC_STANDARD rule 6 | Fold brick notes into `M<N>_Review.md` | A file written *during* and a file written *after* answer different questions (rule 2). Applies from M4 on, not retroactively |
+| 2026-07-31 | The profile carries the reward **numbers** (confirmed) | Profile names a calculator class only | "Config-only" isn't real if retuning the game needs a `.py` edit |
+| 2026-07-31 | One bar shape: *live baseline + margin* (+ optional goal rate) | Keep M1's "2× baseline" and M2's absolute "+0.5" as separate shapes | One referee can't grade three shapes. Re-expresses identically and drops two hardcoded baselines (DOC_STANDARD rule 3) |
+| 2026-07-31 | Fingerprint hashes tracked **and** untracked `.py` files | Tracked only (`git ls-files`); or trust `git status` to be clean | What ran matters, not what was committed. Tracked-only gave a false PASS on brand-new files |
 | _(fill in)_ | | | |
 
 ---
@@ -215,6 +247,7 @@ when you understand it.
 | Date | What surprised me | What it turned out to mean | What changed as a result |
 | :--- | :--- | :--- | :--- |
 | 2026-07-30 | `main` had a syntax error in `gridworld.py` from a merged autofix commit | M3's code was one line short of running; the result itself was fine | Pre-flight repair added ahead of Brick 0 |
+| 2026-07-31 | The swap proof didn't cover the files it was written in | `git ls-files` lists only **tracked** files, so new uncommitted code was invisible to its own fingerprint — a false PASS on M4's central claim | Switched to `-c -o --exclude-standard`; pinned by a test that fails if anyone simplifies it back |
 | _(fill in)_ | | | |
 
 ---
