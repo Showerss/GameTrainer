@@ -35,7 +35,7 @@ keeping it.
 | **Milestone** | M4 — Make It Swappable (`Profile` + `RewardCalculator`) |
 | **Started** | 2026-07-30 (planning) |
 | **Branch** | `m4-implementation` |
-| **Current brick** | Brick 1 — `Profile` loads and validates (Brick 0 done) |
+| **Current brick** | Brick 2 — `RewardCalculator` (Bricks 0–1 done) |
 | **Hardware** | CPU (Windows 11, Python 3.14). GPU still not in play — M3 ran fine on CPU |
 | **Closed** | _(date, once Brick 7 ticks DOC_STANDARD rule 7)_ |
 
@@ -111,18 +111,64 @@ its *code* is one line short.
   - `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` → prints
     the bar, the fingerprint, and the "nothing to grade yet" notice; exit code 1.
 
+**Correction — 2026-08-02:** `scripts/train_from_profile.py` used `float | None`
+(PEP 604 union syntax), which needs Python 3.10+. It ran fine on the Windows
+3.14 box this brick was built on, but on a Mac with this repo's `.venv`
+(Python 3.9.6 — matching `setup.py`'s `python_requires=">=3.9"`), importing the
+file raised `TypeError` at collection time and took the *entire* test suite
+down with it, not just this file. Fixed by adding
+`from __future__ import annotations` (the same pattern already used in
+`hardware.py` and `tui.py`), which makes annotations lazy so they're never
+evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
+52 passed, 1 skipped — same count the brick originally reported.
+
+> **Lesson to carry:** Brick 0 was verified on one machine only. A file using
+> newer syntax than the project's stated minimum can pass everywhere it was
+> tested and still be broken elsewhere. Worth a line in the review.
+
 ---
 
 ## Brick 1 — `Profile` loads and validates
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-02
 **File(s):** `tests/test_profile.py` → `src/gametrainer/profile.py`
 
-- **Red test first — what it asserted:** _(fill in)_
-- **What I built:** _(fill in)_
-- **Decisions made here:** _(fill in — e.g. dataclass vs dict, which fields are required)_
-- **What I learned:** _(fill in)_
-- **Verified by:** _(fill in)_
+- **Red test first — what it asserted:** seven cases — a known-good GridWorld
+  profile loads to the exact field values; a known-good CartPole profile loads
+  with `step_cost`/`goal_reward` left `None` (its `reward: builtin`); an
+  unknown `ground:` raises `ValueError` naming the legal options; a missing
+  required field raises naming the field *and* the file; `perception: pixels`
+  on `ground: cartpole` raises; an unknown `perception:` raises naming legal
+  options; `reward: gridworld` with `step_cost` missing raises. Confirmed red
+  first — `ModuleNotFoundError: No module named 'src.gametrainer.profile'`.
+- **What I built:** `Profile`, a frozen dataclass, plus one classmethod
+  `Profile.from_yaml(path)` that loads the file, checks it, and returns a
+  `Profile` or raises. One `if`-chain, no registry, no dynamic imports.
+- **Decisions made here:**
+  - **Dataclass, not dict** — per the plan: `profile.step_cost` fails fast on
+    a typo, `profile["step_kost"]` fails mid-run.
+  - **Fields:** `ground`, `perception`, `reward` (`"builtin" | "gridworld"`),
+    `total_timesteps`, the seven PPO hyperparameters used verbatim across
+    `train_cartpole.py` / `train_gridworld.py` / `train_gridworld_vit.py`
+    (`learning_rate`, `n_steps`, `batch_size`, `n_epochs`, `gamma`,
+    `gae_lambda`, `clip_range`, `ent_coef`), and `margin_over_baseline` are
+    required for every profile. `step_cost`, `goal_reward` (required only
+    when `reward: gridworld`) and `min_goal_rate` (optional — CartPole has no
+    goal) default to `None`. No field exists that Brick 0's referee or the
+    three existing scripts don't already use — nothing spec­ulative.
+  - **Validation lives in `from_yaml`, not `__init__`** — direct construction
+    (`Profile(ground=..., ...)`) stays available for tests; the YAML path is
+    where "validated on load" is enforced.
+  - **Did not touch Track B's `ConfigLoader`** — per the plan, it swallows
+    errors and returns `{}`.
+- **What I learned:** nothing surprising — this brick matched the plan
+  closely. The one adjustment: the plan's Brick 1 write-up didn't list
+  `margin_over_baseline` explicitly, but Brick 0's `decide_verdict()` needs it
+  per profile (M1/M2/M3 each had a different bar), so it went in as a required
+  field rather than a Brick 5 afterthought.
+- **Verified by:** `pytest tests/test_profile.py -v` → 7 passed. Full suite:
+  `pytest tests/ -q` → **59 passed, 1 skipped** (was 52 before this brick — the
+  7 new tests, nothing else moved).
 
 ---
 
@@ -248,7 +294,7 @@ when you understand it.
 | :--- | :--- | :--- | :--- |
 | 2026-07-30 | `main` had a syntax error in `gridworld.py` from a merged autofix commit | M3's code was one line short of running; the result itself was fine | Pre-flight repair added ahead of Brick 0 |
 | 2026-07-31 | The swap proof didn't cover the files it was written in | `git ls-files` lists only **tracked** files, so new uncommitted code was invisible to its own fingerprint — a false PASS on M4's central claim | Switched to `-c -o --exclude-standard`; pinned by a test that fails if anyone simplifies it back |
-| _(fill in)_ | | | |
+| 2026-08-02 | `pytest tests/` couldn't even collect on the Mac | Brick 0 used `float \| None` (needs Python 3.10+); this repo's Mac `.venv` is 3.9.6, matching `setup.py`'s stated minimum — the Windows 3.14 box it was built on hid the incompatibility | Added `from __future__ import annotations` to `train_from_profile.py`, matching `hardware.py`/`tui.py`; suite back to 52 passed, 1 skipped |
 
 ---
 

@@ -50,6 +50,8 @@ Usage:
     python scripts/train_from_profile.py --profile profiles/gridworld.yaml
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import os
