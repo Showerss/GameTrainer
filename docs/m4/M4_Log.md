@@ -35,7 +35,7 @@ keeping it.
 | **Milestone** | M4 — Make It Swappable (`Profile` + `RewardCalculator`) |
 | **Started** | 2026-07-30 (planning) |
 | **Branch** | `m4-implementation` |
-| **Current brick** | Brick 2 — `RewardCalculator` (Bricks 0–1 done) |
+| **Current brick** | Brick 3 — `make_env(profile)` (Bricks 0–2 done) |
 | **Hardware** | CPU (Windows 11, Python 3.14). GPU still not in play — M3 ran fine on CPU |
 | **Closed** | _(date, once Brick 7 ticks DOC_STANDARD rule 7)_ |
 
@@ -174,14 +174,35 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 
 ## Brick 2 — `RewardCalculator`
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-03
 **File(s):** `tests/test_rewards.py` → `src/gametrainer/rewards.py`
 
-- **Red test first — what it asserted:** _(fill in)_
-- **What moved out of `GridWorldEnv`:** _(fill in)_
-- **Proof behaviour didn't change:** _(fill in — M2/M3 tests green, unedited)_
-- **What I learned:** _(fill in)_
-- **Verified by:** _(fill in)_
+- **Red test first — what it asserted:** three cases — given `reached_goal=False`
+  it returns `step_cost`; given `reached_goal=True` it returns `goal_reward`;
+  a second instance built with different numbers returns those different
+  numbers, proving nothing is hardcoded on the class. Confirmed red first —
+  `ModuleNotFoundError: No module named 'src.gametrainer.rewards'`.
+- **What moved out of `GridWorldEnv`:** the one-line ternary in `step()`
+  (`reward = self.GOAL_REWARD if reached_goal else self.STEP_COST`) became a
+  call to `self._reward_calculator.reward(reached_goal)`. `STEP_COST` and
+  `GOAL_REWARD` stay as class constants — existing tests reference
+  `GridWorldEnv.STEP_COST`/`GridWorldEnv.GOAL_REWARD` directly, so removing
+  them would have forced a test edit, which the plan rules out. `__init__`
+  builds the calculator from those same two constants, so today's behaviour
+  is identical; a Profile can hand the calculator different numbers from
+  Brick 3 onward.
+- **Proof behaviour didn't change:** `pytest tests/ -q` → **62 passed, 1
+  skipped** (was 59 before this brick — exactly the 3 new `test_rewards.py`
+  cases; zero pre-existing test file touched, confirmed via `git diff --stat`
+  showing only `gridworld.py` modified). Manual check:
+  `GridWorldEnv().step(DOWN)` reward is still `-0.01`.
+- **What I learned:** nothing surprising — matched the plan. The module
+  docstring at the top of `gridworld.py` said "No Profile, no RewardCalculator
+  abstraction yet," which this brick makes false, so it got a one-line
+  correction alongside the code (not scope creep — it's describing the exact
+  change being made).
+- **Verified by:** `pytest tests/test_rewards.py -v` → 3 passed. Full suite:
+  `pytest tests/ -q` → 62 passed, 1 skipped.
 
 ---
 

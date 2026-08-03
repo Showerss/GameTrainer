@@ -14,15 +14,17 @@ The world:
   - Each step costs a little (-0.01) so dawdling hurts; the goal pays +1.0.
   - A game ends by winning (terminated) or by running out of moves (truncated).
 
-The reward logic lives directly inside this class on purpose. No Profile, no
-RewardCalculator abstraction yet — that's a later milestone. Numbers in,
-numbers out.
+The reward decision itself is made by RewardCalculator (M4, Brick 2); this
+class still owns the two numbers (STEP_COST, GOAL_REWARD) and feeds them in,
+so behaviour is unchanged from M2/M3.
 """
 
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.wrappers import TimeLimit
+
+from src.gametrainer.rewards import RewardCalculator
 
 
 class GridWorldEnv(gym.Env):
@@ -72,6 +74,13 @@ class GridWorldEnv(gym.Env):
         self.row, self.col = self.START
         self._steps = 0
 
+        # Reward decision, pulled out to RewardCalculator (M4, Brick 2). Fed
+        # from the class constants above so behaviour is unchanged; a Profile
+        # can pass different numbers here from M4's factory onward.
+        self._reward_calculator = RewardCalculator(
+            step_cost=self.STEP_COST, goal_reward=self.GOAL_REWARD
+        )
+
     def _get_obs(self):
         """Current position as the float32 observation the contract promises."""
         return np.array([self.row, self.col], dtype=np.float32)
@@ -105,7 +114,7 @@ class GridWorldEnv(gym.Env):
 
         # Score the move and decide whether the game is over.
         reached_goal = (self.row, self.col) == self.GOAL
-        reward = self.GOAL_REWARD if reached_goal else self.STEP_COST
+        reward = self._reward_calculator.reward(reached_goal)
         terminated = reached_goal  # won the game
         truncated = (self._steps >= self.MAX_STEPS) and not reached_goal  # ran out of moves
 
