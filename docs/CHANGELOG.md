@@ -17,6 +17,42 @@ preserved at the **bottom** of this file under *Pre-milestone*.
 
 ---
 
+## 2026-08-04 — Track B retired (mid-M4, not a milestone close)
+
+Deleted the old Stardew-first prototype (Track B — see `docs/ONBOARDING.md` §5)
+entirely, ahead of the original "decide its fate at M5/M6" plan. User's explicit
+call: the crawl-first pivot happened months ago and the old code was no longer
+serving as useful reference.
+
+### Removed
+
+- `src/gametrainer/env_vit.py`, `screen.py`, `interface.py`, `config.py`
+- `scripts/train.py`, `play.py`, `capture_templates.py`, `check_input.py`, `transfer_learning.py`
+- The TUI's "Train ViT agent on Stardew" menu entry (`src/gametrainer/tui.py`)
+
+`src/gametrainer/vit_extractor.py` and `input.py` were **not** deleted — both are
+shared with the live M0–M3 scripts, not Track B-exclusive. `src/cpp/clib.cpp` was
+also kept — it's generic M5 input-injection scaffolding, not Stardew-specific.
+
+### Changed
+
+- **`main.py`:** the `train`/`play` CLI shortcuts pointed at the now-deleted
+  Track B scripts, with no Track A replacement yet (that's M4 Brick 5). They now
+  print a clear "not available yet" message instead of erroring on a missing file.
+- **TUI (`src/gametrainer/tui.py`):** menu renumbered after removing the Track B
+  entry; "Play (inference)" now says plainly that it isn't wired up yet, for the
+  same reason.
+
+### Documentation
+
+- Corrected `docs/m4/M4_ToDo.md` (name-collision section), `docs/m4/M4_Log.md`
+  (decisions log), `docs/ONBOARDING.md` §5, `docs/README.md`, and `CONTEXT.md`
+  to stop describing Track B as present-tense current or "kept forever" — all
+  four now carry dated corrections rather than silent rewrites, per
+  `docs/DOC_STANDARD.md` rule 4.
+
+---
+
 ## [M3] — Add the Eyes (GridWorld through a ViT)
 
 M2 handed PPO two numbers, `(row, col)`. M3 hands it a **picture** of the same

@@ -88,16 +88,20 @@ meaningful on top of a broken import.
 
 ### The name collision (DOC_STANDARD rule 5)
 
-Two different things in this repo are called a "profile":
+Two different things in this repo were called a "profile":
 
-- **Track A (M4, new):** `src/gametrainer/profile.py` → `Profile`. A flat YAML that
-  selects a Ground + perception + reward numbers. **This is the current path.**
-- **Track B (old):** `src/gametrainer/config.py` → `ConfigLoader`. Loads
+- **Track A (M4, current):** `src/gametrainer/profile.py` → `Profile`. A flat YAML
+  that selects a Ground + perception + reward numbers. **This is the only path now.**
+- **Track B (old):** `src/gametrainer/config.py` → `ConfigLoader`. Loaded
   `profiles/<game>/regions.yaml` for the Stardew screen-scraping prototype.
-  **Not on the current path. Do not extend it, do not delete it.**
 
-Any doc or comment naming a "profile" from here on states which. M4 does not touch
-Track B; the two live side by side until M5/M6 decides Track B's fate.
+**Correction — 2026-08-04:** Track B was retired (deleted), ahead of the original
+"decide its fate at M5/M6" plan — user call, made outside the milestone schedule.
+`env_vit.py`, `screen.py`, `interface.py`, `config.py`, `scripts/train.py`,
+`play.py`, `capture_templates.py`, `check_input.py`, and `transfer_learning.py`
+are gone. The name collision this section describes no longer exists; kept here,
+struck through in spirit rather than deleted outright, per DOC_STANDARD rule 4.
+See `docs/m4/M4_Log.md` decisions log for the full record.
 
 ---
 

@@ -26,6 +26,15 @@
 > **Why it's kept:** the *Design pivot log* near the bottom is the only record of
 > why the project changed direction, and that reasoning is worth more than the
 > tidiness of deleting the file.
+>
+> **Correction — 2026-08-04:** the Track B code this page describes
+> (`env_vit.py`, `screen.py`, `interface.py`, `config.py`, `scripts/train.py`,
+> `scripts/play.py`, `scripts/capture_templates.py`, `scripts/check_input.py`,
+> `scripts/transfer_learning.py`) has been **deleted** from the repo (still
+> readable in git history). This page's code samples, quickstart commands, and
+> file references below are now doubly stale — wrong for the current system
+> *and* pointing at files that no longer exist. Treat everything below as
+> historical prose only, not runnable instructions.
 
 A **local, vision-based Reinforcement Learning (RL)** system that learns to play games from **pixels** and sends **keyboard/mouse inputs** back to the game.
 

@@ -118,16 +118,29 @@ milestones, each of which changes exactly one thing:
 
 ---
 
-## 5. ⚠️ The single most confusing thing about this repo
+## 5. ⚠️ The single most confusing thing about this repo (historical — see correction)
 
-**There are two generations of code living side by side.**
+> **Correction — 2026-08-04.** This section originally described two generations
+> of code living side by side, with Track B kept forever as reference material.
+> That plan changed: **Track B was deleted.** `env_vit.py`, `screen.py`,
+> `interface.py`, `config.py`, `scripts/train.py`, `play.py`,
+> `capture_templates.py`, `check_input.py`, and `transfer_learning.py` are gone
+> from the repo (still in git history if you need to read them). Two files the
+> table below listed under Track B were **not** deleted, because they turned out
+> to be shared with the live milestone path, not Stardew-exclusive:
+> `src/gametrainer/input.py` (used by every M0–M2 script) and `src/cpp/clib.cpp`
+> (the opt-in M5 input extension, not Stardew-specific code). Per DOC_STANDARD
+> rule 4, the rest of this section is left as originally written, below, as the
+> historical record of why the split existed.
+
+**There were two generations of code living side by side.**
 
 The project originally started as *"build the Stardew bot right now."* A lot of
 code was written for that. Then the direction changed (see the pivot log in
 `docs/README.md`) to the crawl-first milestone plan above. The old code was
 **never deleted** — it's kept as a reference and as the future M3/M5 material.
 
-So when you open `src/`, you are looking at two tracks at once:
+So when you open `src/`, you were looking at two tracks at once:
 
 ### Track A — the current milestone path (M0 → M3). This is live.
 
@@ -154,14 +167,14 @@ screen or your keyboard.
 
 ### Track B — the older Stardew prototype. Written, but ahead of where we are.
 
+**(deleted 2026-08-04 — table kept for historical record, see correction above)**
+
 | File | Role | Belongs to |
 | :--- | :--- | :--- |
 | `src/gametrainer/env_vit.py` | A full Stardew Gym env with pixel rewards | M5 + M6 |
 | `src/gametrainer/screen.py` | Screen capture (finds the game window) | M5 |
-| `src/gametrainer/input.py` | The "hands" (real key presses) | M5 |
 | `src/gametrainer/interface.py` | Finds UI elements by image matching | M4/M6 |
 | `src/gametrainer/config.py` | Loads per-game YAML config | M4 |
-| `src/cpp/clib.cpp` | Native Windows key injection | M5 |
 | `scripts/train.py`, `scripts/play.py` | The Stardew train/play entry points | M3+ |
 
 **How to treat Track B:** *read it for ideas, don't trust it as current.* It
@@ -295,17 +308,14 @@ GameTrainer/
 │   ├── input.py             # the Hands (+ NullInput stub)
 │   ├── hardware.py          # picks CPU vs GPU
 │   ├── logger.py            # timestamped logging
-│   ├── tui.py               # the retro menu
-│   ├── env_vit.py           # ▲ Track B: Stardew env
-│   ├── screen.py            # ▲ Track B: screen capture
-│   ├── interface.py         # ▲ Track B: UI template matching
-│   └── config.py            # ▲ Track B: YAML profile loader
+│   └── tui.py               # the retro menu
 ├── scripts/                 # runnable entry points, one per job
 ├── tests/                   # pytest suite
 ├── docs/                    # PRD, changelog, per-milestone notes + UML
-└── src/cpp/clib.cpp         # ▲ Track B: native key injection (M5, opt-in build)
+└── src/cpp/clib.cpp         # ▲ M5: native key injection, opt-in build, not yet used
 
 ★ = current milestone   ▲ = ahead of where we are (see §5)
+(Track B — the old Stardew prototype — was deleted 2026-08-04; see §5's correction note.)
 ```
 
 **A useful pattern to notice:** `src/gametrainer/` holds *things* (classes you

@@ -302,6 +302,7 @@ alternative and why it lost matters more than the choice.
 | 2026-07-31 | The profile carries the reward **numbers** (confirmed) | Profile names a calculator class only | "Config-only" isn't real if retuning the game needs a `.py` edit |
 | 2026-07-31 | One bar shape: *live baseline + margin* (+ optional goal rate) | Keep M1's "2× baseline" and M2's absolute "+0.5" as separate shapes | One referee can't grade three shapes. Re-expresses identically and drops two hardcoded baselines (DOC_STANDARD rule 3) |
 | 2026-07-31 | Fingerprint hashes tracked **and** untracked `.py` files | Tracked only (`git ls-files`); or trust `git status` to be clean | What ran matters, not what was committed. Tracked-only gave a false PASS on brand-new files |
+| 2026-08-04 | Retired Track B entirely (deleted, not left alone) | Leave it untouched until M5/M6, per the original plan | User's explicit call, made mid-M4. `env_vit.py`, `screen.py`, `interface.py`, `config.py`, `scripts/train.py`, `play.py`, `capture_templates.py`, `check_input.py`, `transfer_learning.py` deleted. `main.py`'s `train`/`play` CLI shortcuts and the TUI's Track B menu entry pointed at these files with no Track A replacement yet (Brick 5 isn't built) — both now say so plainly instead of erroring. `vit_extractor.py` and `input.py` were **not** touched: both are shared with the live M0–M3 scripts, not Track B-exclusive |
 | _(fill in)_ | | | |
 
 ---
@@ -325,5 +326,7 @@ Things I don't know yet. Answer them here as they resolve, with the date.
 
 - [ ] Does moving reward logic out of `GridWorldEnv` change *any* M2/M3 number? (It must not.)
 - [ ] Should the old per-game train scripts stay after the runner exists, or become thin wrappers? (Plan says: leave them alone — they're the M1–M3 record.)
-- [ ] Does `CONTEXT.md`'s "Profile" glossary entry get rewritten for Track A, or split into two entries?
+- [x] Does `CONTEXT.md`'s "Profile" glossary entry get rewritten for Track A, or split
+      into two entries? **Resolved 2026-08-04:** rewritten for Track A. Track B is
+      deleted, so there is nothing left to split into.
 - [ ] What gate would have caught the autofix syntax error before merge — CI, or a pre-push hook?
