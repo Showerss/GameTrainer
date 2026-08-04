@@ -6,9 +6,10 @@ the reward + PPO numbers to train it with. Loading one is the only thing this
 file does -- turning that Ground into an env is Brick 3 (factory.py), and
 turning the reward numbers into a score is Brick 2 (rewards.py).
 
-Track A (M4, current). Not to be confused with Track B's ConfigLoader
-(src/gametrainer/config.py), which loads profiles/<game>/regions.yaml for the
-Stardew screen-scraping prototype and is untouched by M4. See
+Track A (M4, current). Previously named to avoid collision with Track B's
+ConfigLoader (src/gametrainer/config.py), which loaded profiles/<game>/regions.yaml
+for the old Stardew screen-scraping prototype. Track B was retired (deleted)
+2026-08-04 -- this is now the only "profile" in the repo. See
 docs/m4/M4_ToDo.md, "The name collision".
 """
 

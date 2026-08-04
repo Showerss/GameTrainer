@@ -38,9 +38,6 @@ class TuiConfig:
     train_gridworld_script_relpath: str = "scripts/train_gridworld.py"
     # M3 surface: the same Ground, but the agent sees only pixels through a ViT.
     train_gridworld_vit_script_relpath: str = "scripts/train_gridworld_vit.py"
-    # Track B: the old Stardew ViT path, kept as reference (not a milestone step).
-    train_script_relpath: str = "scripts/train.py"
-    play_script_relpath: str = "scripts/play.py"
 
 
 def _project_root() -> Path:
@@ -94,11 +91,10 @@ def _menu() -> Panel:
     menu.append("  [3] Run GridWorld - random actions, baseline (M2)\n")
     menu.append("  [4] Train GridWorld - borrowed PPO brain (M2)\n")
     menu.append("  [5] Train GridWorld with ViT eyes - pixels only (M3)\n")
-    menu.append("  [6] Train ViT agent on Stardew - Track B reference code\n")
-    menu.append("  [7] Play (inference)\n")
-    menu.append("  [8] View changelog\n")
-    menu.append("  [9] Update / install deps (pip)\n")
-    menu.append("  [10] Quit\n")
+    menu.append("  [6] Play (inference) - not available yet\n")
+    menu.append("  [7] View changelog\n")
+    menu.append("  [8] Update / install deps (pip)\n")
+    menu.append("  [9] Quit\n")
     return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
 
 
@@ -134,8 +130,8 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
 
         choice = IntPrompt.ask(
             "Selection",
-            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-            default="10",
+            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+            default="9",
         )
 
         if choice == 1:
@@ -166,21 +162,18 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             return _run_script(cfg.train_gridworld_vit_script_relpath)
 
         if choice == 6:
-            # Track B: the old Stardew ViT path, kept as reference code.
-            # Let user optionally choose ViT size without forcing it.
-            size = Prompt.ask("ViT size", choices=["tiny", "small", "base"], default="small")
-            freeze = Prompt.ask("Freeze backbone?", choices=["y", "n"], default="n") == "y"
-            args: list[str] = [size]
-            if freeze:
-                args.append("--freeze")
-            console.print("\nLaunching ViT training (advanced)...\n")
-            return _run_script(cfg.train_script_relpath, extra_args=args)
+            # No Track A play/inference script exists yet — that's M4 Brick 5
+            # (scripts/train_from_profile.py) and beyond. Say so plainly rather
+            # than pointing at a script that doesn't exist.
+            console.print(
+                "\n[yellow]Play/inference isn't wired up yet.[/yellow] "
+                "Run a milestone script's own eval directly for now, "
+                "e.g. `python scripts/train_gridworld.py --render`.\n"
+            )
+            Prompt.ask("Press Enter to return", default="")
+            continue
 
         if choice == 7:
-            console.print("\nLaunching play/inference...\n")
-            return _run_script(cfg.play_script_relpath)
-
-        if choice == 8:
             root = _project_root()
             path = (root / cfg.changelog_relpath).resolve()
             console.clear()
@@ -189,7 +182,7 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             Prompt.ask("\nPress Enter to return", default="")
             continue
 
-        if choice == 9:
+        if choice == 8:
             console.clear()
             console.print(_header(cfg))
             console.print(Panel("Choose what to install:\n\n  [1] Core (.)\n  [2] Core + RL (.[rl])\n  [3] Back", border_style="green"))
