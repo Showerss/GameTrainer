@@ -53,7 +53,7 @@ class GridWorldEnv(gym.Env):
     # Action ids (this is the meaning of Discrete(4)).
     UP, DOWN, LEFT, RIGHT = 0, 1, 2, 3
 
-    def __init__(self, render_mode=None):
+    def __init__(self, render_mode=None, step_cost=None, goal_reward=None):
         super().__init__()
         self.render_mode = render_mode
 
@@ -74,11 +74,12 @@ class GridWorldEnv(gym.Env):
         self.row, self.col = self.START
         self._steps = 0
 
-        # Reward decision, pulled out to RewardCalculator (M4, Brick 2). Fed
-        # from the class constants above so behaviour is unchanged; a Profile
-        # can pass different numbers here from M4's factory onward.
+        # Reward decision, pulled out to RewardCalculator (M4, Brick 2). Falls
+        # back to the class constants so old callers (GridWorldEnv()) are
+        # unchanged; the factory (M4, Brick 3) passes a Profile's numbers here.
         self._reward_calculator = RewardCalculator(
-            step_cost=self.STEP_COST, goal_reward=self.GOAL_REWARD
+            step_cost=self.STEP_COST if step_cost is None else step_cost,
+            goal_reward=self.GOAL_REWARD if goal_reward is None else goal_reward,
         )
 
     def _get_obs(self):
@@ -228,7 +229,7 @@ class RandomStart(gym.Wrapper):
 VISION_TASK_STEP_CAP = 25
 
 
-def make_vision_task(render_mode="rgb_array"):
+def make_vision_task(render_mode="rgb_array", step_cost=None, goal_reward=None):
     """The Ground M3 trains on: a GridWorld that cannot be solved without looking.
 
     Defined here, in one place, because the training script and the tests must
@@ -238,8 +239,15 @@ def make_vision_task(render_mode="rgb_array"):
     Two wrapper layers (only one touches GridWorldEnv directly):
       RandomStart  -- random square each episode, goal moved off the corner
       TimeLimit    -- Gymnasium's own step-budget wrapper
+
+    step_cost/goal_reward pass straight through to GridWorldEnv (M4, Brick 3) --
+    default None reproduces the M3 behaviour exactly.
     """
     return TimeLimit(
-        RandomStart(GridWorldEnv(render_mode=render_mode)),
+        RandomStart(
+            GridWorldEnv(
+                render_mode=render_mode, step_cost=step_cost, goal_reward=goal_reward
+            )
+        ),
         max_episode_steps=VISION_TASK_STEP_CAP,
     )

@@ -35,7 +35,7 @@ keeping it.
 | **Milestone** | M4 — Make It Swappable (`Profile` + `RewardCalculator`) |
 | **Started** | 2026-07-30 (planning) |
 | **Branch** | `m4-implementation` |
-| **Current brick** | Brick 3 — `make_env(profile)` (Bricks 0–2 done) |
+| **Current brick** | Brick 4 — the three profiles (Bricks 0–3 done) |
 | **Hardware** | CPU (Windows 11, Python 3.14). GPU still not in play — M3 ran fine on CPU |
 | **Closed** | _(date, once Brick 7 ticks DOC_STANDARD rule 7)_ |
 
@@ -208,14 +208,52 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 
 ## Brick 3 — `make_env(profile)`
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-05
 **File(s):** `tests/test_make_env.py` → `src/gametrainer/factory.py`
 
-- **Red test first — what it asserted:** _(fill in)_
-- **Observation space per profile (measured, not assumed):** _(fill in)_
-- **Wrapper order used:** _(fill in — M3 settled this; note it if it drifted)_
-- **What I learned:** _(fill in)_
-- **Verified by:** _(fill in)_
+- **Red test first — what it asserted:** six cases, all built on Profiles
+  constructed directly (not from YAML — Brick 4's files don't exist yet) —
+  the CartPole profile builds an env `check_env` accepts with
+  `observation_space.shape == (4,)`; the numeric GridWorld profile the same
+  with `(2,)`; the pixels GridWorld profile the same with `(224, 224, 3)`
+  and bounds `[0, 255]`; the pixels env's wrapper chain is exactly
+  `PixelObservation(TimeLimit(RandomStart(GridWorldEnv)))`; a GridWorld
+  profile with `step_cost=-5.0` (deliberately not the class's own `-0.01`)
+  produces a `-5.0` reward on a non-goal step; a directly built
+  `cartpole` + `pixels` Profile (blocked at `Profile.from_yaml`, but not at
+  the dataclass itself) raises `ValueError` from `make_env`. Confirmed red
+  first — `ModuleNotFoundError: No module named 'src.gametrainer.factory'`.
+- **What I built:** `make_env(profile)` — one function, one `if`-chain over
+  the three `(ground, perception)` pairs `Profile` allows, ending in a
+  `raise ValueError` for anything else. 26 lines. No registry, no
+  `importlib`.
+- **The reward-numbers gap this brick closed:** `GridWorldEnv.__init__` had
+  no way to accept reward numbers from outside — `rewards.py`'s own Brick 2
+  comment had already flagged this ("a Profile can pass different numbers
+  here from M4's factory onward"). Added two optional constructor params,
+  `step_cost`/`goal_reward`, both defaulting to `None` and falling back to
+  the existing class constants — so every pre-M4 caller (`GridWorldEnv()`,
+  `make_vision_task()`) is byte-for-byte unchanged, and the factory is the
+  only caller that ever passes real numbers through. Threading this now
+  (rather than leaving it for Brick 6) meant the "is the YAML decorative?"
+  negative control could be written and pass *today* instead of being
+  discovered failing at closeout.
+- **Observation space per profile (measured, not assumed):** CartPole
+  `(4,)`; GridWorld numeric `(2,)`; GridWorld pixels `(224, 224, 3)`,
+  `uint8`, `[0, 255]` — matches the plan exactly.
+- **Wrapper order used:** `PixelObservation` outside, `TimeLimit` then
+  `RandomStart` inside, `GridWorldEnv` at the core — unchanged from M3,
+  now pinned by `test_gridworld_pixels_wrapper_order_is_task_inside_pixels_outside`.
+- **What I learned:** nothing surprising — matched the plan. The one thing
+  worth naming: `Profile` itself doesn't forbid `ground=cartpole` +
+  `reward=gridworld`-style nonsense combinations when built directly
+  (only `Profile.from_yaml` validates), so `make_env` needed its own
+  fallback `raise` rather than assuming every `Profile` that reaches it is
+  sane. Test for it made that a two-line addition, not a debugging session.
+- **Verified by:** `pytest tests/test_make_env.py -v` → 6 passed. Full suite:
+  `pytest tests/ -q` → **68 passed, 1 skipped** (was 62 before this brick —
+  exactly the 6 new cases; `git status` shows only `gridworld.py` modified,
+  no pre-existing test file touched).
 
 ---
 
@@ -303,6 +341,7 @@ alternative and why it lost matters more than the choice.
 | 2026-07-31 | One bar shape: *live baseline + margin* (+ optional goal rate) | Keep M1's "2× baseline" and M2's absolute "+0.5" as separate shapes | One referee can't grade three shapes. Re-expresses identically and drops two hardcoded baselines (DOC_STANDARD rule 3) |
 | 2026-07-31 | Fingerprint hashes tracked **and** untracked `.py` files | Tracked only (`git ls-files`); or trust `git status` to be clean | What ran matters, not what was committed. Tracked-only gave a false PASS on brand-new files |
 | 2026-08-04 | Retired Track B entirely (deleted, not left alone) | Leave it untouched until M5/M6, per the original plan | User's explicit call, made mid-M4. `env_vit.py`, `screen.py`, `interface.py`, `config.py`, `scripts/train.py`, `play.py`, `capture_templates.py`, `check_input.py`, `transfer_learning.py` deleted. `main.py`'s `train`/`play` CLI shortcuts and the TUI's Track B menu entry pointed at these files with no Track A replacement yet (Brick 5 isn't built) — both now say so plainly instead of erroring. `vit_extractor.py` and `input.py` were **not** touched: both are shared with the live M0–M3 scripts, not Track B-exclusive |
+| 2026-08-05 | `GridWorldEnv` gets optional `step_cost`/`goal_reward` constructor params, added in Brick 3 | Leave `GridWorldEnv` alone and have the factory poke `env._reward_calculator` from outside after construction | Both make the numbers flow; the constructor param keeps the reward calculator's construction inside the class that owns it, and avoids reaching into a private attribute from factory.py |
 | _(fill in)_ | | | |
 
 ---
