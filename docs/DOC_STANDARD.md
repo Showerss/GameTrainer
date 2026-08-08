@@ -1,8 +1,9 @@
 # Documentation Standard
 
 > **Covers:** every `.md` file in this repository.
-> **Status:** current. **Last verified:** 2026-07-30 (rule 6 extended with
-> `M<N>_Log.md` as M4 opened; rest of the file re-read and still accurate).
+> **Status:** current. **Last verified:** 2026-08-08 (authority table gained a
+> row for glossary terms, after PRD.md and ONBOARDING.md were found repeating
+> the same glossary in full; rest of the file re-read and still accurate).
 > **Authority:** this file wins on *how* docs are written. `docs/PRD.md` wins on
 > *what* gets built.
 
@@ -49,6 +50,7 @@ links to the other instead of repeating it.
 | How do I get oriented as a newcomer? | `docs/ONBOARDING.md` |
 | What does the current milestone require? | `docs/m<N>/M<N>_ToDo.md` |
 | How do I work with Phillip? | `CLAUDE.md` |
+| What does an RL/project term mean? | `docs/ONBOARDING.md` §13 (RL vocabulary) — `CONTEXT.md` only for implementation-specific terms not covered there |
 
 When two files disagree, that is a **bug**, and it gets fixed at the same
 priority as a broken test.

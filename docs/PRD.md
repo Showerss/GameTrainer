@@ -221,22 +221,5 @@ Learn these five first — everything else hangs off them:
 | **Action** | What the AI does | "Press right" |
 | **Reward** | The score the game gives back | "Good: +1" |
 
-The link itself:
-
-| Term | Plain meaning |
-| :--- | :--- |
-| **Gymnasium** | The standard socket every game and AI plugs into |
-| **`step()`** | One turn of the loop: take an action, get back observation + reward |
-| **`reset()`** | Start a fresh attempt |
-| **Episode** | One full attempt, start to finish (one life, one round) |
-| **Action space** | The list of legal moves |
-| **Observation space** | The shape of what the AI can see |
-
-The learning (borrowed brain):
-
-| Term | Plain meaning |
-| :--- | :--- |
-| **Reinforcement Learning (RL)** | Learning by trial, error, and reward — the whole field |
-| **Policy** | The AI's current strategy; training = improving it |
-| **PPO** | The specific learning recipe we borrow |
-| **Exploration vs exploitation** | Try new things vs. stick with what works |
+For everything else — Gymnasium's API, RL vocabulary, PPO — the full reference
+lives in one place: `docs/ONBOARDING.md` §13.
