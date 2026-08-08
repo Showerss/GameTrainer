@@ -35,7 +35,7 @@ keeping it.
 | **Milestone** | M4 — Make It Swappable (`Profile` + `RewardCalculator`) |
 | **Started** | 2026-07-30 (planning) |
 | **Branch** | `m4-implementation` |
-| **Current brick** | Brick 4 — the three profiles (Bricks 0–3 done) |
+| **Current brick** | Brick 5 — the one runner (Bricks 0–4 done) |
 | **Hardware** | CPU (Windows 11, Python 3.14). GPU still not in play — M3 ran fine on CPU |
 | **Closed** | _(date, once Brick 7 ticks DOC_STANDARD rule 7)_ |
 
@@ -259,13 +259,45 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 
 ## Brick 4 — The three profiles
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-08
 **File(s):** `profiles/cartpole.yaml`, `profiles/gridworld.yaml`, `profiles/gridworld_pixels.yaml`
 
-- **Where each number came from:** _(fill in — script + line it was copied from)_
-- **Anything that differs from the old scripts, and why:** _(fill in — ideally "nothing")_
-- **What I learned:** _(fill in)_
-- **Verified by:** _(fill in)_
+- **Where each number came from:** PPO hyperparameters and `total_timesteps`
+  copied from each script's `PPO(...)` call — `train_cartpole.py` and
+  `train_gridworld.py` set all seven explicitly (`learning_rate=3e-4,
+  n_steps=2048, batch_size=64, n_epochs=10, gamma=0.99, gae_lambda=0.95,
+  clip_range=0.2, ent_coef=0.0`). `train_gridworld_vit.py` only overrides
+  four (`n_steps=512, batch_size=64, n_epochs=4`, `learning_rate=3e-4`
+  restated); the other four were never overridden there, so that run used
+  stable-baselines3's own `PPO.__init__` defaults — checked against the
+  installed package (`inspect.signature`) rather than assumed, and they
+  print `0.99 / 0.95 / 0.2 / 0.0`, identical to what M1/M2 wrote out by
+  hand. `step_cost`/`goal_reward` came from `GridWorldEnv.STEP_COST` /
+  `GridWorldEnv.GOAL_REWARD` (`gridworld.py`, `-0.01` / `1.0`). Each
+  profile's `margin_over_baseline` (and `min_goal_rate` for pixels)
+  re-expresses that script's own pass bar in Brick 0's one shared shape:
+  CartPole `2×22 = 44` → `baseline + 22`; GridWorld `>= +0.5` against a
+  hardcoded `-0.3` baseline → `baseline + 0.8`; pixels copies M3's
+  `MARGIN_OVER_BASELINE = 0.40` and `GOAL_RATE_TO_PASS = 0.80` verbatim —
+  M3 already used this exact shape, nothing to re-derive.
+- **Anything that differs from the old scripts, and why:** Nothing in the
+  PPO/reward numbers. The one structural difference is unavoidable and by
+  design: `margin_over_baseline` (a *relative* bar) replaces CartPole's and
+  GridWorld's *absolute* thresholds, because Brick 0 fixed one referee shape
+  for all three profiles back in Brick 0 — re-expressing, not retuning, per
+  M4_ToDo.md Brick 0.
+- **What I learned:** the pixels profile's `gamma`/`gae_lambda`/
+  `clip_range`/`ent_coef` aren't written anywhere in
+  `train_gridworld_vit.py` — that run relied on library defaults. `Profile`
+  requires all seven PPO fields, so leaving them out of the YAML wasn't an
+  option; confirming they equal M1/M2's explicit values (rather than
+  guessing they matched) was the one non-obvious step in this brick.
+- **Verified by:** all three load through `Profile.from_yaml` with no error
+  (checked field-by-field against each source script by hand). Each also
+  builds through `make_env` into an env `check_env` accepts, with the
+  observation space Brick 3 predicted (`(4,)`, `(2,)`, `(224, 224, 3)`
+  respectively). Full suite: `pytest tests/ -q` → 68 passed, 1 skipped,
+  unchanged from Brick 3 — this brick added no test file, only YAML.
 
 ---
 
