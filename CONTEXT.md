@@ -1,5 +1,15 @@
 # GameTrainer Context
 
+> **Covers:** supplementary glossary entries for terms that need more than a
+> one-line definition (`docs/ONBOARDING.md` §13 and `docs/PRD.md` §10 hold the
+> quick-reference glossaries for everything else).
+> **Status:** current. **Last verified:** 2026-08-08 (Track A entries current;
+> Track B entries are dated corrections per `docs/DOC_STANDARD.md` rule 4, kept
+> rather than deleted).
+> **Authority:** this file doesn't compete with the other glossaries — it only
+> exists for terms whose current/historical status needs explaining.
+> Written to `docs/DOC_STANDARD.md`.
+
 ## Glossary
 
 ### Profile

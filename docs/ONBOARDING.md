@@ -3,7 +3,9 @@
 > **Covers:** orientation for someone new to this repo — what it is, why it looks
 > this way, what every technology is for, and which code is current.
 > **Status:** current.
-> **Last verified:** 2026-07-27 (M3 closed; M4 not started).
+> **Last verified:** 2026-08-08 (§8's branch/milestone status corrected — it still
+> said M3 closed/M4 not started while M4 was already on Brick 4; the M0–M3 results
+> table itself was re-checked and is unchanged).
 > **Authority:** `docs/PRD.md` owns *what gets built*; this file is the tour.
 > Written to `docs/DOC_STANDARD.md`.
 
@@ -331,8 +333,14 @@ run the M0 demo. Import what you need, where you need it.
 
 ## 8. Where the project actually stands today
 
-**Current branch:** `m3-implementation`. **Last milestone closed:** M3.
-**Next up:** M4 — make it swappable.
+**Corrected 2026-08-08:** this section previously said the current branch was
+`m3-implementation` and M4 "not started." Both were stale — M4 has been under
+way since 2026-07-30. Live detail (per-brick status, dates, decisions) lives in
+`docs/m4/M4_Log.md`, not here — this section only owns the high-level summary.
+
+**Current branch:** `m4-implementation`. **Last milestone closed:** M3.
+**In progress:** M4 — make it swappable (Bricks 0–4 done; see `docs/m4/M4_Log.md`
+for the brick-by-brick record).
 
 Done and working:
 
@@ -365,8 +373,9 @@ Known gaps:
 - ⏳ Two per-brick tests named in `docs/m2/M2_ToDo.md` were never written:
   `tests/test_run_gridworld.py` and `tests/test_train_gridworld.py`. Deliberate
   under the current policy — they'd be testing glue.
-- ⏳ M4 has no `M4_ToDo.md` yet. It is the first milestone written under
-  `docs/DOC_STANDARD.md`.
+- ✅ ~~M4 has no `M4_ToDo.md` yet.~~ **Resolved 2026-08-08** — `docs/m4/M4_ToDo.md`
+  and `docs/m4/M4_Log.md` exist; M4 is the first milestone written under
+  `docs/DOC_STANDARD.md`, and is in progress (Bricks 0–4 done).
 
 ### How this project builds things: tests vs. experiments
 

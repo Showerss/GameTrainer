@@ -23,6 +23,9 @@ CMakeFiles/
 .vscode/
 *.swp
 
+# macOS
+.DS_Store
+
 # Models and Training Artifacts
 models/
 logs/

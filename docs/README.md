@@ -7,9 +7,9 @@
 > **Status:** **archived — historical reference.** Superseded by
 > [`docs/PRD.md`](PRD.md) (the plan) and [`docs/ONBOARDING.md`](ONBOARDING.md)
 > (the tour).
-> **Last verified:** 2026-07-27 — verified as an accurate record *of the old
-> design*. Its claims about the **current** system are wrong, deliberately left
-> unedited.
+> **Last verified:** 2026-08-08 — re-confirmed as an accurate record *of the old
+> design*, including the 2026-08-04 correction note below. Its claims about the
+> **current** system are wrong, deliberately left unedited.
 >
 > **Specifically, the following on this page is not true today:**
 >

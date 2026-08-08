@@ -2,7 +2,8 @@
 
 
 > **Covers:** every change to this project, newest first.
-> **Status:** current. **Last verified:** 2026-07-27 (M3 closed).
+> **Status:** current. **Last verified:** 2026-08-08 (all entries below, including
+> the 2026-08-04 Track B retirement entry, reconfirmed accurate; M4 still open).
 > **Authority:** this file owns *what happened and when*. `docs/PRD.md` owns *what
 > gets built next*. Written to `docs/DOC_STANDARD.md`.
 
@@ -14,6 +15,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Milestone entries are newest-first. Work predating the milestone scheme is
 preserved at the **bottom** of this file under *Pre-milestone*.
+
+---
+
+## 2026-08-08 — Added CI; docs audit (mid-M4, not a milestone close)
+
+A documentation audit found several `.md` files whose "Last verified" header no
+longer matched their content (`ONBOARDING.md`, `CONTEXT.md`, `UML_FULL.md`,
+`README.md`, this file), plus an untracked `docs/.DS_Store`, an unlinked
+`docs/m4/backpack_diagram.png`, and a stale docstring in `tests/test_m2_e2e.py`
+(described the retired `xfail` scheme instead of the current
+`@pytest.mark.skip`). All corrected in place per `docs/DOC_STANDARD.md` rule 4 —
+see each file's own header/note for what changed.
+
+### Added
+
+- **`.github/workflows/tests.yml`:** runs `pytest -q` on Python 3.9 (this
+  project's stated minimum) on every push/PR. Resolves the open question in
+  `docs/m4/M4_Log.md` about what gate would have caught the Copilot Autofix
+  syntax error that broke `main` on 2026-07-29 — a pre-push hook wouldn't have,
+  since that commit was a bot-authored merge, not a local push. Deliberately
+  does **not** run `ruff check .`: doing so surfaced 52 pre-existing findings
+  (`I001`, `RUF059`, `BLE001`, `UP045`, and others) unrelated to this audit,
+  most likely from `ruff` version drift since `ruff.toml` pins no rule set and
+  no `ruff` version — `setup.py`'s `dev` extra doesn't even list `ruff` as a
+  dependency, despite it being the project's actual linter (see
+  `docs/README.md`'s archive note, which already corrects the outdated
+  `black`/`mypy` reference). Both are real gaps, left for a future brick rather
+  than fixed here.
 
 ---
 
