@@ -1,0 +1,26 @@
+# GridWorld (numeric) profile -- Milestone M4, Brick 4.
+# Numbers copied exactly from scripts/train_gridworld.py (Milestone M2).
+
+ground: gridworld
+perception: numeric
+reward: gridworld
+
+total_timesteps: 25000
+
+# PPO hyperparameters -- same "sensible defaults" used for CartPole (M1)
+learning_rate: 0.0003
+n_steps: 2048
+batch_size: 64
+n_epochs: 10
+gamma: 0.99
+gae_lambda: 0.95
+clip_range: 0.2
+ent_coef: 0.0
+
+# Reward numbers -- GridWorldEnv's own STEP_COST / GOAL_REWARD constants
+step_cost: -0.01
+goal_reward: 1.0
+
+# M2's bar was an absolute ">= +0.5", against a hardcoded baseline of -0.3.
+# Re-expressed as baseline + margin: 0.5 - (-0.3) = 0.8.
+margin_over_baseline: 0.8

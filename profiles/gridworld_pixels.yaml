@@ -1,0 +1,32 @@
+# GridWorld (pixels, through the ViT) profile -- Milestone M4, Brick 4.
+# Numbers copied exactly from scripts/train_gridworld_vit.py (Milestone M3).
+
+ground: gridworld
+perception: pixels
+reward: gridworld
+
+total_timesteps: 20000
+
+# PPO hyperparameters -- learning_rate/n_steps/batch_size/n_epochs are the
+# values train_gridworld_vit.py sets explicitly (n_epochs cut from M2's 10 to
+# 4, n_steps from 2048 to 512 -- the CPU cost lever, per that script's own
+# comments). gamma/gae_lambda/clip_range/ent_coef were never overridden
+# there, so that run used stable-baselines3's PPO defaults -- which are these
+# same numbers M1/M2 wrote out explicitly (confirmed against the installed
+# PPO signature, not assumed).
+learning_rate: 0.0003
+n_steps: 512
+batch_size: 64
+n_epochs: 4
+gamma: 0.99
+gae_lambda: 0.95
+clip_range: 0.2
+ent_coef: 0.0
+
+# Reward numbers -- same GridWorldEnv constants as the numeric profile
+step_cost: -0.01
+goal_reward: 1.0
+
+# M3's bar: trained >= live baseline + 0.40, and goal rate >= 80%.
+margin_over_baseline: 0.40
+min_goal_rate: 0.80
