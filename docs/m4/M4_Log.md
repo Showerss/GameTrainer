@@ -1,7 +1,8 @@
 # M4 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M4, brick by brick, as it happened.
-> **Status:** current — **in progress**. **Last verified:** 2026-07-30 (M4 not started).
+> **Status:** current — **in progress**. **Last verified:** 2026-08-08 (Bricks 0–4
+> done; Brick 5 in progress).
 > **Authority:** `docs/m4/M4_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m4/M4_Review.md` (written last) owns *what it all meant*.
 
@@ -374,6 +375,7 @@ alternative and why it lost matters more than the choice.
 | 2026-07-31 | Fingerprint hashes tracked **and** untracked `.py` files | Tracked only (`git ls-files`); or trust `git status` to be clean | What ran matters, not what was committed. Tracked-only gave a false PASS on brand-new files |
 | 2026-08-04 | Retired Track B entirely (deleted, not left alone) | Leave it untouched until M5/M6, per the original plan | User's explicit call, made mid-M4. `env_vit.py`, `screen.py`, `interface.py`, `config.py`, `scripts/train.py`, `play.py`, `capture_templates.py`, `check_input.py`, `transfer_learning.py` deleted. `main.py`'s `train`/`play` CLI shortcuts and the TUI's Track B menu entry pointed at these files with no Track A replacement yet (Brick 5 isn't built) — both now say so plainly instead of erroring. `vit_extractor.py` and `input.py` were **not** touched: both are shared with the live M0–M3 scripts, not Track B-exclusive |
 | 2026-08-05 | `GridWorldEnv` gets optional `step_cost`/`goal_reward` constructor params, added in Brick 3 | Leave `GridWorldEnv` alone and have the factory poke `env._reward_calculator` from outside after construction | Both make the numbers flow; the constructor param keeps the reward calculator's construction inside the class that owns it, and avoids reaching into a private attribute from factory.py |
+| 2026-08-08 | Added CI (`.github/workflows/tests.yml`), running `pytest -q` on Python 3.9 only | A pre-push hook; or a full OS/Python version matrix | The syntax-error incident was a bot-authored commit merged directly, which a local pre-push hook can't see. Single-version 3.9 (the stated minimum) was chosen because it's also what would have caught the separate `float \| None` incident — a matrix adds cost this project's "light hours" scope doesn't need |
 | _(fill in)_ | | | |
 
 ---
@@ -400,4 +402,17 @@ Things I don't know yet. Answer them here as they resolve, with the date.
 - [x] Does `CONTEXT.md`'s "Profile" glossary entry get rewritten for Track A, or split
       into two entries? **Resolved 2026-08-04:** rewritten for Track A. Track B is
       deleted, so there is nothing left to split into.
-- [ ] What gate would have caught the autofix syntax error before merge — CI, or a pre-push hook?
+- [x] What gate would have caught the autofix syntax error before merge — CI, or
+      a pre-push hook? **Resolved 2026-08-08:** CI, not a pre-push hook. The actual
+      incident was a bot-authored commit (GitHub Copilot Autofix) merged straight
+      to `main` — a pre-push hook only guards pushes the user makes locally, so it
+      would not have fired for that commit at all. Added
+      `.github/workflows/tests.yml`: `pytest -q` on Python 3.9 (the version in
+      `setup.py`'s `python_requires`), on every push/PR. Chose 3.9 specifically
+      because it's also the version that would have caught the *other* incident
+      logged above — Brick 0's `float | None` syntax only failing on the Mac's
+      3.9 `.venv`, not the Windows 3.14 box it was built on. Deliberately left
+      `ruff check .` out of this workflow: running it turned up 52 pre-existing
+      findings unrelated to M4 (see the note added to `docs/CHANGELOG.md`,
+      2026-08-08) — adding a lint gate that's red on day one would train the
+      habit of ignoring it, which defeats the point.

@@ -86,6 +86,11 @@ meaningful on top of a broken import.
 > without opening Python. The cost is that a nonsense number in YAML produces a
 > nonsense game with no compiler to stop me, which is what Brick 1's validation is for.
 
+> **See also:** `docs/m4/backpack_diagram.png` — the PRD's original `GameEnvironment`
+> composition idea (§5's UML) versus what M4 actually builds. No wrapper class exists
+> or is planned; `GridWorldEnv` does the eyes/hands/scorecard job directly, and
+> `make_env(profile)` (Brick 3) is the only place a name becomes an object.
+
 ### The name collision (DOC_STANDARD rule 5)
 
 Two different things in this repo were called a "profile":
@@ -289,15 +294,16 @@ a different hat, and Brick 6's negative control is aimed straight at it.
 
 ---
 
-## Rules we're keeping (from CLAUDE.md)
+## How CLAUDE.md's working agreement applies here
 
-- **One brick at a time.** Smallest next step only; stop at each checkpoint.
-- **Teach before coding.** Plain-English what & why first, then the code.
-- **Test the promises, not the plumbing.** Here: the contract per profile, profile
+The standing rules (one brick at a time, teach before coding, don't move the
+finish line mid-milestone, etc.) live in `CLAUDE.md` — not repeated here. What's
+M4-specific about applying them:
+
+- **Test the promises, not the plumbing** → here: the contract per profile, profile
   validation, and reward numbers that must not drift.
-- **Tests vs. experiments.** Building an env is a test. Training is a script.
-- **Don't move the finish line mid-milestone.** A better standard applies to M5.
-- **Never break the Gymnasium contract** — every M0–M3 test stays green, unedited,
+- **Tests vs. experiments** → building an env is a test; training is a script.
+- **Never break the Gymnasium contract** → every M0–M3 test stays green, unedited,
   the entire way through.
-- **DOC_STANDARD is in force from this milestone.** Every result carries its
+- **DOC_STANDARD is in force from this milestone** — every result carries its
   baseline, hardware, and wall-clock time, or it isn't a result.
