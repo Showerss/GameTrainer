@@ -1,8 +1,9 @@
 # M4 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M4, brick by brick, as it happened.
-> **Status:** current — **in progress**. **Last verified:** 2026-08-08 (Bricks 0–4
-> done; Brick 5 in progress).
+> **Status:** current — **in progress**. **Last verified:** 2026-08-11 (Bricks 0–4
+> done; Brick 5 in progress — CartPole's full run passed, GridWorld numeric and
+> pixels still to run).
 > **Authority:** `docs/m4/M4_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m4/M4_Review.md` (written last) owns *what it all meant*.
 
@@ -350,6 +351,7 @@ failed rows is a milestone that wasn't measured.
 
 | Date | Profile | Command | Baseline (live) | Trained mean | Goal rate | Steps | Wall-clock | HW | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 2026-08-11 | `cartpole.yaml` | `python scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +20.88 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train / 6.8s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
 | _(fill in)_ | | | | | | | | | |
 
 **The M3 numbers to reproduce** (from `docs/CHANGELOG.md`, M3 entry): live baseline
