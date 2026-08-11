@@ -8,8 +8,8 @@ This file plays two roles from the M4 to-do list:
     guardrail print PASS. It stacks Bricks 1-4 — Profile loads the YAML,
     RewardCalculator scores the world, make_env builds the Ground.
 
-Right now only the referee exists. Running this file prints the bar and then
-says, honestly, that there is nothing to grade yet.
+Both roles are now built. Running this file loads the named profile, trains
+PPO on whatever Ground it names, and prints the verdict the referee decides.
 
 Teacher Note: why write the referee before the game?
 ====================================================
@@ -48,6 +48,7 @@ themselves are untouched; closed milestones keep the rules they closed under.
 
 Usage:
     python scripts/train_from_profile.py --profile profiles/gridworld.yaml
+    python scripts/train_from_profile.py --profile profiles/cartpole.yaml --smoke
 """
 
 from __future__ import annotations
@@ -57,6 +58,7 @@ import hashlib
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 # Print UTF-8 so status glyphs don't crash on Windows consoles (cp1252).
@@ -67,6 +69,13 @@ if hasattr(sys.stdout, "reconfigure"):
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _project_root)
 
+from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv
+
+from src.gametrainer.factory import make_env
+from src.gametrainer.profile import Profile
+from src.gametrainer.vit_extractor import ViTTinyFeaturesExtractor
 
 # ---------------------------------------------------------------------------
 # The bar.
@@ -82,6 +91,14 @@ BASELINE_EPISODES = 50
 
 # Greedy episodes to judge the trained agent on. Matches M2 and M3.
 FINAL_EVAL_EPISODES = 20
+
+# --smoke: a fast wiring check, not a milestone result. A low ceiling is
+# enough to prove profile -> env -> PPO -> verdict is genuinely connected,
+# without waiting for a real run (~19 min for the pixels profile on CPU).
+# PPO always collects one full rollout (its own n_steps) before it can stop,
+# so wall-clock stays under a minute even so.
+SMOKE_TIMESTEPS = 200
+SMOKE_EPISODES = 3
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +257,65 @@ def print_finish_line(live_baseline: float | None = None) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+def print_resolved_profile(profile: Profile, path: str) -> None:
+    """Print every field a run used.
+
+    Teacher Note: DOC_STANDARD rule 3 — a run whose settings can't be
+    reconstructed from its own printed output is not a result. This is what
+    makes that true here: nothing below is guessed or looked up later, it's
+    read straight off the Profile the run actually built.
+    """
+    print(f"Profile file:          {path}")
+    print(f"  ground:              {profile.ground}")
+    print(f"  perception:          {profile.perception}")
+    print(f"  reward:              {profile.reward}")
+    print(f"  total_timesteps:     {profile.total_timesteps:,}")
+    print(f"  learning_rate:       {profile.learning_rate}")
+    print(f"  n_steps:             {profile.n_steps}")
+    print(f"  batch_size:          {profile.batch_size}")
+    print(f"  n_epochs:            {profile.n_epochs}")
+    print(f"  gamma:               {profile.gamma}")
+    print(f"  gae_lambda:          {profile.gae_lambda}")
+    print(f"  clip_range:          {profile.clip_range}")
+    print(f"  ent_coef:            {profile.ent_coef}")
+    print(f"  step_cost:           {profile.step_cost}")
+    print(f"  goal_reward:         {profile.goal_reward}")
+    print(f"  margin_over_baseline: {profile.margin_over_baseline}")
+    print(f"  min_goal_rate:       {profile.min_goal_rate}")
+
+
+def evaluate_greedy(model, make_env_fn, episodes: int):
+    """Play greedy episodes; return (mean_reward, goal_rate, mean_steps).
+
+    Teacher Note: "greedy" (deterministic=True) means the agent always takes
+    the move it currently thinks is best — no random exploration mixed in,
+    same as M2/M3. goal_rate counts episodes that ended via terminated=True.
+    For GridWorld that only ever means "reached the goal" (its one way to
+    terminate); for CartPole it would mean "the pole fell," but no CartPole
+    profile sets min_goal_rate, so decide_verdict never looks at this number
+    for it — computing it unconditionally here is harmless, not wrong.
+    """
+    env = make_env_fn()
+    rewards, steps_list, goals = [], [], 0
+
+    for _ in range(episodes):
+        obs, _ = env.reset()
+        terminated = truncated = False
+        ep_reward = 0.0
+        ep_steps = 0
+        while not (terminated or truncated):
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, _info = env.step(action)
+            ep_reward += reward
+            ep_steps += 1
+        goals += int(terminated)
+        rewards.append(ep_reward)
+        steps_list.append(ep_steps)
+
+    env.close()
+    return sum(rewards) / episodes, goals / episodes, sum(steps_list) / episodes
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="M4 — Train PPO on whichever Ground a profile names.",
@@ -248,6 +324,11 @@ def parse_args() -> argparse.Namespace:
         "--profile",
         required=True,
         help="Path to the profile YAML (e.g. profiles/gridworld.yaml)",
+    )
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help="Fast wiring check (a few hundred steps), not a milestone result",
     )
     return parser.parse_args()
 
@@ -259,18 +340,104 @@ def main() -> int:
     print("GAMETRAINER — M4: Make It Swappable (profile-driven run)")
     print("=" * 60)
     print()
-    print(f"Profile requested:  {args.profile}")
-    print(f"Source fingerprint: {source_fingerprint()}")
+
+    profile = Profile.from_yaml(args.profile)
+    print_resolved_profile(profile, args.profile)
+    print(f"Source fingerprint:    {source_fingerprint()}")
+    print()
+    if args.smoke:
+        print("*** --smoke: wiring check only, NOT a milestone result ***")
+        print()
+
+    total_timesteps = SMOKE_TIMESTEPS if args.smoke else profile.total_timesteps
+    baseline_episodes = SMOKE_EPISODES if args.smoke else BASELINE_EPISODES
+    eval_episodes = SMOKE_EPISODES if args.smoke else FINAL_EVAL_EPISODES
+
+    def env_factory():
+        return make_env(profile)
+
+    # Referee piece 2: contract shapes, checked before spending any training time.
+    shapes_ok, detail = check_contract_shapes(env_factory())
+    print(f"Contract check: {'OK' if shapes_ok else 'BROKEN'} — {detail}")
     print()
 
-    print_finish_line()
+    # Referee piece 1: the live baseline, measured now — never remembered.
+    print(f"Measuring live random baseline over {baseline_episodes} episodes...")
+    live_baseline = measure_random_baseline(env_factory, episodes=baseline_episodes)
+    print(f"  Live random baseline: {live_baseline:+.2f} reward/episode")
+    print()
 
-    # Bricks 1-5 fill this in. Until then the referee exists and the game does
-    # not, and saying so plainly beats a stub that pretends to run.
-    print("Nothing to grade yet — the referee is built, the runner is not.")
-    print("Still to come: Brick 1 (Profile), 2 (RewardCalculator), 3 (make_env),")
-    print("               4 (the profile YAMLs), 5 (training).")
-    return 1
+    print_finish_line(live_baseline)
+
+    # The one branch left in the runner: pixels need CnnPolicy plus the
+    # borrowed ViT eyes; everything else is plain numbers, so MlpPolicy.
+    # make_env already made every other ground/perception decision.
+    if profile.perception == "pixels":
+        policy = "CnnPolicy"
+        policy_kwargs = {
+            "features_extractor_class": ViTTinyFeaturesExtractor,
+            "features_extractor_kwargs": {"pretrained": True, "freeze_backbone": True},
+        }
+    else:
+        policy = "MlpPolicy"
+        policy_kwargs = None
+
+    train_env = DummyVecEnv([lambda: Monitor(env_factory())])
+
+    print(f"Training PPO ({policy}) for {total_timesteps:,} timesteps...")
+    model = PPO(
+        policy,
+        train_env,
+        verbose=1,
+        learning_rate=profile.learning_rate,
+        n_steps=profile.n_steps,
+        batch_size=profile.batch_size,
+        n_epochs=profile.n_epochs,
+        gamma=profile.gamma,
+        gae_lambda=profile.gae_lambda,
+        clip_range=profile.clip_range,
+        ent_coef=profile.ent_coef,
+        policy_kwargs=policy_kwargs,
+    )
+
+    started = time.time()
+    model.learn(total_timesteps=total_timesteps)
+    elapsed = time.time() - started
+
+    model_dir = os.path.join(_project_root, "models", f"ppo_{Path(args.profile).stem}")
+    os.makedirs(model_dir, exist_ok=True)
+    final_path = os.path.join(model_dir, "final_model")
+    model.save(final_path)
+    print(f"\nTraining complete in {elapsed / 60:.1f} min. Model saved → {final_path}.zip\n")
+
+    print(f"Running final greedy evaluation ({eval_episodes} episodes)...")
+    mean_reward, goal_rate, mean_steps = evaluate_greedy(model, env_factory, eval_episodes)
+    passed, lines = decide_verdict(
+        mean_reward,
+        live_baseline,
+        profile.margin_over_baseline,
+        shapes_ok,
+        goal_rate=goal_rate,
+        min_goal_rate=profile.min_goal_rate,
+    )
+
+    print()
+    print("=" * 60)
+    print(f"M4 VERDICT ({args.profile}): {'PASS' if passed else 'FAIL'}")
+    print("=" * 60)
+    for line in lines:
+        print(line)
+    print(f"  Mean steps per episode: {mean_steps:.1f}")
+    print(f"  Wall-clock training:    {elapsed / 60:.1f} min for {total_timesteps:,} steps")
+    print(f"  Profile:                {args.profile}")
+    print("=" * 60)
+
+    train_env.close()
+
+    if args.smoke:
+        print("\n(--smoke run: wiring check only — not a milestone result.)")
+
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":
