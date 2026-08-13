@@ -352,6 +352,7 @@ failed rows is a milestone that wasn't measured.
 | Date | Profile | Command | Baseline (live) | Trained mean | Goal rate | Steps | Wall-clock | HW | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | 2026-08-11 | `cartpole.yaml` | `python scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +20.88 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train / 6.8s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
+| 2026-08-13 | `gridworld.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` | -0.14 | +0.93 | n/a (not required by this profile) | 25,000 | 0.1 min train / 9.1s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
 | _(fill in)_ | | | | | | | | | |
 
 **The M3 numbers to reproduce** (from `docs/CHANGELOG.md`, M3 entry): live baseline
