@@ -3,9 +3,9 @@
 > **Covers:** orientation for someone new to this repo — what it is, why it looks
 > this way, what every technology is for, and which code is current.
 > **Status:** current.
-> **Last verified:** 2026-08-08 (§8's branch/milestone status corrected — it still
-> said M3 closed/M4 not started while M4 was already on Brick 4; the M0–M3 results
-> table itself was re-checked and is unchanged).
+> **Last verified:** 2026-08-14 (M4 closed — §5's file table, §6's "Profile"
+> description, §7's tree, and §8's status table and summary all updated to
+> match; see each section for what changed).
 > **Authority:** `docs/PRD.md` owns *what gets built*; this file is the tour.
 > Written to `docs/DOC_STANDARD.md`.
 
@@ -144,7 +144,7 @@ code was written for that. Then the direction changed (see the pivot log in
 
 So when you open `src/`, you were looking at two tracks at once:
 
-### Track A — the current milestone path (M0 → M3). This is live.
+### Track A — the current milestone path (M0 → M4). This is live.
 
 | File | Role |
 | :--- | :--- |
@@ -162,10 +162,18 @@ So when you open `src/`, you were looking at two tracks at once:
 | `tests/test_vit_extractor.py` | M3: feature width in == feature width out |
 | `tests/test_random_start.py` | M3: proves the task can't be solved blind |
 | `tests/test_m2_e2e.py` | The old M2 finish line — now `skip`ped (see §8) |
+| `src/gametrainer/profile.py` | M4: `Profile` — a validated `.yaml` → Ground + reward + PPO numbers |
+| `src/gametrainer/rewards.py` | M4: `RewardCalculator` — the reward decision, pulled out of `GridWorldEnv` |
+| `src/gametrainer/factory.py` | M4: `make_env(profile)` — the one place a profile's name becomes an env |
+| `profiles/*.yaml` | M4: the three profiles — `cartpole`, `gridworld`, `gridworld_pixels` |
+| `scripts/train_from_profile.py` | M4: one runner, any profile — replaces per-game train scripts |
+| `scripts/check_swap.py` | M4: negative-control proof the config layer is really wired |
+| `tests/test_profile.py`, `test_rewards.py`, `test_make_env.py`, `test_m4_verdict.py` | M4: profile validation, reward numbers, env-building, the referee |
 
 M0–M2 here are small, numbers-only, and run on a CPU in seconds. M3 adds the ViT,
-so `train_gridworld_vit.py` takes ~19 min on CPU. Nothing in Track A touches your
-screen or your keyboard.
+so `train_gridworld_vit.py` takes ~19 min on CPU. M4 adds no new Ground — it's a
+plumbing milestone, same three runs, one shared runner. Nothing in Track A
+touches your screen or your keyboard.
 
 ### Track B — the older Stardew prototype. Written, but ahead of where we are.
 
@@ -272,19 +280,29 @@ GridWorld need no real key presses, but the scripts wire `NullInput` in anyway,
 so the *seam* is visible and proven long before it carries real weight. That's a
 design habit worth copying: build the empty socket early, fill it later.
 
-### Config and per-game data (M4)
+### Config and per-game data (M4 — done)
 
 **YAML / PyYAML** — a human-friendly config file format (like JSON, but with
-comments). Intended to hold each game's key mappings and settings.
+comments). Holds each profile's Ground, reward numbers, and PPO hyperparameters.
 
-**Profile** — the planned unit of "everything specific to one game": a folder
-with `profile.yaml`, screen regions, and reference images. The goal of M4 is that
-adding a new game means adding a folder, not editing code. **Today this is only
-half-built** — `config.py` exists but is not wired into the training path.
+**Profile** — **rewritten 2026-08-14, M4 closed.** This section originally
+described a *planned*, never-wired design: a folder per game holding
+`profile.yaml`, screen regions, and reference images (that was Track B's
+`config.py`, deleted 2026-08-04). What M4 actually built is simpler: one flat
+`.yaml` file per setup (`profiles/cartpole.yaml`, `profiles/gridworld.yaml`,
+`profiles/gridworld_pixels.yaml`), loaded by `src/gametrainer/profile.py` into a
+validated `Profile` dataclass, turned into a Gymnasium env by
+`src/gametrainer/factory.py`'s `make_env(profile)`. Adding a new *setup* of an
+existing Ground means adding a `.yaml` file, not editing code — proven by
+`scripts/check_swap.py`, which asserts changing a number in the YAML genuinely
+changes what the agent gets scored on. Adding a whole new Ground (a new game
+world) still means writing one, same as GridWorld was written for M2 — the
+profile only swaps between Grounds that already exist.
 
 **Template matching** — an OpenCV technique: given a small reference image (say,
-the energy icon), find where it appears in a screenshot. It's how `interface.py`
-locates UI elements without hard-coded coordinates.
+the energy icon), find where it appears in a screenshot. **Not built yet** — the
+file that would have used it, `interface.py`, was Track B and was deleted
+2026-08-04. Still the planned approach for M6's screen-based reward reading.
 
 ### Developer tooling
 
@@ -304,14 +322,20 @@ locates UI elements without hard-coded coordinates.
 GameTrainer/
 ├── main.py                  # entry point → launches the TUI menu
 ├── src/gametrainer/         # the library (importable code)
-│   ├── gridworld.py         # ★ M2/M3: our own game world, and it draws itself
-│   ├── perception.py        # ★ M3: the pixel wrapper (the "eyes" socket)
-│   ├── vit_extractor.py     # ★ M3: the frozen ViT eyes
+│   ├── gridworld.py         # M2/M3: our own game world, and it draws itself
+│   ├── perception.py        # M3: the pixel wrapper (the "eyes" socket)
+│   ├── vit_extractor.py     # M3: the frozen ViT eyes
+│   ├── profile.py           # ★ M4: Profile — a validated .yaml → Ground + reward + PPO
+│   ├── rewards.py           # ★ M4: RewardCalculator — the reward decision
+│   ├── factory.py           # ★ M4: make_env(profile) — the one name→object seam
 │   ├── input.py             # the Hands (+ NullInput stub)
 │   ├── hardware.py          # picks CPU vs GPU
 │   ├── logger.py            # timestamped logging
-│   └── tui.py               # the retro menu
+│   └── tui.py               # the retro menu (★ M4: profile-picker entry)
+├── profiles/                 # ★ M4: cartpole.yaml, gridworld.yaml, gridworld_pixels.yaml
 ├── scripts/                 # runnable entry points, one per job
+│   ├── train_from_profile.py # ★ M4: one runner, any profile
+│   └── check_swap.py        # ★ M4: negative-control proof the config is real
 ├── tests/                   # pytest suite
 ├── docs/                    # PRD, changelog, per-milestone notes + UML
 └── src/cpp/clib.cpp         # ▲ M5: native key injection, opt-in build, not yet used
@@ -333,14 +357,11 @@ run the M0 demo. Import what you need, where you need it.
 
 ## 8. Where the project actually stands today
 
-**Corrected 2026-08-08:** this section previously said the current branch was
-`m3-implementation` and M4 "not started." Both were stale — M4 has been under
-way since 2026-07-30. Live detail (per-brick status, dates, decisions) lives in
-`docs/m4/M4_Log.md`, not here — this section only owns the high-level summary.
+**Corrected 2026-08-14:** M4 closed. Live detail (per-brick status, dates,
+decisions) lives in `docs/m4/M4_Log.md`; the retrospective is
+`docs/m4/M4_Review.md` — this section only owns the high-level summary.
 
-**Current branch:** `m4-implementation`. **Last milestone closed:** M3.
-**In progress:** M4 — make it swappable (Bricks 0–4 done; see `docs/m4/M4_Log.md`
-for the brick-by-brick record).
+**Current branch:** `m4-implementation`. **Last milestone closed:** M4.
 
 Done and working:
 
@@ -350,10 +371,12 @@ Done and working:
 | **M1** | Borrow the Brain | Reward **22 → 500** (500 is CartPole's ceiling) | CPU, PPO `MlpPolicy`, 25k steps |
 | **M2** | Build our own Ground | Trained **+0.93**, goal reached **20/20** greedy episodes | CPU, PPO `MlpPolicy`, 25k steps |
 | **M3** | Add the Eyes | Live baseline **+0.48** → trained **+0.99**, goal reached **100%** of greedy episodes | CPU, frozen `vit_tiny_patch16_224`, **19.2 min** |
+| **M4** | Make it swappable | All 3 profiles PASS through **one unedited runner**; 4/4 negative controls PASS (`scripts/check_swap.py`) | CPU, config-only — zero Python edits between runs |
 
 M1's result *is* the proof of the architecture: nothing about the Ground changed,
 only the decision-maker was swapped. M3 is the same trick one level deeper — only
-the *sense organ* changed, and PPO was never touched.
+the *sense organ* changed, and PPO was never touched. M4 proves the *whole
+Ground* is swappable — the PRD's portfolio win condition.
 
 **The one to actually read about is M3**, because the first run was a false
 positive. It scored `+0.905` and looked like a win, but the agent's action
@@ -413,6 +436,12 @@ python scripts/train_cartpole.py    # M1: PPO learns CartPole
 python scripts/run_gridworld.py     # M2: random baseline on our world
 python scripts/train_gridworld.py   # M2: PPO learns our world
 
+# M4: one runner, any profile — config-only, no code edits
+python scripts/train_from_profile.py --profile profiles/cartpole.yaml
+python scripts/train_from_profile.py --profile profiles/gridworld.yaml
+python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml
+python scripts/check_swap.py        # M4: proves the config layer is really wired
+
 # Tests and lint
 pytest
 ruff check .
@@ -452,8 +481,13 @@ the script — you don't have to eyeball a graph and guess.
   redesigned, not reused as-is.
 - **Track B is untested.** No test covers `env_vit.py`, `screen.py`, or
   `interface.py`. Treat it as a prototype.
-- **Profiles are half-built.** `config.py` exists; nothing calls it. Hard-coded
-  window titles are still present in Track B. Finishing that is M4's whole job.
+- ~~**Profiles are half-built.** `config.py` exists; nothing calls it. Hard-coded
+  window titles are still present in Track B. Finishing that is M4's whole job.~~
+  **Resolved 2026-08-14 (M4 closed).** `config.py` was deleted with the rest of
+  Track B (2026-08-04). The current `Profile` (`src/gametrainer/profile.py`) is
+  fully wired: `make_env(profile)` builds the env, `scripts/check_swap.py`
+  proves the numbers in the YAML genuinely drive the run, not a hardcoded
+  fallback. See §6 and `docs/m4/M4_Review.md`.
 - **`docs/README.md` is archived.** It describes the Stardew-first system (Track B)
   and was written before the crawl-first pivot. It is kept for its design pivot
   log and is clearly marked at the top. **`docs/PRD.md` is the authority.**

@@ -1,9 +1,10 @@
 # Documentation Standard
 
 > **Covers:** every `.md` file in this repository.
-> **Status:** current. **Last verified:** 2026-08-08 (authority table gained a
-> row for glossary terms, after PRD.md and ONBOARDING.md were found repeating
-> the same glossary in full; rest of the file re-read and still accurate).
+> **Status:** current. **Last verified:** 2026-08-14 (rule 6 gained a style
+> rule for `M<N>_Log.md`/`M<N>_Review.md` — half the words, plain English —
+> applied retroactively to M4's own files by explicit request; rest of the
+> file re-read and still accurate).
 > **Authority:** this file wins on *how* docs are written. `docs/PRD.md` wins on
 > *what* gets built.
 
@@ -116,6 +117,23 @@ record of doing it*, the Review owns *what it meant*.
 > **Added 2026-07-30 (M4).** M0–M3 have no `M<N>_Log.md` and are not expected to
 > grow one — per the scope note below, a new standard applies to the next
 > milestone, never retroactively.
+
+> **Added 2026-08-14 (M4 close).** `M<N>_Log.md` and `M<N>_Review.md` are
+> **half the words, plain English.** A few short sentences per heading, not a
+> full technical write-up — cover what changed, the one thing that surprised
+> you, and the number that proves it. Rule 3 (number + baseline + hardware +
+> wall-clock + seed + command) is unchanged and still required in full; this
+> rule is about narrative, not evidence. Don't list every test case in prose —
+> say how many and what they cover. Don't repeat a decision here if it's
+> already a row in the Decisions log table — that table is its one authority
+> (rule 2). CS terms are fine; define a new one in one plain clause the first
+> time it appears (CLAUDE.md's "no jargon dumps" rule, restated here because
+> logs get skimmed, not studied).
+>
+> Applied retroactively to `M4_Log.md`/`M4_Review.md` themselves by explicit
+> request — normally a new standard applies to the next milestone only, per
+> the scope note below, but the files you're reading now are already in the
+> new style rather than the one that produced them.
 
 **Reviews are markdown in the repo.** PDFs are kept alongside as generated
 artefacts — markdown is what diffs, greps, and renders on GitHub.

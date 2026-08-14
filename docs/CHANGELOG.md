@@ -2,8 +2,8 @@
 
 
 > **Covers:** every change to this project, newest first.
-> **Status:** current. **Last verified:** 2026-08-08 (all entries below, including
-> the 2026-08-04 Track B retirement entry, reconfirmed accurate; M4 still open).
+> **Status:** current. **Last verified:** 2026-08-14 (M4 milestone entry added;
+> all earlier entries reconfirmed accurate).
 > **Authority:** this file owns *what happened and when*. `docs/PRD.md` owns *what
 > gets built next*. Written to `docs/DOC_STANDARD.md`.
 
@@ -15,6 +15,92 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Milestone entries are newest-first. Work predating the milestone scheme is
 preserved at the **bottom** of this file under *Pre-milestone*.
+
+---
+
+## [M4] — Make It Swappable (`Profile` + `RewardCalculator`)
+
+M1–M3 each proved one thing could be swapped (the brain, then the Ground, then the
+sense organ). M4 proves the **whole Ground** is swappable: one runner, one
+borrowed brain, and the *only* thing separating CartPole from GridWorld-through-
+pixels is which `.yaml` file gets passed on the command line. This is the
+milestone the PRD calls the portfolio win condition — any ground, any brain, one
+socket. Full brick-by-brick record: `docs/m4/M4_Log.md`. Retrospective:
+`docs/m4/M4_Review.md`.
+
+### Added
+
+- **`Profile` (`src/gametrainer/profile.py`):** a frozen dataclass loaded from a
+  flat `.yaml` file — names a Ground (`cartpole`/`gridworld`), a perception mode
+  (`numeric`/`pixels`), reward numbers, all seven PPO hyperparameters, and the
+  pass bar. Validates on load and raises loudly, naming the file and the bad
+  field, rather than failing silently mid-run.
+- **`RewardCalculator` (`src/gametrainer/rewards.py`):** the one-line reward
+  decision (`step_cost` vs. `goal_reward`) pulled out of `GridWorldEnv` so a
+  `Profile` can hand it different numbers. `GridWorldEnv`'s own behaviour is
+  byte-for-byte unchanged — its `STEP_COST`/`GOAL_REWARD` constants still feed the
+  calculator when nothing else is passed in.
+- **`make_env(profile)` (`src/gametrainer/factory.py`):** the one place a
+  `Profile`'s name becomes a Gymnasium env — a single `if`-chain over the three
+  `(ground, perception)` pairs the project supports, no registry, no dynamic
+  imports.
+- **Three profiles (`profiles/*.yaml`):** `cartpole.yaml`, `gridworld.yaml`,
+  `gridworld_pixels.yaml`. Every PPO/reward number copied verbatim from the
+  M1–M3 scripts; the one structural difference is `margin_over_baseline`, which
+  re-expresses each script's own absolute pass bar in one shared shape (*live
+  baseline + margin*) so a single referee can grade all three.
+- **The runner (`scripts/train_from_profile.py`):** loads a profile, builds the
+  env, measures the live random baseline, trains PPO with the profile's own
+  hyperparameters, evaluates greedily, and prints a PASS/FAIL verdict — plus the
+  **source fingerprint**, a SHA-256 over every tracked *and* untracked `.py` file,
+  so two runs claiming "nothing but the profile changed" can actually be checked,
+  not just asserted. `--smoke` runs a few hundred steps for a fast wiring check.
+- **The behavioural swap check (`scripts/check_swap.py`):** four negative
+  controls, run in seconds — swapping profiles genuinely changes observation
+  space, action space, and reward on an identical step; changing `step_cost` in
+  YAML genuinely changes the reward paid; `reset()`/`step()` contract holds on
+  every shipped profile; the full test suite stays green. Exists to catch a
+  config layer that *looks* wired but secretly still uses a hardcoded constant —
+  the M3 "blind agent" failure wearing a different hat.
+- **TUI entry (`src/gametrainer/tui.py`):** `[6] Train from profile - config-only,
+  pick the game (M4)` — asks which profile, then launches the same runner above.
+  Play/Changelog/Deps/Quit renumbered `7`–`10` accordingly; the M0–M3 entries
+  `[1]`–`[5]` are untouched.
+- **Results:** all three profiles PASS through the one unedited runner — CartPole
+  (baseline `+20.88` → trained `+500.00`), GridWorld numeric (baseline `-0.14` →
+  trained `+0.93`), GridWorld pixels (baseline `+0.46` → trained `+0.99`, 100%
+  goal rate — reproduces M3's `+0.99` almost exactly). Full table with every run,
+  including one FAIL, in `docs/m4/M4_Review.md`.
+
+### Fixed
+
+- **The swap proof didn't cover its own files.** `source_fingerprint()`'s first
+  version hashed only `git ls-files` (tracked files), so brand-new, uncommitted
+  code — including the runner and its own test — was invisible to the fingerprint
+  it was supposed to protect. Two runs of genuinely different code could have
+  printed the same hash and claimed the swap was proven. Fixed with `git ls-files
+  -c -o --exclude-standard` (tracked + untracked, minus `.gitignore`); pinned by
+  `test_fingerprint_covers_uncommitted_files` so it can't regress silently.
+- **`float | None` syntax broke the Mac's Python 3.9 venv.** Brick 0 used PEP 604
+  union syntax, which needs Python 3.10+; it ran fine on the Windows 3.14 box it
+  was built on but took the entire test suite down on the Mac's 3.9.6 `.venv`
+  (matching `setup.py`'s stated minimum). Fixed with `from __future__ import
+  annotations`, same pattern already used in `hardware.py`/`tui.py`.
+
+### Documentation
+
+- `docs/m4/M4_Review.md` — **new**, the retrospective, written last.
+- `docs/PRD.md` — gained a DOC_STANDARD status header (it had none — a
+  pre-existing gap the milestone closeout audit caught, not an M4 regression);
+  §5's UML diagram corrected in place (dated note, not a rewrite) to say the
+  `GameEnvironment` wrapper class it shows was never built — `make_env(profile)`
+  does that job as a function instead.
+- `docs/ONBOARDING.md` — §5's Track A file table, §7's tree, and §8's results
+  table gained the seven new M4 modules and M4's row; §6's "Profile" description
+  (previously described the old, never-wired Track B design) rewritten to
+  describe what M4 actually built.
+- `CONTEXT.md`, `docs/README.md` — re-verified accurate (both already correct
+  since the 2026-08-04 Track B retirement), `Last verified` bumped.
 
 ---
 
