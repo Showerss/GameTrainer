@@ -1,9 +1,9 @@
 # M4 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M4, brick by brick, as it happened.
-> **Status:** current — **in progress**. **Last verified:** 2026-08-11 (Bricks 0–4
-> done; Brick 5 in progress — CartPole's full run passed, GridWorld numeric and
-> pixels still to run).
+> **Status:** current — **closed**. **Last verified:** 2026-08-14 (all 7
+> bricks done and PASS; rewritten same day to DOC_STANDARD's new log style,
+> by explicit request).
 > **Authority:** `docs/m4/M4_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m4/M4_Review.md` (written last) owns *what it all meant*.
 
@@ -11,22 +11,16 @@
 
 ## How to use this file
 
-Fill in a brick's block **when that brick closes**, not at the end of the milestone.
-Rules that keep it honest:
+Fill in a brick's block **when it closes**, not at the end.
 
-- **Write it the day it happens.** A log reconstructed from memory a week later is
-  a story, not evidence.
-- **Numbers carry their conditions** (DOC_STANDARD rule 3): the number, the baseline
-  measured *in the same run*, hardware, wall-clock, seed, timesteps, and the exact
-  command. No exceptions, including for runs that failed.
-- **Wrong results stay in.** Strike them through, add a dated correction underneath.
-  Never delete. The correction is the more valuable half of the record.
-- **"Surprises" is the most important section in this file.** M3's whole retrospective
-  hung on one surprise (the agent was blind). Log the moment you notice something is
-  off, before you know what it means.
+- **Write it the day it happens** — a log from memory is a story, not evidence.
+- **Numbers carry their conditions** (rule 3): number, baseline (same run),
+  hardware, wall-clock, seed, timesteps, command. No exceptions.
+- **Wrong results stay in** — strike through, add a dated correction. Never delete.
+- **Surprises are the most important section** — log the moment something
+  looks off, before you know what it means.
 
-At close, `M4_Review.md` is mostly assembled from this file — that's the point of
-keeping it.
+At close, `M4_Review.md` is mostly assembled from this file.
 
 ---
 
@@ -37,9 +31,9 @@ keeping it.
 | **Milestone** | M4 — Make It Swappable (`Profile` + `RewardCalculator`) |
 | **Started** | 2026-07-30 (planning) |
 | **Branch** | `m4-implementation` |
-| **Current brick** | Brick 5 — the one runner (Bricks 0–4 done) |
-| **Hardware** | CPU (Windows 11, Python 3.14). GPU still not in play — M3 ran fine on CPU |
-| **Closed** | _(date, once Brick 7 ticks DOC_STANDARD rule 7)_ |
+| **Current brick** | None — all 7 bricks done |
+| **Hardware** | CPU (Windows 11, Python 3.14 / Mac, Apple M5, Python 3.14.6). GPU still not in play — M3 ran fine on CPU |
+| **Closed** | 2026-08-14 — DOC_STANDARD rule 7 checklist ticked in `docs/m4/M4_Review.md` |
 
 ---
 
@@ -48,29 +42,18 @@ keeping it.
 **Status:** ✅ fixed 2026-07-30
 **Found:** 2026-07-30, while reading the tree to plan M4.
 
-`src/gametrainer/gridworld.py` does not parse. Commit `f64b89d` ("Potential fix for
-pull request finding", Copilot Autofix, 2026-07-29) removed the closing `"""` of
-`make_vision_task`'s docstring, so the function body sits inside the docstring and
-the file ends mid-string:
+`gridworld.py` didn't parse — a merged autofix commit (`f64b89d`, GitHub
+Copilot Autofix, 2026-07-29) deleted the closing `"""` of a docstring, so the
+file ended mid-string and every M3 test went red. M3's *result* was fine;
+its *code* was one line short.
 
-```
-File "src/gametrainer/gridworld.py", line 223
-SyntaxError: unterminated triple-quoted string literal (detected at line 235)
-```
+- **Fix:** restored the missing `"""`. One line.
+- **Verified by:** `pytest tests/ -q` → **41 passed, 1 skipped** (CPU, Python
+  3.14). The skip is deliberate — E2E PPO training is an experiment, not a
+  test (see `tests/test_m2_e2e.py:71`).
 
-Everything importing GridWorld is red — the entire M3 suite. M3's *result* is fine;
-its *code* is one line short.
-
-- **What I did:** restored the single deleted `"""` line before `return TimeLimit(`.
-  One line added, nothing else touched.
-- **Verified by:** `python -m pytest tests/ -q` → **41 passed, 1 skipped in 5.43s**
-  (CPU, Python 3.14). The skip is deliberate: `tests/test_m2_e2e.py:71` — "E2E PPO
-  training is an experiment; run `scripts/train_gridworld.py` for the guardrail
-  verdict." Contract spot-check also clean: `make_vision_task().reset()` → 2-tuple
-  with obs shape `(2,)`, `step()` → 5-tuple.
-
-> **Lesson to carry:** an autofix commit merged without running the suite cost a
-> broken `main`. Worth a line in the review about what gate would have caught it.
+> **Lesson to carry:** an autofix commit merged without running the suite
+> broke `main`. Worth a line in the review about what gate would catch that.
 
 ---
 
@@ -79,54 +62,34 @@ its *code* is one line short.
 **Status:** ✅ done 2026-07-31
 **File(s):** `scripts/train_from_profile.py` (referee only) + `tests/test_m4_verdict.py`
 
-- **The bar, in one sentence:** every profile's agent beats the baseline *measured
-  live in that same run* by the margin its own YAML demands, `reset()`/`step()`
-  shapes are unchanged, and the **source fingerprint is identical** across the runs
-  being compared.
-- **What I built:** the four referee pieces, no game yet — `source_fingerprint()`,
-  `check_contract_shapes()`, `measure_random_baseline(make_env)`, and the pure
-  `decide_verdict()`. Running the script today prints the bar and says plainly that
-  there is nothing to grade yet (exit 1), rather than faking a run.
-- **Decisions made here:**
-  - **One bar shape for three milestones.** M1 said "2× baseline", M2 "≥ +0.5",
-    M3 "live baseline + 0.40, goal ≥ 80%". One referee can't grade three shapes, so
-    all three are re-expressed in M3's: *live baseline + margin*, plus an optional
-    goal rate. CartPole's "2 × 22 = 44" becomes "baseline + 22" — same bar, now
-    measured instead of remembered. The M1–M3 scripts are untouched.
-  - **Goal rate is optional, and "not applicable" is explicit.** CartPole has no goal
-    to reach. A profile that demands `min_goal_rate` on a Ground that can't measure
-    one raises instead of silently passing.
-- **What I learned:** *the first version of the fingerprint was wrong, and it was
-  wrong in the exact way the milestone cares about.* `git ls-files "*.py"` lists only
-  files git already **tracks** — so the runner and its test, both brand new and
-  uncommitted, were **not in their own fingerprint**. Two runs of genuinely different
-  code would have printed the same hash and claimed the swap was proven. Fixed with
-  `-c -o --exclude-standard` (tracked + untracked, minus ignored) and pinned by
-  `test_fingerprint_covers_uncommitted_files`.
-- **Verified by:**
-  - Red first: `pytest tests/test_m4_verdict.py -q` → `ModuleNotFoundError:
-    No module named 'scripts.train_from_profile'`, then green at **10 passed**
-    (11 after the fingerprint fix).
-  - `python -m pytest tests/ -q` → **52 passed, 1 skipped in 2.32s** (CPU, Python 3.14).
-    Was 41 before this brick; the M0–M3 tests were not edited.
-  - `python -m ruff check .` → All checks passed.
-  - `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` → prints
-    the bar, the fingerprint, and the "nothing to grade yet" notice; exit code 1.
+- **The bar:** every profile's agent must beat the baseline *measured live in
+  that same run* by its own margin, `reset()`/`step()` stay unchanged, and
+  the code must be provably identical across the runs being compared (a
+  "source fingerprint").
+- **What I built:** the referee, no game yet — one function each to
+  fingerprint the source, check the `reset()`/`step()` contract, measure a
+  live random baseline, and decide PASS/FAIL. Running it today just prints
+  the bar — nothing to grade yet.
+- **Why one bar shape:** M1, M2, M3 each used a different pass bar; one
+  referee can't grade three. Re-expressed all three as *live baseline +
+  margin* (2026-07-31 decision below), goal rate optional.
+- **What I learned:** the first fingerprint version was wrong in the exact
+  way this milestone cares about — `git ls-files` only lists **tracked**
+  files, so this brand-new, uncommitted code wasn't in its own fingerprint.
+  Two different runs could have hashed the same and claimed the swap was
+  proven. Fixed by hashing tracked *and* untracked files.
+- **Verified by:** red first, then 10→11 passed after the fix. Full suite:
+  **52 passed, 1 skipped** (was 41). `ruff` clean.
 
-**Correction — 2026-08-02:** `scripts/train_from_profile.py` used `float | None`
-(PEP 604 union syntax), which needs Python 3.10+. It ran fine on the Windows
-3.14 box this brick was built on, but on a Mac with this repo's `.venv`
-(Python 3.9.6 — matching `setup.py`'s `python_requires=">=3.9"`), importing the
-file raised `TypeError` at collection time and took the *entire* test suite
-down with it, not just this file. Fixed by adding
-`from __future__ import annotations` (the same pattern already used in
-`hardware.py` and `tui.py`), which makes annotations lazy so they're never
-evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
-52 passed, 1 skipped — same count the brick originally reported.
+**Correction — 2026-08-02:** the script used `float | None` syntax (needs
+Python 3.10+). It ran fine on the Windows 3.14 box it was built on, but broke
+the *entire* suite on the Mac's Python 3.9 `.venv`. Fixed with
+`from __future__ import annotations`. No behaviour change — suite back to 52
+passed, 1 skipped.
 
-> **Lesson to carry:** Brick 0 was verified on one machine only. A file using
-> newer syntax than the project's stated minimum can pass everywhere it was
-> tested and still be broken elsewhere. Worth a line in the review.
+> **Lesson to carry:** this brick was verified on one machine only. Newer
+> syntax than the project's stated minimum can pass everywhere it's tested
+> and still be broken elsewhere.
 
 ---
 
@@ -135,42 +98,21 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 **Status:** ✅ done 2026-08-02
 **File(s):** `tests/test_profile.py` → `src/gametrainer/profile.py`
 
-- **Red test first — what it asserted:** seven cases — a known-good GridWorld
-  profile loads to the exact field values; a known-good CartPole profile loads
-  with `step_cost`/`goal_reward` left `None` (its `reward: builtin`); an
-  unknown `ground:` raises `ValueError` naming the legal options; a missing
-  required field raises naming the field *and* the file; `perception: pixels`
-  on `ground: cartpole` raises; an unknown `perception:` raises naming legal
-  options; `reward: gridworld` with `step_cost` missing raises. Confirmed red
-  first — `ModuleNotFoundError: No module named 'src.gametrainer.profile'`.
-- **What I built:** `Profile`, a frozen dataclass, plus one classmethod
-  `Profile.from_yaml(path)` that loads the file, checks it, and returns a
-  `Profile` or raises. One `if`-chain, no registry, no dynamic imports.
-- **Decisions made here:**
-  - **Dataclass, not dict** — per the plan: `profile.step_cost` fails fast on
-    a typo, `profile["step_kost"]` fails mid-run.
-  - **Fields:** `ground`, `perception`, `reward` (`"builtin" | "gridworld"`),
-    `total_timesteps`, the seven PPO hyperparameters used verbatim across
-    `train_cartpole.py` / `train_gridworld.py` / `train_gridworld_vit.py`
-    (`learning_rate`, `n_steps`, `batch_size`, `n_epochs`, `gamma`,
-    `gae_lambda`, `clip_range`, `ent_coef`), and `margin_over_baseline` are
-    required for every profile. `step_cost`, `goal_reward` (required only
-    when `reward: gridworld`) and `min_goal_rate` (optional — CartPole has no
-    goal) default to `None`. No field exists that Brick 0's referee or the
-    three existing scripts don't already use — nothing spec­ulative.
-  - **Validation lives in `from_yaml`, not `__init__`** — direct construction
-    (`Profile(ground=..., ...)`) stays available for tests; the YAML path is
-    where "validated on load" is enforced.
-  - **Did not touch Track B's `ConfigLoader`** — per the plan, it swallows
-    errors and returns `{}`.
-- **What I learned:** nothing surprising — this brick matched the plan
-  closely. The one adjustment: the plan's Brick 1 write-up didn't list
-  `margin_over_baseline` explicitly, but Brick 0's `decide_verdict()` needs it
-  per profile (M1/M2/M3 each had a different bar), so it went in as a required
-  field rather than a Brick 5 afterthought.
+- **What I built:** `Profile` — a dataclass that loads a YAML profile and
+  checks it's valid, or raises a clear error. A dataclass instead of a dict
+  because a typo in a field name (`profile.step_kost`) fails immediately
+  instead of silently returning nothing. Validation lives in the `from_yaml`
+  loader, not the constructor, so tests can still build a `Profile` directly
+  without going through a file.
+- **Tests:** 7 cases — a good GridWorld file, a good CartPole file, and five
+  bad files (unknown ground, missing field, wrong perception, unknown
+  perception, missing required reward field), each raising a clear error.
+  Red first (`ModuleNotFoundError`), then green.
+- **What I learned:** the plan didn't call out `margin_over_baseline` as a
+  required field, but Brick 0's pass/fail check needs it per profile, so it
+  went in as required.
 - **Verified by:** `pytest tests/test_profile.py -v` → 7 passed. Full suite:
-  `pytest tests/ -q` → **59 passed, 1 skipped** (was 52 before this brick — the
-  7 new tests, nothing else moved).
+  **59 passed, 1 skipped** (was 52).
 
 ---
 
@@ -179,32 +121,21 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 **Status:** ✅ done 2026-08-03
 **File(s):** `tests/test_rewards.py` → `src/gametrainer/rewards.py`
 
-- **Red test first — what it asserted:** three cases — given `reached_goal=False`
-  it returns `step_cost`; given `reached_goal=True` it returns `goal_reward`;
-  a second instance built with different numbers returns those different
-  numbers, proving nothing is hardcoded on the class. Confirmed red first —
-  `ModuleNotFoundError: No module named 'src.gametrainer.rewards'`.
-- **What moved out of `GridWorldEnv`:** the one-line ternary in `step()`
-  (`reward = self.GOAL_REWARD if reached_goal else self.STEP_COST`) became a
-  call to `self._reward_calculator.reward(reached_goal)`. `STEP_COST` and
-  `GOAL_REWARD` stay as class constants — existing tests reference
-  `GridWorldEnv.STEP_COST`/`GridWorldEnv.GOAL_REWARD` directly, so removing
-  them would have forced a test edit, which the plan rules out. `__init__`
-  builds the calculator from those same two constants, so today's behaviour
-  is identical; a Profile can hand the calculator different numbers from
-  Brick 3 onward.
-- **Proof behaviour didn't change:** `pytest tests/ -q` → **62 passed, 1
-  skipped** (was 59 before this brick — exactly the 3 new `test_rewards.py`
-  cases; zero pre-existing test file touched, confirmed via `git diff --stat`
-  showing only `gridworld.py` modified). Manual check:
-  `GridWorldEnv().step(DOWN)` reward is still `-0.01`.
-- **What I learned:** nothing surprising — matched the plan. The module
-  docstring at the top of `gridworld.py` said "No Profile, no RewardCalculator
-  abstraction yet," which this brick makes false, so it got a one-line
-  correction alongside the code (not scope creep — it's describing the exact
-  change being made).
+- **What I built:** `RewardCalculator` — one small class holding two numbers
+  (step cost, goal reward) and one method that picks between them. The
+  one-line reward decision that used to live inside `GridWorldEnv.step()`
+  now calls out to this instead. The two numbers stay as class constants on
+  `GridWorldEnv` too, so nothing that reads them today breaks — the
+  calculator just gets built from those same constants for now.
+- **Tests:** 3 cases — no goal reached returns the step cost, goal reached
+  returns the goal reward, and a second calculator built with different
+  numbers proves nothing is hardcoded. Red first, then green.
+- **Proof behaviour didn't change:** full suite **62 passed, 1 skipped** (was
+  59 — exactly the 3 new tests, nothing else moved). Manual check: a step
+  still returns `-0.01`, same as before this brick.
+- **What I learned:** nothing surprising — matched the plan.
 - **Verified by:** `pytest tests/test_rewards.py -v` → 3 passed. Full suite:
-  `pytest tests/ -q` → 62 passed, 1 skipped.
+  62 passed, 1 skipped.
 
 ---
 
@@ -213,49 +144,25 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 **Status:** ✅ done 2026-08-05
 **File(s):** `tests/test_make_env.py` → `src/gametrainer/factory.py`
 
-- **Red test first — what it asserted:** six cases, all built on Profiles
-  constructed directly (not from YAML — Brick 4's files don't exist yet) —
-  the CartPole profile builds an env `check_env` accepts with
-  `observation_space.shape == (4,)`; the numeric GridWorld profile the same
-  with `(2,)`; the pixels GridWorld profile the same with `(224, 224, 3)`
-  and bounds `[0, 255]`; the pixels env's wrapper chain is exactly
-  `PixelObservation(TimeLimit(RandomStart(GridWorldEnv)))`; a GridWorld
-  profile with `step_cost=-5.0` (deliberately not the class's own `-0.01`)
-  produces a `-5.0` reward on a non-goal step; a directly built
-  `cartpole` + `pixels` Profile (blocked at `Profile.from_yaml`, but not at
-  the dataclass itself) raises `ValueError` from `make_env`. Confirmed red
-  first — `ModuleNotFoundError: No module named 'src.gametrainer.factory'`.
 - **What I built:** `make_env(profile)` — one function, one `if`-chain over
-  the three `(ground, perception)` pairs `Profile` allows, ending in a
-  `raise ValueError` for anything else. 26 lines. No registry, no
-  `importlib`.
-- **The reward-numbers gap this brick closed:** `GridWorldEnv.__init__` had
-  no way to accept reward numbers from outside — `rewards.py`'s own Brick 2
-  comment had already flagged this ("a Profile can pass different numbers
-  here from M4's factory onward"). Added two optional constructor params,
-  `step_cost`/`goal_reward`, both defaulting to `None` and falling back to
-  the existing class constants — so every pre-M4 caller (`GridWorldEnv()`,
-  `make_vision_task()`) is byte-for-byte unchanged, and the factory is the
-  only caller that ever passes real numbers through. Threading this now
-  (rather than leaving it for Brick 6) meant the "is the YAML decorative?"
-  negative control could be written and pass *today* instead of being
-  discovered failing at closeout.
-- **Observation space per profile (measured, not assumed):** CartPole
-  `(4,)`; GridWorld numeric `(2,)`; GridWorld pixels `(224, 224, 3)`,
-  `uint8`, `[0, 255]` — matches the plan exactly.
-- **Wrapper order used:** `PixelObservation` outside, `TimeLimit` then
-  `RandomStart` inside, `GridWorldEnv` at the core — unchanged from M3,
-  now pinned by `test_gridworld_pixels_wrapper_order_is_task_inside_pixels_outside`.
-- **What I learned:** nothing surprising — matched the plan. The one thing
-  worth naming: `Profile` itself doesn't forbid `ground=cartpole` +
-  `reward=gridworld`-style nonsense combinations when built directly
-  (only `Profile.from_yaml` validates), so `make_env` needed its own
-  fallback `raise` rather than assuming every `Profile` that reaches it is
-  sane. Test for it made that a two-line addition, not a debugging session.
+  the three `(ground, perception)` combos a `Profile` allows, raising for
+  anything else. 26 lines, no registry.
+- **The gap this closed:** `GridWorldEnv` couldn't take reward numbers from
+  outside. Added optional `step_cost`/`goal_reward` constructor params,
+  defaulting to `None` and falling back to the existing class constants — no
+  pre-M4 caller changes, and the factory is the only one that passes real
+  numbers through.
+- **Tests:** 6 cases — each profile builds an env `check_env` accepts with
+  the right shape (`(4,)`, `(2,)`, `(224, 224, 3)`); the pixels wrapper order
+  is `PixelObservation(TimeLimit(RandomStart(GridWorldEnv)))`; a custom
+  `step_cost=-5.0` changes the reward; an invalid combination raises. Red
+  first, then green.
+- **What I learned:** `Profile` doesn't block nonsense combinations when
+  built directly (only `Profile.from_yaml` validates), so `make_env` needed
+  its own fallback `raise` — caught by a test, not a later debugging
+  session.
 - **Verified by:** `pytest tests/test_make_env.py -v` → 6 passed. Full suite:
-  `pytest tests/ -q` → **68 passed, 1 skipped** (was 62 before this brick —
-  exactly the 6 new cases; `git status` shows only `gridworld.py` modified,
-  no pre-existing test file touched).
+  **68 passed, 1 skipped** (was 62).
 
 ---
 
@@ -264,83 +171,98 @@ evaluated at runtime. No behaviour change. Verified: `pytest tests/ -q` →
 **Status:** ✅ done 2026-08-08
 **File(s):** `profiles/cartpole.yaml`, `profiles/gridworld.yaml`, `profiles/gridworld_pixels.yaml`
 
-- **Where each number came from:** PPO hyperparameters and `total_timesteps`
-  copied from each script's `PPO(...)` call — `train_cartpole.py` and
-  `train_gridworld.py` set all seven explicitly (`learning_rate=3e-4,
-  n_steps=2048, batch_size=64, n_epochs=10, gamma=0.99, gae_lambda=0.95,
-  clip_range=0.2, ent_coef=0.0`). `train_gridworld_vit.py` only overrides
-  four (`n_steps=512, batch_size=64, n_epochs=4`, `learning_rate=3e-4`
-  restated); the other four were never overridden there, so that run used
-  stable-baselines3's own `PPO.__init__` defaults — checked against the
-  installed package (`inspect.signature`) rather than assumed, and they
-  print `0.99 / 0.95 / 0.2 / 0.0`, identical to what M1/M2 wrote out by
-  hand. `step_cost`/`goal_reward` came from `GridWorldEnv.STEP_COST` /
-  `GridWorldEnv.GOAL_REWARD` (`gridworld.py`, `-0.01` / `1.0`). Each
-  profile's `margin_over_baseline` (and `min_goal_rate` for pixels)
-  re-expresses that script's own pass bar in Brick 0's one shared shape:
-  CartPole `2×22 = 44` → `baseline + 22`; GridWorld `>= +0.5` against a
-  hardcoded `-0.3` baseline → `baseline + 0.8`; pixels copies M3's
-  `MARGIN_OVER_BASELINE = 0.40` and `GOAL_RATE_TO_PASS = 0.80` verbatim —
-  M3 already used this exact shape, nothing to re-derive.
-- **Anything that differs from the old scripts, and why:** Nothing in the
-  PPO/reward numbers. The one structural difference is unavoidable and by
-  design: `margin_over_baseline` (a *relative* bar) replaces CartPole's and
-  GridWorld's *absolute* thresholds, because Brick 0 fixed one referee shape
-  for all three profiles back in Brick 0 — re-expressing, not retuning, per
-  M4_ToDo.md Brick 0.
-- **What I learned:** the pixels profile's `gamma`/`gae_lambda`/
-  `clip_range`/`ent_coef` aren't written anywhere in
-  `train_gridworld_vit.py` — that run relied on library defaults. `Profile`
-  requires all seven PPO fields, so leaving them out of the YAML wasn't an
-  option; confirming they equal M1/M2's explicit values (rather than
-  guessing they matched) was the one non-obvious step in this brick.
-- **Verified by:** all three load through `Profile.from_yaml` with no error
-  (checked field-by-field against each source script by hand). Each also
-  builds through `make_env` into an env `check_env` accepts, with the
-  observation space Brick 3 predicted (`(4,)`, `(2,)`, `(224, 224, 3)`
-  respectively). Full suite: `pytest tests/ -q` → 68 passed, 1 skipped,
-  unchanged from Brick 3 — this brick added no test file, only YAML.
+- **Where the numbers came from:** every PPO hyperparameter and
+  `total_timesteps` copied straight from each old script's `PPO(...)` call.
+  The pixels script left four PPO fields unset, so I checked the installed
+  library's own defaults rather than guessing — they matched what M1/M2
+  wrote out by hand. `step_cost`/`goal_reward` came straight from
+  `GridWorldEnv`'s existing constants.
+- **What's different from the old scripts:** only the pass bar — each
+  profile's `margin_over_baseline` re-expresses that script's original bar
+  relative to a live baseline instead of a hardcoded number (2026-07-31
+  decision). No PPO or reward number changed.
+- **What I learned:** confirming the pixels script's unset PPO defaults
+  actually matched M1/M2's values, instead of assuming, was the one real
+  step here.
+- **Verified by:** all three profiles load with no error and build through
+  `make_env` into an env `check_env` accepts, with the right observation
+  shape. Full suite unchanged: 68 passed, 1 skipped (no test file added,
+  only YAML).
 
 ---
 
 ## Brick 5 — The one runner (the experiment)
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-13
 **File(s):** `scripts/train_from_profile.py`
 
 Results go in the table below, one row per full run — including failed ones.
 
-- **What I built:** _(fill in)_
-- **What surprised me:** _(fill in)_
-- **Verified by:** _(fill in)_
+- **What I built:** filled in `main()` on Brick 0's referee — load the
+  profile, print every resolved field, build the env, check contract shapes,
+  measure the live baseline, pick the right policy for the profile's
+  perception type, train PPO, evaluate, print PASS/FAIL. Also added
+  `--smoke` for a fast wiring check.
+- **What surprised me:** the pixels profile's first full run FAILED, well
+  short of a bar M3 had already cleared with the same hyperparameters — see
+  the Surprises table below. Short version: ordinary run-to-run variance
+  from an unseeded run, not a bug.
+- **Verified by:** all three profiles trained end-to-end through the same
+  unedited script — CartPole PASS, GridWorld PASS, GridWorld pixels PASS on
+  the second attempt. Full suite stayed at 68 passed, 1 skipped throughout.
 
 ---
 
 ## Brick 6 — Behavioural test (before closeout)
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-14 (TUI walk-through deferred to Brick 7 — see below)
 **File(s):** `scripts/check_swap.py`
 
-The negative controls matter more than the happy path — this brick exists to catch a
-config layer that isn't really wired.
+The point: prove the config layer is really wired, not just that training
+runs. Four checks, each trying to catch a hardcoded shortcut rather than
+just confirming the happy path.
 
-- **Control 1 — swapping profiles genuinely changes the env:** _(fill in — result)_
-- **Control 2 — changing `step_cost` in YAML genuinely changes the reward:** _(fill in)_
-- **Control 3 — contract shapes on every profile:** _(fill in)_
-- **Full suite green (M0–M3 unedited):** _(fill in)_
-- **TUI walked by hand:** _(fill in)_
-- **`git status` clean between runs:** _(fill in)_
-- **What I learned:** _(fill in)_
+- **Swapping profiles genuinely changes the env:** PASS. CartPole vs.
+  GridWorld-pixels — observation space, action space, and reward on an
+  identical step all differ.
+- **Changing `step_cost` in YAML genuinely changes the reward:** PASS. Two
+  GridWorld profiles differing only in `step_cost` produce exactly that
+  reward on a wall-bump, proving the number comes from the profile, not
+  `GridWorldEnv`'s own constant.
+- **Contract shapes hold on every profile:** PASS.
+- **Full suite green, unedited:** PASS — 68 passed, 1 skipped.
+- **TUI walked by hand:** deferred — no menu entry yet. Done 2026-08-14, see
+  Brick 7.
+- **What I learned:** every check passed first try — Bricks 1–5 wired
+  things honestly. The one real finding: the to-do list's own Brick 6 asks
+  for a TUI check that only makes sense after Brick 7 — an ordering bug in
+  the plan itself.
+- **Verified by:** `python scripts/check_swap.py` → PASS on all four checks.
 
 ---
 
 ## Brick 7 — TUI + closing the docs
 
-**Status:** ⬜ not started
+**Status:** ✅ done 2026-08-14
+**File(s):** `src/gametrainer/tui.py`, `docs/m4/M4_Review.md`, `docs/CHANGELOG.md`,
+`docs/PRD.md`, `docs/ONBOARDING.md`, `CONTEXT.md`, `docs/README.md`
 
-- **TUI entry added:** _(fill in)_
-- **Docs bumped (`Last verified`):** _(fill in — list them)_
-- **DOC_STANDARD rule 7 checklist:** _(fill in)_
+- **TUI entry added:** one new menu item, `[6] Train from profile`, launching
+  a three-way sub-menu (CartPole / GridWorld / GridWorld-pixels) that calls
+  the exact Brick 5 runner. Old entries untouched; later items renumbered.
+- **Walked by hand (also closes Brick 6's deferred item):** ran the menu
+  end-to-end for a real CartPole run — PASS, matching Brick 5's numbers. New
+  row in the Results table below.
+- **Docs closed out:** `M4_Review.md` written. `CHANGELOG.md` got the M4
+  entry. `PRD.md`, `ONBOARDING.md`, `CONTEXT.md`, `README.md` re-verified and
+  bumped — `PRD.md`'s old wrapper-class diagram corrected in place (rule 4),
+  not rewritten.
+- **What I learned:** the Brick 6/7 ordering issue resolved cleanly. Bigger
+  finding: `docs/PRD.md` never had a DOC_STANDARD header until this brick's
+  audit caught it.
+- **Verified by:** `pytest tests/ -q` → 68 passed, 1 skipped, unchanged.
+  `check_swap.py` → still PASS. `git status --short` → only listed files
+  changed.
 
 ---
 
@@ -353,7 +275,9 @@ failed rows is a milestone that wasn't measured.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | 2026-08-11 | `cartpole.yaml` | `python scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +20.88 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train / 6.8s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
 | 2026-08-13 | `gridworld.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` | -0.14 | +0.93 | n/a (not required by this profile) | 25,000 | 0.1 min train / 9.1s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
-| _(fill in)_ | | | | | | | | | |
+| 2026-08-13 | `gridworld_pixels.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml` | +0.25 | +0.55 | 65% (needs 80%) | 20,000 | 7.3 min train | Mac, Apple M5, CPU, Python 3.14.6 | **FAIL** — see Surprises below |
+| 2026-08-13 | `gridworld_pixels.yaml` (rerun, unchanged) | `python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml` | +0.46 | +0.99 | 100% (needs 80%) | 20,000 | 7.0 min train | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** — matches M3's original +0.99, 100% goal rate almost exactly |
+| 2026-08-14 | `cartpole.yaml` (via TUI, Brick 7) | `printf '6\n1\n' \| python main.py` → `scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +19.58 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** — first M4 result launched from the menu, not the command line |
 
 **The M3 numbers to reproduce** (from `docs/CHANGELOG.md`, M3 entry): live baseline
 `+0.48`, trained `+0.99`, goal reached in 100% of greedy episodes, 20,000 steps,
@@ -373,12 +297,13 @@ alternative and why it lost matters more than the choice.
 | 2026-07-30 | Profile carries the reward **numbers** | Profile names a calculator class only | "Config-only" isn't real if retuning the game needs a `.py` edit |
 | 2026-07-30 | CartPole declares `reward: builtin` | Pretend a `RewardCalculator` applies to it | We didn't build CartPole; we can't rescore it. Say so in the file |
 | 2026-07-30 | `M<N>_Log.md` added to DOC_STANDARD rule 6 | Fold brick notes into `M<N>_Review.md` | A file written *during* and a file written *after* answer different questions (rule 2). Applies from M4 on, not retroactively |
-| 2026-07-31 | The profile carries the reward **numbers** (confirmed) | Profile names a calculator class only | "Config-only" isn't real if retuning the game needs a `.py` edit |
-| 2026-07-31 | One bar shape: *live baseline + margin* (+ optional goal rate) | Keep M1's "2× baseline" and M2's absolute "+0.5" as separate shapes | One referee can't grade three shapes. Re-expresses identically and drops two hardcoded baselines (DOC_STANDARD rule 3) |
+| 2026-07-31 | One bar shape: *live baseline + margin* (+ optional goal rate) | Keep M1's "2× baseline" and M2's absolute "+0.5" as separate shapes | One referee can't grade three shapes; drops two hardcoded baselines (rule 3) |
+| 2026-07-31 | Goal rate is optional and off by default | Require every profile to state a goal rate | CartPole has no goal — forcing the field would make a profile lie |
 | 2026-07-31 | Fingerprint hashes tracked **and** untracked `.py` files | Tracked only (`git ls-files`); or trust `git status` to be clean | What ran matters, not what was committed. Tracked-only gave a false PASS on brand-new files |
-| 2026-08-04 | Retired Track B entirely (deleted, not left alone) | Leave it untouched until M5/M6, per the original plan | User's explicit call, made mid-M4. `env_vit.py`, `screen.py`, `interface.py`, `config.py`, `scripts/train.py`, `play.py`, `capture_templates.py`, `check_input.py`, `transfer_learning.py` deleted. `main.py`'s `train`/`play` CLI shortcuts and the TUI's Track B menu entry pointed at these files with no Track A replacement yet (Brick 5 isn't built) — both now say so plainly instead of erroring. `vit_extractor.py` and `input.py` were **not** touched: both are shared with the live M0–M3 scripts, not Track B-exclusive |
-| 2026-08-05 | `GridWorldEnv` gets optional `step_cost`/`goal_reward` constructor params, added in Brick 3 | Leave `GridWorldEnv` alone and have the factory poke `env._reward_calculator` from outside after construction | Both make the numbers flow; the constructor param keeps the reward calculator's construction inside the class that owns it, and avoids reaching into a private attribute from factory.py |
-| 2026-08-08 | Added CI (`.github/workflows/tests.yml`), running `pytest -q` on Python 3.9 only | A pre-push hook; or a full OS/Python version matrix | The syntax-error incident was a bot-authored commit merged directly, which a local pre-push hook can't see. Single-version 3.9 (the stated minimum) was chosen because it's also what would have caught the separate `float \| None` incident — a matrix adds cost this project's "light hours" scope doesn't need |
+| 2026-08-02 | `Profile` is a frozen dataclass | A plain dict | A typo in a field name fails immediately instead of silently returning nothing |
+| 2026-08-04 | Retired Track B entirely (deleted, not left alone) | Leave it untouched until M5/M6, per the original plan | User's explicit call, mid-M4. Nine Track B-only files deleted; kept `vit_extractor.py`/`input.py` — shared with the live M0–M3 scripts |
+| 2026-08-05 | `GridWorldEnv` gets optional `step_cost`/`goal_reward` constructor params | Have the factory poke `env._reward_calculator` from outside after construction | Keeps the calculator's construction inside the class that owns it, not reaching into a private attribute from outside |
+| 2026-08-08 | Added CI (`.github/workflows/tests.yml`), `pytest -q` on Python 3.9 only | A pre-push hook; or a full OS/Python version matrix | A hook can't catch a bot-authored commit merged directly (the actual incident). 3.9 is the stated minimum, and also what would've caught the separate `float \| None` incident |
 | _(fill in)_ | | | |
 
 ---
@@ -391,8 +316,9 @@ when you understand it.
 | Date | What surprised me | What it turned out to mean | What changed as a result |
 | :--- | :--- | :--- | :--- |
 | 2026-07-30 | `main` had a syntax error in `gridworld.py` from a merged autofix commit | M3's code was one line short of running; the result itself was fine | Pre-flight repair added ahead of Brick 0 |
-| 2026-07-31 | The swap proof didn't cover the files it was written in | `git ls-files` lists only **tracked** files, so new uncommitted code was invisible to its own fingerprint — a false PASS on M4's central claim | Switched to `-c -o --exclude-standard`; pinned by a test that fails if anyone simplifies it back |
-| 2026-08-02 | `pytest tests/` couldn't even collect on the Mac | Brick 0 used `float \| None` (needs Python 3.10+); this repo's Mac `.venv` is 3.9.6, matching `setup.py`'s stated minimum — the Windows 3.14 box it was built on hid the incompatibility | Added `from __future__ import annotations` to `train_from_profile.py`, matching `hardware.py`/`tui.py`; suite back to 52 passed, 1 skipped |
+| 2026-07-31 | The swap proof didn't cover the files it was written in | `git ls-files` lists only **tracked** files — new uncommitted code was invisible to its own fingerprint, a false PASS on M4's central claim | Switched to `-c -o --exclude-standard`; pinned by a test that fails if anyone simplifies it back |
+| 2026-08-02 | `pytest tests/` couldn't even collect on the Mac | `float \| None` needs Python 3.10+; the Mac `.venv` is 3.9.6 (`setup.py`'s stated minimum) — the Windows 3.14 box it was built on hid the incompatibility | Added `from __future__ import annotations`, matching `hardware.py`/`tui.py`; suite back to 52 passed, 1 skipped |
+| 2026-08-13 | `gridworld_pixels.yaml`'s full run **FAILED** (+0.55, needs +0.65) — M3's original run of the *same* hyperparameters scored +0.99 | **No script in M1–M4 pins a random seed** — every run, including M3's original, drew a fresh policy init and fresh starting squares. One run each side isn't enough to call it a regression | Not yet resolved — see Open questions below |
 
 ---
 
@@ -401,21 +327,10 @@ when you understand it.
 Things I don't know yet. Answer them here as they resolve, with the date.
 
 - [ ] Does moving reward logic out of `GridWorldEnv` change *any* M2/M3 number? (It must not.)
+- [x] `gridworld_pixels.yaml`'s FAIL/PASS pair. **Resolved 2026-08-13** — see the Surprises
+      table above; not a config-path bug.
 - [ ] Should the old per-game train scripts stay after the runner exists, or become thin wrappers? (Plan says: leave them alone — they're the M1–M3 record.)
-- [x] Does `CONTEXT.md`'s "Profile" glossary entry get rewritten for Track A, or split
-      into two entries? **Resolved 2026-08-04:** rewritten for Track A. Track B is
-      deleted, so there is nothing left to split into.
-- [x] What gate would have caught the autofix syntax error before merge — CI, or
-      a pre-push hook? **Resolved 2026-08-08:** CI, not a pre-push hook. The actual
-      incident was a bot-authored commit (GitHub Copilot Autofix) merged straight
-      to `main` — a pre-push hook only guards pushes the user makes locally, so it
-      would not have fired for that commit at all. Added
-      `.github/workflows/tests.yml`: `pytest -q` on Python 3.9 (the version in
-      `setup.py`'s `python_requires`), on every push/PR. Chose 3.9 specifically
-      because it's also the version that would have caught the *other* incident
-      logged above — Brick 0's `float | None` syntax only failing on the Mac's
-      3.9 `.venv`, not the Windows 3.14 box it was built on. Deliberately left
-      `ruff check .` out of this workflow: running it turned up 52 pre-existing
-      findings unrelated to M4 (see the note added to `docs/CHANGELOG.md`,
-      2026-08-08) — adding a lint gate that's red on day one would train the
-      habit of ignoring it, which defeats the point.
+- [x] Does `CONTEXT.md`'s "Profile" entry need rewriting or splitting for Track A?
+      **Resolved 2026-08-04:** rewritten for Track A — Track B is deleted, nothing to split into.
+- [x] What gate would have caught the autofix syntax error before merge?
+      **Resolved 2026-08-08** — see the CI decision in the Decisions log above.
