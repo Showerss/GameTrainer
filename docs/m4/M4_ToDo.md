@@ -1,7 +1,7 @@
 # M4 — Make It Swappable (Profile + RewardCalculator)
 
-> **Covers:** the plan for M4 — scope, design decisions, the bricks, and the finish line.
-> **Status:** current. **Last verified:** 2026-07-30 (written before Brick 0; no code exists yet).
+> **Covers:** the original M4 plan — scope, design decisions, bricks, and finish line.
+> **Status:** completed plan. **Last verified:** 2026-08-14 (M4 closed; retained as the plan-of-record).
 > **Authority:** `docs/PRD.md` owns *what* gets built and in what order. This file
 > owns *what M4 requires*. Brick-by-brick notes live in `docs/m4/M4_Log.md`;
 > the retrospective is `docs/m4/M4_Review.md`, written last.
