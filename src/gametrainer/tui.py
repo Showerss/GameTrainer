@@ -38,6 +38,8 @@ class TuiConfig:
     train_gridworld_script_relpath: str = "scripts/train_gridworld.py"
     # M3 surface: the same Ground, but the agent sees only pixels through a ViT.
     train_gridworld_vit_script_relpath: str = "scripts/train_gridworld_vit.py"
+    # M4 surface: profile-driven training for any shipped profile.
+    train_from_profile_script_relpath: str = "scripts/train_from_profile.py"
 
 
 def _project_root() -> Path:
@@ -91,7 +93,7 @@ def _menu() -> Panel:
     menu.append("  [3] Run GridWorld - random actions, baseline (M2)\n")
     menu.append("  [4] Train GridWorld - borrowed PPO brain (M2)\n")
     menu.append("  [5] Train GridWorld with ViT eyes - pixels only (M3)\n")
-    menu.append("  [6] Play (inference) - not available yet\n")
+    menu.append("  [6] Train from profile - CartPole / GridWorld / GridWorld-pixels (M4)\n")
     menu.append("  [7] View changelog\n")
     menu.append("  [8] Update / install deps (pip)\n")
     menu.append("  [9] Quit\n")
@@ -162,15 +164,29 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             return _run_script(cfg.train_gridworld_vit_script_relpath)
 
         if choice == 6:
-            # No Track A play/inference script exists yet — that's M4 Brick 5
-            # (scripts/train_from_profile.py) and beyond. Say so plainly rather
-            # than pointing at a script that doesn't exist.
-            console.print(
-                "\n[yellow]Play/inference isn't wired up yet.[/yellow] "
-                "Run a milestone script's own eval directly for now, "
-                "e.g. `python scripts/train_gridworld.py --render`.\n"
-            )
-            Prompt.ask("Press Enter to return", default="")
+            # M4: profile-driven training.  Show a three-option submenu so the
+            # user can pick which shipped profile to run, then hand off to
+            # scripts/train_from_profile.py --profile <path>.
+            console.clear()
+            console.print(_header(cfg))
+            console.print(Panel(
+                "Choose a profile:\n\n"
+                "  [1] CartPole (cartpole.yaml)\n"
+                "  [2] GridWorld flat (gridworld.yaml)\n"
+                "  [3] GridWorld pixels (gridworld_pixels.yaml)\n"
+                "  [4] Back",
+                title="Train from Profile",
+                border_style="magenta",
+            ))
+            sub = IntPrompt.ask("Selection", choices=["1", "2", "3", "4"], default="4")
+            profile_map = {
+                1: "profiles/cartpole.yaml",
+                2: "profiles/gridworld.yaml",
+                3: "profiles/gridworld_pixels.yaml",
+            }
+            if sub in profile_map:
+                console.print(f"\nLaunching train_from_profile.py --profile {profile_map[sub]} …\n")
+                return _run_script(cfg.train_from_profile_script_relpath, ["--profile", profile_map[sub]])
             continue
 
         if choice == 7:
