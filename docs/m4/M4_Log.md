@@ -271,13 +271,13 @@ just confirming the happy path.
 Every full run gets a row — **including the ones that failed**. A milestone with no
 failed rows is a milestone that wasn't measured.
 
-| Date | Profile | Command | Baseline (live) | Trained mean | Goal rate | Steps | Wall-clock | HW | Verdict |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 2026-08-11 | `cartpole.yaml` | `python scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +20.88 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train / 6.8s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
-| 2026-08-13 | `gridworld.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` | -0.14 | +0.93 | n/a (not required by this profile) | 25,000 | 0.1 min train / 9.1s total | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** |
-| 2026-08-13 | `gridworld_pixels.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml` | +0.25 | +0.55 | 65% (needs 80%) | 20,000 | 7.3 min train | Mac, Apple M5, CPU, Python 3.14.6 | **FAIL** — see Surprises below |
-| 2026-08-13 | `gridworld_pixels.yaml` (rerun, unchanged) | `python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml` | +0.46 | +0.99 | 100% (needs 80%) | 20,000 | 7.0 min train | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** — matches M3's original +0.99, 100% goal rate almost exactly |
-| 2026-08-14 | `cartpole.yaml` (via TUI, Brick 7) | `printf '6\n1\n' \| python main.py` → `scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +19.58 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train | Mac, Apple M5, CPU, Python 3.14.6 | **PASS** — first M4 result launched from the menu, not the command line |
+| Date | Profile | Command | Baseline (live) | Trained mean | Goal rate | Steps | Wall-clock | HW | Seed | Verdict |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 2026-08-11 | `cartpole.yaml` | `python scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +20.88 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train / 6.8s total | Mac, Apple M5, CPU, Python 3.14.6 | unseeded | **PASS** |
+| 2026-08-13 | `gridworld.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld.yaml` | -0.14 | +0.93 | n/a (not required by this profile) | 25,000 | 0.1 min train / 9.1s total | Mac, Apple M5, CPU, Python 3.14.6 | unseeded | **PASS** |
+| 2026-08-13 | `gridworld_pixels.yaml` | `python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml` | +0.25 | +0.55 | 65% (needs 80%) | 20,000 | 7.3 min train | Mac, Apple M5, CPU, Python 3.14.6 | unseeded | **FAIL** — see Surprises below |
+| 2026-08-13 | `gridworld_pixels.yaml` (rerun, unchanged) | `python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml` | +0.46 | +0.99 | 100% (needs 80%) | 20,000 | 7.0 min train | Mac, Apple M5, CPU, Python 3.14.6 | unseeded | **PASS** — matches M3's original +0.99, 100% goal rate almost exactly |
+| 2026-08-14 | `cartpole.yaml` (via TUI, Brick 7) | `printf '6\n1\n' \| python main.py` → `scripts/train_from_profile.py --profile profiles/cartpole.yaml` | +19.58 | +500.00 | n/a (no goal) | 25,000 | 0.1 min train | Mac, Apple M5, CPU, Python 3.14.6 | unseeded | **PASS** — first M4 result launched from the menu, not the command line |
 
 **The M3 numbers to reproduce** (from `docs/CHANGELOG.md`, M3 entry): live baseline
 `+0.48`, trained `+0.99`, goal reached in 100% of greedy episodes, 20,000 steps,
