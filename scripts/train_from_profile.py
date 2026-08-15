@@ -122,12 +122,13 @@ def source_fingerprint() -> str:
     function exists to catch.
     """
     listed = subprocess.run(
-        ["git", "ls-files", "-c", "-o", "--exclude-standard", "*.py"],
+        ["git", "ls-files", "-z", "-c", "-o", "--exclude-standard", "*.py"],
         cwd=_project_root,
         capture_output=True,
         text=True,
         check=True,
-    ).stdout.split()
+    ).stdout.split("\0")
+    listed = [relpath for relpath in listed if relpath]
 
     digest = hashlib.sha256()
     for relpath in sorted(listed):
