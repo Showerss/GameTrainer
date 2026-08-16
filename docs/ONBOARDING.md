@@ -392,7 +392,6 @@ Known gaps:
 - ⏳ `tests/test_m2_e2e.py` is `@pytest.mark.skip`, not deleted. Under the current
   testing policy (`CLAUDE.md` §5) a training run is an **experiment**, not a test —
   the guardrail lives in `scripts/train_gridworld.py`'s printed verdict instead.
-  **Its module docstring still describes the old `xfail` scheme and is stale.**
 - ⏳ Two per-brick tests named in `docs/m2/M2_ToDo.md` were never written:
   `tests/test_run_gridworld.py` and `tests/test_train_gridworld.py`. Deliberate
   under the current policy — they'd be testing glue.
