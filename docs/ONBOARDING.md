@@ -503,9 +503,9 @@ the script — you don't have to eyeball a graph and guess.
 | :--- | :--- |
 | The authoritative plan | `docs/PRD.md` |
 | The diagrams | [`docs/UML_FULL.md`](UML_FULL.md) |
-| What the last milestone required | `docs/m3/M3_ToDo.md` |
+| What the last milestone required | `docs/m4/M4_ToDo.md` |
 | What has changed and when | `docs/CHANGELOG.md` |
-| Per-milestone snapshots | `docs/m0/`, `docs/m1/`, `docs/m2/`, `docs/m3/` |
+| Per-milestone snapshots | `docs/m0/`, `docs/m1/`, `docs/m2/`, `docs/m3/`, `docs/m4/` |
 | How to work in this repo | `CLAUDE.md` (working agreements) |
 | How docs must be written | `docs/DOC_STANDARD.md` |
 | The pre-pivot Stardew design (historical) | `docs/README.md` — **archived** |
