@@ -117,6 +117,18 @@ class Profile:
                     f"{', '.join(reward_missing)}"
                 )
 
+        min_goal_rate = raw.get("min_goal_rate")
+        if min_goal_rate is not None:
+            if ground == "cartpole":
+                raise ValueError(
+                    f"{path}: 'min_goal_rate' is not supported for ground 'cartpole' "
+                    f"— CartPole has no discrete goal cell to measure"
+                )
+            if not (0.0 <= min_goal_rate <= 1.0):
+                raise ValueError(
+                    f"{path}: 'min_goal_rate' must be between 0 and 1, got {min_goal_rate}"
+                )
+
         return cls(
             ground=ground,
             perception=perception,
@@ -133,5 +145,5 @@ class Profile:
             margin_over_baseline=raw["margin_over_baseline"],
             step_cost=raw.get("step_cost"),
             goal_reward=raw.get("goal_reward"),
-            min_goal_rate=raw.get("min_goal_rate"),
+            min_goal_rate=min_goal_rate,
         )
