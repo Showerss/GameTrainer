@@ -80,6 +80,11 @@ class Profile:
                 f"{path}: profile must be a YAML mapping, got {type(raw).__name__}"
             )
 
+        allowed_fields = set(_REQUIRED_FIELDS) | {"step_cost", "goal_reward", "min_goal_rate"}
+        unknown = sorted(set(raw) - allowed_fields)
+        if unknown:
+            raise ValueError(f"{path}: unknown field(s): {', '.join(unknown)}")
+
         missing = [key for key in _REQUIRED_FIELDS if key not in raw]
         if missing:
             raise ValueError(f"{path}: missing required field(s): {', '.join(missing)}")
