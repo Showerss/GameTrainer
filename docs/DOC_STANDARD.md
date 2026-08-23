@@ -86,12 +86,12 @@ it was caught, what it actually meant, what changed.
 
 ### 5. Current and historical code are labelled, always
 
-This repo contains two generations of code (see `docs/ONBOARDING.md` §5). Any doc
-touching a file states which it is:
+This repo's history and archived documentation describe two generations of code
+(see `docs/ONBOARDING.md` §5), although Track B's implementation was deleted on
+2026-08-04. Any historical reference to a file states which generation it belongs to:
 
 - **Track A** — the current milestone path. Live, tested, trustworthy.
-- **Track B** — the earlier Stardew-first prototype. Read for ideas; do not trust
-  as current.
+- **Track B** — the retired Stardew-first prototype. Historical reference only; its implementation remains in git history.
 
 An unlabelled reference is assumed Track A, so labelling Track B is mandatory.
 
