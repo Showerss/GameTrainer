@@ -7,9 +7,9 @@ Usage:
     python main.py         - Launch the retro TUI menu
 
 The old `train`/`play` mode shortcuts are retired along with Track B (the
-Stardew-first prototype) — there is no single Track A script yet that trains
-or plays *any* profile (that lands with M4 Brick 5, scripts/train_from_profile.py).
-Use the TUI, or run a milestone script directly (see below).
+Stardew-first prototype). Profile-driven training is available directly through
+`scripts/train_from_profile.py`; play/inference is not wired yet. Use the TUI or
+run a milestone script directly (see below).
 """
 
 import sys
