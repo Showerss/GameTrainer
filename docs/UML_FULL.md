@@ -1,5 +1,18 @@
 # GameTrainer — Full UML & Diagrams
 
+> **Covers:** diagrams of the system — the mental model, the class layout, and
+> the milestone roadmap.
+> **Status:** partially stale. §1–2 (the loop, build-vs-borrow) are timeless and
+> current. §3 and §6–8 (the full class diagram, milestone roadmap, and snapshot
+> table) were drawn mid-M2 and were never refreshed for M3, M4, or the 2026-08-04
+> Track B deletion — they still show Track B classes as live and M3/M4 as
+> "not started." Treat those sections as a historical snapshot, not current fact.
+> **Last verified:** 2026-08-08 (confirmed §1–2 still accurate; confirmed §3/§6–8
+> are stale, per above — not yet redrawn).
+> **Authority:** for the real current status, read `docs/ONBOARDING.md` §8 and
+> `docs/CHANGELOG.md`. This file wins on *diagrams*, not on *current status*.
+> Written to `docs/DOC_STANDARD.md`.
+
 > Companion to [`docs/ONBOARDING.md`](ONBOARDING.md). Every diagram here is
 > **Mermaid** — GitHub, VS Code (with the Markdown Preview Mermaid extension),
 > and most Markdown viewers render it directly.

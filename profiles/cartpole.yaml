@@ -1,0 +1,23 @@
+# CartPole profile -- Milestone M4, Brick 4.
+# Numbers copied exactly from scripts/train_cartpole.py (Milestone M1).
+
+ground: cartpole
+perception: numeric        # CartPole has no pixel Ground built (see profile.py)
+reward: builtin             # Gymnasium's own CartPole reward -- we didn't build
+                             # CartPole and can't rescore it (M4_ToDo.md)
+
+total_timesteps: 25000
+
+# PPO hyperparameters -- train_cartpole.py's "sensible defaults"
+learning_rate: 0.0003
+n_steps: 2048
+batch_size: 64
+n_epochs: 10
+gamma: 0.99
+gae_lambda: 0.95
+clip_range: 0.2
+ent_coef: 0.0
+
+# M1's bar was "trained >= 2 x baseline", with the baseline hardcoded at 22
+# (M0_RANDOM_BASELINE). Re-expressed as baseline + margin: 2*22 - 22 = 22.
+margin_over_baseline: 22

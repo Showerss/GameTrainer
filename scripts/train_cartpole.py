@@ -24,8 +24,8 @@ Why MlpPolicy and not CnnPolicy?
 CartPole's "observation" is 4 numbers (cart position, cart velocity,
 pole angle, pole angular velocity) — not an image. MlpPolicy feeds
 those numbers through a small fully-connected network, which is perfect
-for this. CnnPolicy (used in train.py for Stardew) expects pixels and
-would be wasteful here.
+for this. CnnPolicy expects pixels (see scripts/train_gridworld_vit.py,
+M3) and would be wasteful here.
 
 Usage:
     python scripts/train_cartpole.py               # default: 25,000 steps

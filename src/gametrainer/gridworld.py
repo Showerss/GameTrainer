@@ -14,15 +14,17 @@ The world:
   - Each step costs a little (-0.01) so dawdling hurts; the goal pays +1.0.
   - A game ends by winning (terminated) or by running out of moves (truncated).
 
-The reward logic lives directly inside this class on purpose. No Profile, no
-RewardCalculator abstraction yet — that's a later milestone. Numbers in,
-numbers out.
+The reward decision itself is made by RewardCalculator (M4, Brick 2); this
+class still owns the two numbers (STEP_COST, GOAL_REWARD) and feeds them in,
+so behaviour is unchanged from M2/M3.
 """
 
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.wrappers import TimeLimit
+
+from src.gametrainer.rewards import RewardCalculator
 
 
 class GridWorldEnv(gym.Env):
@@ -51,7 +53,7 @@ class GridWorldEnv(gym.Env):
     # Action ids (this is the meaning of Discrete(4)).
     UP, DOWN, LEFT, RIGHT = 0, 1, 2, 3
 
-    def __init__(self, render_mode=None):
+    def __init__(self, render_mode=None, step_cost=None, goal_reward=None):
         super().__init__()
         self.render_mode = render_mode
 
@@ -71,6 +73,14 @@ class GridWorldEnv(gym.Env):
         # Live state — actually set in reset(); seeded here so the object is valid.
         self.row, self.col = self.START
         self._steps = 0
+
+        # Reward decision, pulled out to RewardCalculator (M4, Brick 2). Falls
+        # back to the class constants so old callers (GridWorldEnv()) are
+        # unchanged; the factory (M4, Brick 3) passes a Profile's numbers here.
+        self._reward_calculator = RewardCalculator(
+            step_cost=self.STEP_COST if step_cost is None else step_cost,
+            goal_reward=self.GOAL_REWARD if goal_reward is None else goal_reward,
+        )
 
     def _get_obs(self):
         """Current position as the float32 observation the contract promises."""
@@ -105,7 +115,7 @@ class GridWorldEnv(gym.Env):
 
         # Score the move and decide whether the game is over.
         reached_goal = (self.row, self.col) == self.GOAL
-        reward = self.GOAL_REWARD if reached_goal else self.STEP_COST
+        reward = self._reward_calculator.reward(reached_goal)
         terminated = reached_goal  # won the game
         truncated = (self._steps >= self.MAX_STEPS) and not reached_goal  # ran out of moves
 
@@ -219,7 +229,7 @@ class RandomStart(gym.Wrapper):
 VISION_TASK_STEP_CAP = 25
 
 
-def make_vision_task(render_mode="rgb_array"):
+def make_vision_task(render_mode="rgb_array", step_cost=None, goal_reward=None):
     """The Ground M3 trains on: a GridWorld that cannot be solved without looking.
 
     Defined here, in one place, because the training script and the tests must
@@ -229,7 +239,15 @@ def make_vision_task(render_mode="rgb_array"):
     Two wrapper layers (only one touches GridWorldEnv directly):
       RandomStart  -- random square each episode, goal moved off the corner
       TimeLimit    -- Gymnasium's own step-budget wrapper
+
+    step_cost/goal_reward pass straight through to GridWorldEnv (M4, Brick 3) --
+    default None reproduces the M3 behaviour exactly.
+    """
     return TimeLimit(
-        RandomStart(GridWorldEnv(render_mode=render_mode)),
+        RandomStart(
+            GridWorldEnv(
+                render_mode=render_mode, step_cost=step_cost, goal_reward=goal_reward
+            )
+        ),
         max_episode_steps=VISION_TASK_STEP_CAP,
     )

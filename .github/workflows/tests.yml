@@ -1,0 +1,26 @@
+name: Tests
+
+# Runs the test suite on the project's stated minimum Python version
+# (setup.py: python_requires=">=3.9"). This exists because a broken
+# `main` has already shipped twice without it — see docs/m4/M4_Log.md
+# ("Surprises & corrections", 2026-07-30 and 2026-08-02).
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install project (dev + rl extras)
+        run: pip install -e ".[dev,rl]"
+
+      - name: Run tests
+        run: pytest -q

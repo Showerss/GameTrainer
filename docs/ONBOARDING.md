@@ -1,5 +1,14 @@
 # GameTrainer — Onboarding for a Junior Engineer
 
+> **Covers:** orientation for someone new to this repo — what it is, why it looks
+> this way, what every technology is for, and which code is current.
+> **Status:** current.
+> **Last verified:** 2026-08-14 (M4 closed — §5's file table, §6's "Profile"
+> description, §7's tree, and §8's status table and summary all updated to
+> match; see each section for what changed).
+> **Authority:** `docs/PRD.md` owns *what gets built*; this file is the tour.
+> Written to `docs/DOC_STANDARD.md`.
+
 > **Read this first.** It explains what this project is, why it looks the way it
 > does, what every technology in it is for, and — importantly — which parts of the
 > code are *current* and which are *leftovers from an older plan*.
@@ -111,50 +120,83 @@ milestones, each of which changes exactly one thing:
 
 ---
 
-## 5. ⚠️ The single most confusing thing about this repo
+## 5. ⚠️ The single most confusing thing about this repo (historical — see correction)
 
-**There are two generations of code living side by side.**
+> **Correction — 2026-08-04.** This section originally described two generations
+> of code living side by side, with Track B kept forever as reference material.
+> That plan changed: **Track B was deleted.** `env_vit.py`, `screen.py`,
+> `interface.py`, `config.py`, `scripts/train.py`, `play.py`,
+> `capture_templates.py`, `check_input.py`, and `transfer_learning.py` are gone
+> from the repo (still in git history if you need to read them). Two files the
+> table below listed under Track B were **not** deleted, because they turned out
+> to be shared with the live milestone path, not Stardew-exclusive:
+> `src/gametrainer/input.py` (used by every M0–M2 script) and `src/cpp/clib.cpp`
+> (the opt-in M5 input extension, not Stardew-specific code). Per DOC_STANDARD
+> rule 4, the rest of this section is left as originally written, below, as the
+> historical record of why the split existed.
+
+**There were two generations of code living side by side.**
 
 The project originally started as *"build the Stardew bot right now."* A lot of
 code was written for that. Then the direction changed (see the pivot log in
 `docs/README.md`) to the crawl-first milestone plan above. The old code was
 **never deleted** — it's kept as a reference and as the future M3/M5 material.
 
-So when you open `src/`, you are looking at two tracks at once:
+So when you open `src/`, you were looking at two tracks at once:
 
-### Track A — the current milestone path (M0 → M2). This is live.
+### Track A — the current milestone path (M0 → M4). This is live.
 
 | File | Role |
 | :--- | :--- |
 | `scripts/run_cartpole.py` | M0: random actions on a borrowed game |
 | `scripts/train_cartpole.py` | M1: PPO learns CartPole |
-| `src/gametrainer/gridworld.py` | M2: **our own** 5×5 game world |
+| `src/gametrainer/gridworld.py` | M2: **our own** 5×5 game world (+ M3: draws itself) |
 | `scripts/run_gridworld.py` | M2: random baseline on our world |
 | `scripts/train_gridworld.py` | M2: PPO learns our world |
+| `src/gametrainer/perception.py` | M3: `PixelObservation` — swaps `(row,col)` for a picture |
+| `src/gametrainer/vit_extractor.py` | M3: the frozen ViT-Tiny "eyes" |
+| `scripts/train_gridworld_vit.py` | M3: PPO learns from pixels only |
 | `tests/test_gridworld.py` | Locks the Gymnasium contract |
-| `tests/test_m2_e2e.py` | The M2 finish line (see §8) |
+| `tests/test_gridworld_pixels.py` | M3: the rendered image's shape and behaviour |
+| `tests/test_pixel_observation.py` | M3: the wrapper keeps the contract |
+| `tests/test_vit_extractor.py` | M3: feature width in == feature width out |
+| `tests/test_random_start.py` | M3: proves the task can't be solved blind |
+| `tests/test_m2_e2e.py` | The old M2 finish line — now `skip`ped (see §8) |
+| `src/gametrainer/profile.py` | M4: `Profile` — a validated `.yaml` → Ground + reward + PPO numbers |
+| `src/gametrainer/rewards.py` | M4: `RewardCalculator` — the reward decision, pulled out of `GridWorldEnv` |
+| `src/gametrainer/factory.py` | M4: `make_env(profile)` — the one place a profile's name becomes an env |
+| `profiles/*.yaml` | M4: the three profiles — `cartpole`, `gridworld`, `gridworld_pixels` |
+| `scripts/train_from_profile.py` | M4: one runner, any profile — replaces per-game train scripts |
+| `scripts/check_swap.py` | M4: negative-control proof the config layer is really wired |
+| `tests/test_profile.py`, `test_rewards.py`, `test_make_env.py`, `test_m4_verdict.py` | M4: profile validation, reward numbers, env-building, the referee |
 
-These files are small, numbers-only, and run on a CPU in seconds. Nothing here
+M0–M2 here are small, numbers-only, and run on a CPU in seconds. M3 adds the ViT,
+so `train_gridworld_vit.py` takes ~19 min on CPU. M4 adds no new Ground — it's a
+plumbing milestone, same three runs, one shared runner. Nothing in Track A
 touches your screen or your keyboard.
 
 ### Track B — the older Stardew prototype. Written, but ahead of where we are.
 
+**(deleted 2026-08-04 — table kept for historical record, see correction above)**
+
 | File | Role | Belongs to |
 | :--- | :--- | :--- |
-| `src/gametrainer/env_vit.py` | A full Stardew Gym env with pixel rewards | M3 + M5 + M6 |
-| `src/gametrainer/vit_extractor.py` | The ViT "eyes" wired into PPO | M3 |
-| `src/gametrainer/screen.py` | Screen capture (finds the game window) | M3 |
-| `src/gametrainer/input.py` | The "hands" (real key presses) | M5 |
+| `src/gametrainer/env_vit.py` | A full Stardew Gym env with pixel rewards | M5 + M6 |
+| `src/gametrainer/screen.py` | Screen capture (finds the game window) | M5 |
 | `src/gametrainer/interface.py` | Finds UI elements by image matching | M4/M6 |
 | `src/gametrainer/config.py` | Loads per-game YAML config | M4 |
-| `src/cpp/clib.cpp` | Native Windows key injection | M5 |
 | `scripts/train.py`, `scripts/play.py` | The Stardew train/play entry points | M3+ |
 
 **How to treat Track B:** *read it for ideas, don't trust it as current.* It
 predates the milestone discipline, it isn't covered by tests, and several of its
 design decisions (e.g. rewards guessed from raw pixel differences) are exactly
-the fragile things the crawl-first plan exists to avoid. It will be
-**rebuilt properly**, piece by piece, when M3/M4/M5 arrive.
+the fragile things the crawl-first plan exists to avoid. It gets
+**rebuilt properly**, piece by piece, as each milestone arrives.
+
+> **This has already happened once.** `vit_extractor.py` was Track B until M3.
+> It was verified rather than trusted, its ViT-Base default was wrong for a CPU
+> run, and it came out the other side as Track A. That's the intended lifecycle:
+> Track B is a source of ideas, never a source of working code.
 
 > If you only remember one thing from this document: **Track A is the project.
 > Track B is a preview of the project's future, written too early.**
@@ -238,19 +280,29 @@ GridWorld need no real key presses, but the scripts wire `NullInput` in anyway,
 so the *seam* is visible and proven long before it carries real weight. That's a
 design habit worth copying: build the empty socket early, fill it later.
 
-### Config and per-game data (M4)
+### Config and per-game data (M4 — done)
 
 **YAML / PyYAML** — a human-friendly config file format (like JSON, but with
-comments). Intended to hold each game's key mappings and settings.
+comments). Holds each profile's Ground, reward numbers, and PPO hyperparameters.
 
-**Profile** — the planned unit of "everything specific to one game": a folder
-with `profile.yaml`, screen regions, and reference images. The goal of M4 is that
-adding a new game means adding a folder, not editing code. **Today this is only
-half-built** — `config.py` exists but is not wired into the training path.
+**Profile** — **rewritten 2026-08-14, M4 closed.** This section originally
+described a *planned*, never-wired design: a folder per game holding
+`profile.yaml`, screen regions, and reference images (that was Track B's
+`config.py`, deleted 2026-08-04). What M4 actually built is simpler: one flat
+`.yaml` file per setup (`profiles/cartpole.yaml`, `profiles/gridworld.yaml`,
+`profiles/gridworld_pixels.yaml`), loaded by `src/gametrainer/profile.py` into a
+validated `Profile` dataclass, turned into a Gymnasium env by
+`src/gametrainer/factory.py`'s `make_env(profile)`. Adding a new *setup* of an
+existing Ground means adding a `.yaml` file, not editing code — proven by
+`scripts/check_swap.py`, which asserts changing a number in the YAML genuinely
+changes what the agent gets scored on. Adding a whole new Ground (a new game
+world) still means writing one, same as GridWorld was written for M2 — the
+profile only swaps between Grounds that already exist.
 
 **Template matching** — an OpenCV technique: given a small reference image (say,
-the energy icon), find where it appears in a screenshot. It's how `interface.py`
-locates UI elements without hard-coded coordinates.
+the energy icon), find where it appears in a screenshot. **Not built yet** — the
+file that would have used it, `interface.py`, was Track B and was deleted
+2026-08-04. Still the planned approach for M6's screen-based reward reading.
 
 ### Developer tooling
 
@@ -270,22 +322,26 @@ locates UI elements without hard-coded coordinates.
 GameTrainer/
 ├── main.py                  # entry point → launches the TUI menu
 ├── src/gametrainer/         # the library (importable code)
-│   ├── gridworld.py         # ★ M2: our own game world
+│   ├── gridworld.py         # M2/M3: our own game world, and it draws itself
+│   ├── perception.py        # M3: the pixel wrapper (the "eyes" socket)
+│   ├── vit_extractor.py     # M3: the frozen ViT eyes
+│   ├── profile.py           # ★ M4: Profile — a validated .yaml → Ground + reward + PPO
+│   ├── rewards.py           # ★ M4: RewardCalculator — the reward decision
+│   ├── factory.py           # ★ M4: make_env(profile) — the one name→object seam
 │   ├── input.py             # the Hands (+ NullInput stub)
 │   ├── hardware.py          # picks CPU vs GPU
 │   ├── logger.py            # timestamped logging
-│   ├── tui.py               # the retro menu
-│   ├── env_vit.py           # ▲ Track B: Stardew env
-│   ├── vit_extractor.py     # ▲ Track B: the ViT eyes
-│   ├── screen.py            # ▲ Track B: screen capture
-│   ├── interface.py         # ▲ Track B: UI template matching
-│   └── config.py            # ▲ Track B: YAML profile loader
+│   └── tui.py               # the retro menu (★ M4: profile-picker entry)
+├── profiles/                 # ★ M4: cartpole.yaml, gridworld.yaml, gridworld_pixels.yaml
 ├── scripts/                 # runnable entry points, one per job
+│   ├── train_from_profile.py # ★ M4: one runner, any profile
+│   └── check_swap.py        # ★ M4: negative-control proof the config is real
 ├── tests/                   # pytest suite
 ├── docs/                    # PRD, changelog, per-milestone notes + UML
-└── src/cpp/clib.cpp         # ▲ Track B: native key injection (M5, opt-in build)
+└── src/cpp/clib.cpp         # ▲ M5: native key injection, opt-in build, not yet used
 
 ★ = current milestone   ▲ = ahead of where we are (see §5)
+(Track B — the old Stardew prototype — was deleted 2026-08-04; see §5's correction note.)
 ```
 
 **A useful pattern to notice:** `src/gametrainer/` holds *things* (classes you
@@ -301,39 +357,66 @@ run the M0 demo. Import what you need, where you need it.
 
 ## 8. Where the project actually stands today
 
-**Current branch:** `M2-Implementation`. **Current milestone:** M2.
+**Corrected 2026-08-14:** M4 closed. Live detail (per-brick status, dates,
+decisions) lives in `docs/m4/M4_Log.md`; the retrospective is
+`docs/m4/M4_Review.md` — this section only owns the high-level summary.
+
+**Current branch:** `m4-implementation`. **Last milestone closed:** M4.
 
 Done and working:
 
-- ✅ **M0** — CartPole runs with random actions. Baseline reward ≈ 22/episode.
-- ✅ **M1** — PPO trains on CartPole. Reward climbed **22 → 500** (500 is the
-  maximum CartPole allows). Nothing about the Ground changed to make that
-  happen — only the decision-maker was swapped. That result *is* the proof of
-  the architecture.
-- ✅ **M2 code** — `GridWorldEnv` exists, obeys the contract, and has real
-  contract tests. Both the random-baseline runner and the PPO trainer exist and
-  are wired into the menu.
+| # | Milestone | Result | Conditions |
+| :--- | :--- | :--- | :--- |
+| **M0** | Setup | CartPole runs 100 random steps, no crash. Baseline ≈ **22**/episode | CPU |
+| **M1** | Borrow the Brain | Reward **22 → 500** (500 is CartPole's ceiling) | CPU, PPO `MlpPolicy`, 25k steps |
+| **M2** | Build our own Ground | Trained **+0.93**, goal reached **20/20** greedy episodes | CPU, PPO `MlpPolicy`, 25k steps |
+| **M3** | Add the Eyes | Live baseline **+0.48** → trained **+0.99**, goal reached **100%** of greedy episodes | CPU, frozen `vit_tiny_patch16_224`, **19.2 min** |
+| **M4** | Make it swappable | All 3 profiles PASS through **one unedited runner**; 4/4 negative controls PASS (`scripts/check_swap.py`) | CPU, config-only — zero Python edits between runs |
 
-Not finished:
+M1's result *is* the proof of the architecture: nothing about the Ground changed,
+only the decision-maker was swapped. M3 is the same trick one level deeper — only
+the *sense organ* changed, and PPO was never touched. M4 proves the *whole
+Ground* is swappable — the PRD's portfolio win condition.
 
-- ⏳ **The M2 finish line has not been crossed.** `tests/test_m2_e2e.py` is still
-  marked `xfail` — "expected to fail, on purpose." That test is the milestone's
-  definition of done: train PPO on GridWorld, then assert it beats random *and*
-  reaches the goal in ≥90% of episodes. **M2 closes the day that test passes on
-  its own and the `xfail` marker is deleted.**
+**The one to actually read about is M3**, because the first run was a false
+positive. It scored `+0.905` and looked like a win, but the agent's action
+probabilities were identical on every square — a fixed 53% DOWN / 47% RIGHT coin
+flip — and a hand-written blind agent matched it at `+0.907`. With the goal in a
+corner, "down or right" wins from anywhere. The fault was the **Ground**, not the
+eyes. `make_vision_task()` (random start, centre goal, 25-move budget) fixed it,
+and `tests/test_random_start.py` makes sure it can't come back. Full write-up in
+`docs/CHANGELOG.md` under M3.
+
+Known gaps:
+
+- ⏳ `tests/test_m2_e2e.py` is `@pytest.mark.skip`, not deleted. Under the current
+  testing policy (`CLAUDE.md` §5) a training run is an **experiment**, not a test —
+  the guardrail lives in `scripts/train_gridworld.py`'s printed verdict instead.
 - ⏳ Two per-brick tests named in `docs/m2/M2_ToDo.md` were never written:
-  `tests/test_run_gridworld.py` and `tests/test_train_gridworld.py`.
-- ⏳ There are uncommitted lint fixes in the working tree (`train.py`,
-  `train_cartpole.py`, `transfer_learning.py`, `tui.py`, `vit_extractor.py`).
+  `tests/test_run_gridworld.py` and `tests/test_train_gridworld.py`. Deliberate
+  under the current policy — they'd be testing glue.
+- ✅ ~~M4 has no `M4_ToDo.md` yet.~~ **Resolved 2026-08-08** — `docs/m4/M4_ToDo.md`
+  and `docs/m4/M4_Log.md` exist; M4 is the first milestone written under
+  `docs/DOC_STANDARD.md`, and is in progress (Bricks 0–4 done).
 
-### How this project builds things: test-first
+### How this project builds things: tests vs. experiments
 
-Every brick of work starts with a **failing test** (this is called "red"), then
-just enough code to make it pass ("green"). The test is the spec; the code
-chases the test. On top of that, each milestone opens with one **end-to-end
-guardrail test** that describes the whole slice and is red from day one. It is
-the North Star: you always know exactly what "done" means, because it's an
-assertion, not an opinion.
+**Authority: `CLAUDE.md` §5.** The short version:
+
+A brick with a **single right answer** — an image's shape, an observation space, a
+feature vector's width, a reward rule — opens with a **failing test** ("red"),
+then just enough code to make it pass ("green"). The test is the spec; the code
+chases it.
+
+**Glue gets no test, on purpose.** Menu wiring, print statements and argument
+parsing fail loudly the first time you run them; a test there costs more than the
+bug it would catch. A skip is a decision, and the reason gets written down in the
+milestone's to-do.
+
+**A training run is never a test.** It's slow and random — it can pass today and
+fail tomorrow on identical code. Those live in `scripts/` and print a PASS/FAIL
+verdict you run by hand once per milestone. That distinction is why
+`tests/test_m2_e2e.py` is skipped rather than maintained.
 
 ---
 
@@ -351,6 +434,12 @@ python scripts/run_cartpole.py      # M0: random baseline
 python scripts/train_cartpole.py    # M1: PPO learns CartPole
 python scripts/run_gridworld.py     # M2: random baseline on our world
 python scripts/train_gridworld.py   # M2: PPO learns our world
+
+# M4: one runner, any profile — config-only, no code edits
+python scripts/train_from_profile.py --profile profiles/cartpole.yaml
+python scripts/train_from_profile.py --profile profiles/gridworld.yaml
+python scripts/train_from_profile.py --profile profiles/gridworld_pixels.yaml
+python scripts/check_swap.py        # M4: proves the config layer is really wired
 
 # Tests and lint
 pytest
@@ -391,11 +480,20 @@ the script — you don't have to eyeball a graph and guess.
   redesigned, not reused as-is.
 - **Track B is untested.** No test covers `env_vit.py`, `screen.py`, or
   `interface.py`. Treat it as a prototype.
-- **Profiles are half-built.** `config.py` exists; nothing calls it. Hard-coded
-  window titles are still present in Track B. Finishing that is M4's whole job.
-- **Docs describe two eras.** `docs/README.md` describes the Stardew-first system
-  (Track B); `docs/PRD.md` describes the crawl-first plan (Track A). **`PRD.md` is
-  the authority** when they disagree.
+- ~~**Profiles are half-built.** `config.py` exists; nothing calls it. Hard-coded
+  window titles are still present in Track B. Finishing that is M4's whole job.~~
+  **Resolved 2026-08-14 (M4 closed).** `config.py` was deleted with the rest of
+  Track B (2026-08-04). The current `Profile` (`src/gametrainer/profile.py`) is
+  fully wired: `make_env(profile)` builds the env, `scripts/check_swap.py`
+  proves the numbers in the YAML genuinely drive the run, not a hardcoded
+  fallback. See §6 and `docs/m4/M4_Review.md`.
+- **`docs/README.md` is archived.** It describes the Stardew-first system (Track B)
+  and was written before the crawl-first pivot. It is kept for its design pivot
+  log and is clearly marked at the top. **`docs/PRD.md` is the authority.**
+- **The ViT's features were never proven to be *good*.** M3 proves PPO can learn
+  from pixels on a task that demands looking. It does not prove a frozen ImageNet
+  ViT is the *right* set of eyes for blocky grids — only that it is sufficient
+  here. That question is open.
 
 ---
 
@@ -403,12 +501,14 @@ the script — you don't have to eyeball a graph and guess.
 
 | You want… | Read |
 | :--- | :--- |
-| The diagrams | [`docs/UML_FULL.md`](UML_FULL.md) |
 | The authoritative plan | `docs/PRD.md` |
-| What the current milestone requires | `docs/m2/M2_ToDo.md` |
+| The diagrams | [`docs/UML_FULL.md`](UML_FULL.md) |
+| What the last milestone required | `docs/m4/M4_ToDo.md` |
 | What has changed and when | `docs/CHANGELOG.md` |
-| Per-milestone snapshots | `docs/m0/`, `docs/m1/`, `docs/m2/` |
+| Per-milestone snapshots | `docs/m0/`, `docs/m1/`, `docs/m2/`, `docs/m3/`, `docs/m4/` |
 | How to work in this repo | `CLAUDE.md` (working agreements) |
+| How docs must be written | `docs/DOC_STANDARD.md` |
+| The pre-pivot Stardew design (historical) | `docs/README.md` — **archived** |
 
 ---
 

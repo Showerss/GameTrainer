@@ -1,15 +1,37 @@
 # GameTrainer Context
 
+> **Covers:** supplementary glossary entries for terms that need more than a
+> one-line definition (`docs/ONBOARDING.md` §13 and `docs/PRD.md` §10 hold the
+> quick-reference glossaries for everything else).
+> **Status:** current. **Last verified:** 2026-08-14 (M4 closed; re-checked
+> against the finished `Profile`/`RewardCalculator`/`make_env` — the "Profile"
+> entry below, corrected 2026-08-04, needed no further changes. Track B entries
+> are dated corrections per `docs/DOC_STANDARD.md` rule 4, kept rather than
+> deleted).
+> **Authority:** this file doesn't compete with the other glossaries — it only
+> exists for terms whose current/historical status needs explaining.
+> Written to `docs/DOC_STANDARD.md`.
+
 ## Glossary
 
 ### Profile
-A self-contained directory that defines how the system interacts with a specific game. It includes configuration files (e.g., `regions.yaml`), trained model checkpoints, and game-specific logic "hooks" (such as reward calculation scripts) that the core RL Engine loads dynamically.
+**Corrected 2026-08-04:** this entry described the old Stardew prototype's
+directory-based profile (`profiles/<game>/regions.yaml` + `ConfigLoader`),
+which was deleted along with the rest of that prototype. The current, only
+Profile is `src/gametrainer/profile.py`: one flat `.yaml` file that names a
+Ground (e.g. `cartpole`, `gridworld`), a perception mode, and the reward + PPO
+numbers to train it with. Loading it does not touch the screen or a game
+window — see `docs/m4/M4_ToDo.md`.
 
 ### Global Frame
 The downsampled (e.g., 224x224) RGB image of the entire game window. This serves as the primary input for the Vision Transformer (ViT) in the Agent's Observation Space.
 
 ### UI Region
-A specific coordinate-based area on the screen defined in a Profile. These are used by the Reward Engine to extract specific metrics (like health or energy) to calculate Reward Signals, but are generally not provided directly to the Agent as separate inputs.
+**Retired 2026-08-04:** this described the old Stardew prototype's
+screen-region reward reading (`interface.py` + `regions.yaml`), which was
+deleted along with the rest of that prototype. No Track A equivalent exists —
+the current Profile carries reward *numbers* directly (see `RewardCalculator`
+in `src/gametrainer/rewards.py`), not screen coordinates to read them from.
 
 ### Input Controller (Python)
 The high-level behavioral layer responsible for "humanizing" the agent's actions. It orchestrates timings, adds stochastic jitter to movements, and manages the logic of complex inputs (like long-pressing or double-clicking) by coordinating calls to the C++ Extension.

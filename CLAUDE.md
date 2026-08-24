@@ -22,10 +22,9 @@ Before implementing:
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+- If you write 200 lines but it could be 50, rewrite it.
 - In all of your prompt responses, keep them simple and not overly complex so a newbie developer can follow the conversation.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+- Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
 ## 3. Surgical Changes
 
@@ -96,11 +95,6 @@ A skip is a decision, not a gap. Write the *why* next to it in the milestone to-
 Never put an experiment in the test suite. Training only gets slower from M3 on, and
 a test you learn to skip is worse than no test at all.
 
-### Red-first, where it fits
-
-Lead with a failing test for anything under "always test" — the red test is the spec,
-and the code chases it. Don't perform the ritual on glue code.
-
 ### Closing a milestone
 
 Write the "Done when…" in one sentence **before** starting. Then:
@@ -136,6 +130,7 @@ Write the "Done when…" in one sentence **before** starting. Then:
 - **Build in order: M0 → M6.** Don't jump ahead. Stardew is the *last* thing, not the first.
 - **v1 constraints:** Python only (no C++), no memory reading, local only.
 - **Hardware:** early phases run on CPU. The AMD GPU only matters at the ViT phase (M3) — don't let GPU setup block earlier steps.
+- **Docs are held to `docs/DOC_STANDARD.md`** — read it before writing or editing any `.md`. This repo is evidence of how I work, so the record must be current, non-contradictory, and reproducible. Never report a result without its baseline, hardware, and wall-clock time. Never delete a wrong result — correct it with a dated note. **In effect from M4.**
 
 ## When in doubt
  

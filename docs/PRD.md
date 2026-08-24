@@ -1,5 +1,13 @@
 # GameTrainer — PRD v2
 
+> **Covers:** what gets built, and in what order — the milestone plan, scope, and
+> the architecture this project is proving out.
+> **Status:** current. **Last verified:** 2026-08-14 (M4 closed; §5's UML diagram
+> gained a correction note — see below. This file had no DOC_STANDARD header
+> until this pass; it predates the standard, which took effect 2026-08-08).
+> **Authority:** this file wins on *what* gets built and in what order.
+> `docs/DOC_STANDARD.md` wins on *how* docs are written.
+
 > A system that teaches an AI to play games by watching the screen and learning by trial and error.
 > **The real point of this project is the architecture:** a clean, swappable link between *any* game world and *any* AI brain.
 
@@ -83,6 +91,18 @@ If a Ground obeys that, **any** brain can plug in. That swappability *is* the ar
 ---
 
 ## 5. UML class diagram
+
+> **Correction — 2026-08-14 (M4 closed).** The diagram below was the original
+> composition idea: a `GameEnvironment` class holding a `Perception`, an
+> `InputController`, a `RewardCalculator`, and a `Profile`. **M4 did not build
+> it this way.** There is no `GameEnvironment` wrapper class — `GridWorldEnv`
+> does the eyes/hands/scorecard job directly, and `make_env(profile)`
+> (`src/gametrainer/factory.py`) is the only place a `Profile`'s name becomes an
+> object: one function, one `if`-chain, not a class hierarchy. `RewardCalculator`
+> and `Profile` themselves *were* built close to as shown here. Kept as the
+> historical design intent, not deleted, per `docs/DOC_STANDARD.md` rule 4 — see
+> `docs/m4/M4_ToDo.md` ("the design") and `docs/m4/backpack_diagram.png` for the
+> full comparison.
 
 ```mermaid
 classDiagram
@@ -221,22 +241,5 @@ Learn these five first — everything else hangs off them:
 | **Action** | What the AI does | "Press right" |
 | **Reward** | The score the game gives back | "Good: +1" |
 
-The link itself:
-
-| Term | Plain meaning |
-| :--- | :--- |
-| **Gymnasium** | The standard socket every game and AI plugs into |
-| **`step()`** | One turn of the loop: take an action, get back observation + reward |
-| **`reset()`** | Start a fresh attempt |
-| **Episode** | One full attempt, start to finish (one life, one round) |
-| **Action space** | The list of legal moves |
-| **Observation space** | The shape of what the AI can see |
-
-The learning (borrowed brain):
-
-| Term | Plain meaning |
-| :--- | :--- |
-| **Reinforcement Learning (RL)** | Learning by trial, error, and reward — the whole field |
-| **Policy** | The AI's current strategy; training = improving it |
-| **PPO** | The specific learning recipe we borrow |
-| **Exploration vs exploitation** | Try new things vs. stick with what works |
+For everything else — Gymnasium's API, RL vocabulary, PPO — the full reference
+lives in one place: `docs/ONBOARDING.md` §13.

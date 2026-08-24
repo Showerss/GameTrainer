@@ -12,13 +12,18 @@ THIS test checks the whole journey at once:
   1. Its average reward clearly beats a random walker's baseline.
   2. It genuinely reaches the goal, not just wanders a bit less badly.
 
-Why is it marked xfail ("expected to fail") right now?
+Why is this test skipped, not xfail?
 ------------------------------------------------------
-Because M2 isn't finished. The training budget here is deliberately tiny, so a
-freshly-trained agent won't reliably win yet. `xfail` means "we KNOW this is red
-on purpose; don't count it as a failure." It is our finish line: the day this
-test turns green on its own (an `xpass`), M2 is done — we delete the xfail and
-keep it as a normal passing test.
+**Updated 2026-08-08.** This test used to be marked `xfail` ("expected to
+fail") — red on purpose until M2 closed. M2 closed a different way: the
+project's tests-vs-experiments policy (CLAUDE.md §5) settled on treating a PPO
+training run as an **experiment**, not a test, because it's slow and random
+enough to pass one day and fail the next on identical code. `xfail` assumes a
+test that will eventually turn green and stay green; a training run doesn't
+give you that guarantee. So M2 actually closed via `scripts/train_gridworld.py`
+printing a PASS/FAIL verdict, and this file was changed to
+`@pytest.mark.skip` — kept as a record of the guardrail's original shape, not
+run on every change.
 
 Note: this test trains a small PPO, so it is a little slow compared to the
 narrow tests. That's expected — it's the one test that exercises everything.

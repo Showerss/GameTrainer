@@ -2,17 +2,17 @@
 GameTrainer - Local RL Edition
 
 This is the entry point for the GameTrainer CLI.
-Use this to launch training or inference sessions.
 
 Usage:
     python main.py         - Launch the retro TUI menu
-    python main.py train   - Start training the agent
-    python main.py play    - Run a trained agent
+
+The old `train`/`play` mode shortcuts are retired along with Track B (the
+Stardew-first prototype). Profile-driven training is available directly through
+`scripts/train_from_profile.py`; play/inference is not wired yet. Use the TUI or
+run a milestone script directly (see below).
 """
 
 import sys
-import subprocess
-import os
 
 VALID_MODES = ("train", "play")
 
@@ -23,29 +23,14 @@ def main():
 
     mode = sys.argv[1].lower().strip()
 
-    if len(sys.argv) > 2:
-        print(f"Warning: Ignoring extra arguments ({sys.argv[2:]}). Only the mode is used.")
-        print("  (Pass script-specific options directly, e.g. python scripts/train.py small --steps 50000)\n")
-
     if mode not in VALID_MODES:
         print(f"Error: Unknown mode '{mode}'.")
         _print_usage()
         sys.exit(1)
 
-    script = "scripts/train.py" if mode == "train" else "scripts/play.py"
-    if not os.path.isfile(script):
-        print(f"Error: Script not found: {script}")
-        sys.exit(1)
-
-    print(f"Launching {mode} session...")
-    try:
-        result = subprocess.run([sys.executable, script])
-    except OSError as e:
-        print(f"Error: Failed to run script: {e}")
-        sys.exit(1)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-    return 0
+    print(f"'{mode}' isn't available yet — Track B (its old implementation) was retired.")
+    _print_usage()
+    sys.exit(1)
 
 
 def _print_usage():
@@ -53,12 +38,13 @@ def _print_usage():
     print("GameTrainer - Local Reinforcement Learning for Games")
     print("=" * 50)
     print("\nUsage:")
-    print("  python main.py         - Launch retro TUI menu")
-    print("  python main.py train   - Start training")
-    print("  python main.py play    - Run trained agent")
-    print("\nOr run scripts directly:")
-    print("  python scripts/train.py")
-    print("  python scripts/play.py")
+    print("  python main.py          - Launch retro TUI menu")
+    print("\nOr run a milestone script directly:")
+    print("  python scripts/run_cartpole.py         # M0: random actions baseline")
+    print("  python scripts/train_cartpole.py       # M1: PPO on CartPole")
+    print("  python scripts/run_gridworld.py        # M2: random actions baseline")
+    print("  python scripts/train_gridworld.py      # M2: PPO on GridWorld")
+    print("  python scripts/train_gridworld_vit.py  # M3: PPO on GridWorld pixels")
 
 
 def _launch_tui() -> int:
