@@ -2,9 +2,11 @@
 
 > **Covers:** what gets built, and in what order — the milestone plan, scope, and
 > the architecture this project is proving out.
-> **Status:** current. **Last verified:** 2026-08-14 (M4 closed; §5's UML diagram
-> gained a correction note — see below. This file had no DOC_STANDARD header
-> until this pass; it predates the standard, which took effect 2026-08-08).
+> **Status:** current. **Last verified:** 2026-08-26 (§8 gained the minimised-window
+> v1 limitation found in M5 Brick 1; rest of the file re-read and still accurate.
+> Previous pass 2026-08-14: M4 closed; §5's UML diagram gained a correction note —
+> see below. This file had no DOC_STANDARD header until that pass; it predates the
+> standard, which took effect 2026-08-08).
 > **Authority:** this file wins on *what* gets built and in what order.
 > `docs/DOC_STANDARD.md` wins on *how* docs are written.
 
@@ -220,6 +222,7 @@ Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly
 - **Reward from pixels is brittle.** Reading a score off the screen for a real game is error-prone — that's why Stardew is last and simple worlds come first.
 - **Keep the contract strict.** If you ever break the `reset()` / `step()` shape to "make it work," you lose swappability — the one thing that matters. Don't.
 - **Light hours = scope discipline.** Resist jumping to Stardew. The boring CartPole step is what teaches the loop that scales to everything.
+- **A minimised game window cannot be captured (v1 limitation, found M5 Brick 1, 2026-08-26).** `GameWindow` finds and follows a window at any size or position — it matches on title and re-reads the rect every grab — but a minimised window is not drawn by Windows at all, so there is nothing to grab. It raises rather than returning a blank frame. Consequence: **minimising the game mid-run kills the run.** Deferred to v2, where the fix is either restoring the window automatically (`ShowWindow`) or capturing without visibility (`PrintWindow` with `PW_RENDERFULLCONTENT`, which works for some apps and not others). Not worth spending M5 on: the loop already requires the window to be foreground for keystrokes to land.
 
 ---
 

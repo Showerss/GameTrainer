@@ -38,3 +38,5 @@ venv/
 # Python cache
 __pycache__/
 *.pyc
+# Game binaries (M5) — downloaded, not committed. See docs/m5/M5_ToDo.md
+games/
