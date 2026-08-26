@@ -2,8 +2,10 @@
 
 > **Covers:** the M5 plan — scope, the verified pre-flight spike, design decisions,
 > bricks, and the finish line.
-> **Status:** current. **Last verified:** 2026-08-25 (written at milestone open;
-> pre-flight spike run and passing — see "Pre-flight" below).
+> **Status:** current. **Last verified:** 2026-08-26 (Brick 0 written; control 1
+> corrected from *reveal* to *flag* and the verdict fixed to cells-not-pixels — see
+> the dated note under "Brick 0". Rest of the file re-read and still accurate;
+> pre-flight spike from 2026-08-25 unchanged).
 > **Authority:** `docs/PRD.md` owns *what* gets built and in what order. This file
 > owns *what M5 requires*. Brick-by-brick notes go in `docs/m5/M5_Log.md`; the
 > retrospective is `docs/m5/M5_Review.md`, written last.
@@ -194,7 +196,7 @@ Write the bar down *before* building anything. M5 PASSes only if **all four** ho
 
 | # | Control | PASS means | Why it exists |
 | :--- | :--- | :--- | :--- |
-| 1 | **Keys live** | A scripted sequence moves the cursor to a named cell and reveals it; the captured board changes in **exactly** that cell | The positive case |
+| 1 | **Keys live** | A scripted sequence moves the cursor to a named cell and **flags** it; the captured board changes in **exactly** that cell | The positive case |
 | 2 | **`NullInput` swapped in** | The same sequence leaves the board **unchanged** | Proves the real keystrokes are what moved it — not time, not animation |
 | 3 | **Frozen frame** | The board changes on screen while the observation does **not** | Proves we are reading live pixels, not a cached array |
 | 4 | **Reset** | `Ctrl+R` returns the board to all-unrevealed, **20 times in a row**, with no human | Proves episodes can actually repeat |
@@ -204,8 +206,21 @@ nothing: a screen that changes while keys are being sent is exactly what you wou
 if the keys were irrelevant. This is the same lesson as M3's blind-solvable
 GridWorld — **measure the negative case, or you have measured nothing.**
 
-> **Verify:** `python scripts/check_hands.py` prints PASS for all four, with the pixel
-> counts that justify each, in the style of the pre-flight table above.
+**Correction — 2026-08-26, while writing Brick 0:** control 1 originally said
+*reveals* it. Reveal **cascades** — the spike's single `O` changed 147,631 pixels
+across many cells — so "changes in exactly that cell" was a condition reveal could
+never satisfy, however well the keys worked. Changed to **flag** (`P`), which toggles
+exactly one cell, always. Move-then-flag still tests the whole chain: the keys land,
+and they land on the cell we aimed at. Recorded rather than silently rewritten
+(rule 4); this tightens the bar, it does not lower it.
+
+**Also decided at Brick 0:** the verdict is counted in **cells, not pixels**. The
+spike's own numbers say why — a flag changed 237 pixels while a no-op reveal on an
+already-revealed cell changed 342. Pixel counts still get printed as evidence, in the
+style of the pre-flight table, but they decide nothing.
+
+> **Verify:** `python scripts/check_hands.py` prints PASS for all four, with the cell
+> counts that justify each and the pixel counts alongside as evidence.
 
 ---
 
