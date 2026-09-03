@@ -1,8 +1,8 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-08-26 (Brick 0 written and
-> running; Bricks 1–8 not started).
+> **Status:** current — **open**. **Last verified:** 2026-09-03 (Bricks 0–2 done;
+> Bricks 3–8 not started).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -28,7 +28,7 @@ Fill in a brick's block **when it closes**, not at the end.
 | **Milestone** | M5 — Add the Hands (real key presses, a real game window) |
 | **Started** | 2026-08-25 (pre-flight spike + plan) |
 | **Branch** | `m5-implementation` |
-| **Current brick** | Brick 2 — tile classification (red-first) |
+| **Current brick** | Brick 3 — `KeyboardInput`, the real hands |
 | **Hardware** | CPU (Windows 11, Python 3.14). No GPU in play — M5 is plumbing, not training |
 | **Closed** | not yet |
 
@@ -118,5 +118,57 @@ next.
 > **Trap #3 seen live:** the very first capture is the Easy/Medium/Hard chooser,
 > not a board. Exactly what the spike warned about — keys do nothing until a game
 > is started. Something has to click a difficulty before the loop can begin.
+
+---
+
+## Brick 2 — Tile classification (red-first)
+
+**Status:** ✅ done 2026-09-03
+**File(s):** `tests/test_minesweeper_vision.py` (red, written 2026-08-30) →
+`src/gametrainer/minesweeper_vision.py`
+
+- **What I built:** `read_board(frame)` — one full-window capture in, an 8×8
+  grid of cell states out. Two jobs underneath: `find_board()` locates the
+  minefield in the picture, `classify_cell()` reads each of the 64 cells.
+  States are `0`–`8`, `HIDDEN`, `FLAGGED`, `MINE`.
+- **The board is found, never assumed.** Brick 1's surprise — the game opens at
+  a different size every launch — means no geometry can be hardcoded. What does
+  hold is the *shape*: the minefield is the one big **square** block of dark
+  pixels on a near-white window. So: largest dark blob that is square (±5%) and
+  solid (≥80% filled). In the fixture that is **(18, 41), 1326×1326** — 165.75
+  px a cell. The window frame is dark too, but at 2568×1408 it fails squareness.
+- **How a cell is read:** one flat background with at most one glyph on it. Grey
+  `70,70,70` = hidden, dark `26,26,26` = revealed; any pixel far from that
+  background is "ink". Coloured ink is something we can name (1 = blue
+  `255,104,0`, 2 = green `0,130,0`, 3 = red `0,0,255`). Grey ink is not.
+- **Red means two different things.** The flag and the digit 3 are the *same*
+  red. Nothing in the colour separates them — only what is underneath does. Red
+  on grey is a flag; red on dark is a 3. Background first, glyph second.
+- **The margins, measured across all 64 cells of the fixture:** hidden and blank
+  cells carry **0.0%** ink; the faintest real glyph (the flag) **13.4%**; digits
+  **46–54%**. The threshold sits at **5%**, in a gap with nothing in it.
+- **An unknown glyph raises rather than guesses.** The fixture has no 4–8 and no
+  mine, so those have never been measured here. Under a colour-only rule a black
+  7 or a mine would read as "blank" — a silent wrong answer feeding the reward,
+  which is the M3 lesson exactly. Ink with no colour in it raises
+  `UnreadableCell`, naming what it saw. `MINE` is defined but never returned
+  yet; Brick 5 needs it (a mine ends the episode) and gets a fixture with one.
+- **Verified by:** `.venv/Scripts/python.exe -m pytest tests/test_minesweeper_vision.py -q`
+  → **2 passed in 0.36 s**. Full suite **70 passed, 1 skipped in 2.64 s** (was
+  68 + 1; the two new ones are this brick). `ruff check` clean. CPU, Windows 11,
+  Python 3.14.
+- **Checked by hand, not kept as tests:** the same fixture rescaled 0.35×–1.5×
+  and moved onto a larger desktop reads back the **identical** grid, so the
+  geometry instability really is handled. All-white and all-dark frames both
+  raise `BoardNotFound` — which is what the difficulty chooser will do.
+
+**Surprise — the eyes cost 133 ms.** `read_board` on a 2576×1408 frame takes
+**133 ms** on CPU (`find_board` 43 ms, the 64 cells 81 ms), mean of 20 runs.
+That is a ceiling of **~7 steps a second** before the game, the keys or PPO have
+done anything — the first real number on the ToDo's open question "what is the
+step rate through a live window?". Harmless for Brick 0's four scripted
+controls; it is the number that decides whether any *learning* observation is
+affordable later. Most of it is scanning a mostly-empty maximized window, so the
+cheap fix, if we ever need one, is a smaller game window.
 
 ---
