@@ -119,6 +119,7 @@ Write the "Done when…" in one sentence **before** starting. Then:
 3. **Stop at every checkpoint.** At each milestone's "Done when…", pause. Confirm I actually get it before moving on — ask me to say it back in my own words if it's a new idea.
 4. With every brick that gets completed please write short of a summary as possible Within that milestone's folder such that with every Sprint retrospective that I generate the steps throughout each Sprint were clearly documented  
 5. **If I seem lost, slow down — don't pile on.** Switch to a metaphor or a smaller example. More detail is the wrong move; simpler is the right one.
+6. **NEVER run `git commit` or 'git push' or write commit messages.** Commits are strictly for Phillip to perform. Never run `git commit`, never write commit messages, and never commit code autonomously under any circumstances. Leave all changed files in the working directory for review.
 ## The shared language (use these words, they're how I think)
  
 - **Ground** = the game. **AI** = eyes (ViT) + brain (PPO) + hands (input). **Link** = the Gymnasium socket.
@@ -126,6 +127,7 @@ Write the "Done when…" in one sentence **before** starting. Then:
 - **We build** the Ground and the Link. **We borrow** the Brain (PPO) and the Eyes backbone (pretrained ViT).
 ## Project rules (do not bend these)
  
+- **NEVER RUN `git commit`.** Git commits are exclusively the user's responsibility. Do not stage and do not commit.
 - **Never break the Gymnasium contract** (`reset()` / `step()`). That swappability is the entire point of the project.
 - **Build in order: M0 → M6.** Don't jump ahead. Stardew is the *last* thing, not the first.
 - **v1 constraints:** Python only (no C++), no memory reading, local only.
@@ -135,4 +137,3 @@ Write the "Done when…" in one sentence **before** starting. Then:
 ## When in doubt
  
 Ask me. A short question now beats a wrong assumption built into the code.
- 

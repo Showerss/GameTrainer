@@ -1,8 +1,8 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-09-03 (Bricks 0–2 done;
-> Bricks 3–8 not started).
+> **Status:** current — **open**. **Last verified:** 2026-09-04 (Bricks 0–4 done;
+> Bricks 5–8 not started).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -28,7 +28,7 @@ Fill in a brick's block **when it closes**, not at the end.
 | **Milestone** | M5 — Add the Hands (real key presses, a real game window) |
 | **Started** | 2026-08-25 (pre-flight spike + plan) |
 | **Branch** | `m5-implementation` |
-| **Current brick** | Brick 3 — `KeyboardInput`, the real hands |
+| **Current brick** | Brick 5 — The env — the contract |
 | **Hardware** | CPU (Windows 11, Python 3.14). No GPU in play — M5 is plumbing, not training |
 | **Closed** | not yet |
 
@@ -137,7 +137,7 @@ next.
   pixels on a near-white window. So: largest dark blob that is square (±5%) and
   solid (≥80% filled). In the fixture that is **(18, 41), 1326×1326** — 165.75
   px a cell. The window frame is dark too, but at 2568×1408 it fails squareness.
-- **How a cell is read:** one flat background with at most one glyph on it. Grey
+- **How a cell is read:** one flat background with at most one glyph drawn on it. Grey
   `70,70,70` = hidden, dark `26,26,26` = revealed; any pixel far from that
   background is "ink". Coloured ink is something we can name (1 = blue
   `255,104,0`, 2 = green `0,130,0`, 3 = red `0,0,255`). Grey ink is not.
@@ -170,5 +170,38 @@ step rate through a live window?". Harmless for Brick 0's four scripted
 controls; it is the number that decides whether any *learning* observation is
 affordable later. Most of it is scanning a mostly-empty maximized window, so the
 cheap fix, if we ever need one, is a smaller game window.
+
+---
+
+## Brick 3 — KeyboardInput (the real hands)
+
+**Status:** ✅ done 2026-09-04
+**File(s):** `src/gametrainer/input.py` (committed 2026-09-03 in `90dbe64`)
+
+- **What I built:** `KeyboardInput` subclassing `InputController`, matching `NullInput`'s interface. Provides LibreMines controls via Windows `SendInput`: W/A/S/D for cursor navigation, O for reveal, P for flag, and `Ctrl+R` (`tap_chord`) for reset.
+- **The guards:**
+  - 40-byte `INPUT` struct size asserted at import time (`sizeof(_INPUT) == 40`) to prevent silent `SendInput` parameter failure (error 87).
+  - Focus check and `focus()` implementation using `AttachThreadInput` + `SetForegroundWindow` to bypass Windows foreground locks; refuses to type if target window is not active.
+  - `escape()` explicitly raises `RuntimeError` to prevent exiting keyboard navigation mode.
+  - Mouse moves/clicks raise `NotImplementedError` (M5 gameplay is keyboard-only).
+  - Non-Windows environments raise `RuntimeError` on instantiation while allowing `NullInput` to run smoothly everywhere.
+- **Verified by:** `.venv/bin/python -m pytest` → **70 passed, 1 skipped in 5.29 s** (CPU, macOS/Linux/Windows portable; full suite unbroken). Drop-in interface matches `NullInput`.
+- **No unit test, deliberately** (testing policy #4): Window/focus/input injection cannot be tested in CI without a live Windows desktop; full behavioral verification belongs to Brick 0 / Brick 7 controls (`scripts/check_hands.py`).
+
+---
+
+## Brick 4 — Reward from two grids (red-first)
+
+**Status:** ✅ done 2026-09-04
+**File(s):** `tests/test_minesweeper_rewards.py` (red) → `src/gametrainer/rewards.py`
+
+- **What I built:** `MinesweeperRewardCalculator` — pure function of two consecutive board grids (`prev_grid`, `curr_grid`).
+- **Reward maths:**
+  - `mine_penalty` (e.g. `-10.0`) on mine hit (loss).
+  - `win_reward` (e.g. `+10.0`) when all 54 safe cells on an 8×8 Easy board are revealed.
+  - `safe_reveal_reward` (e.g. `+1.0`) per newly revealed safe cell (`0`–`8`). Cascades scale the reward directly with cells revealed.
+  - Moving cursor or flagging gives `0.0`.
+  - Termination helpers: `is_loss`, `is_win`, and `is_terminated`.
+- **Verified by:** `.venv/bin/python -m pytest tests/test_minesweeper_rewards.py` → **8 passed in 0.06 s**. Full suite **78 passed, 1 skipped in 1.51 s**. `ruff check` clean.
 
 ---
