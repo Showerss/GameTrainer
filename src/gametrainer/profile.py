@@ -20,12 +20,12 @@ from typing import Optional
 
 import yaml
 
-GROUNDS = ("cartpole", "gridworld")
+GROUNDS = ("cartpole", "gridworld", "minesweeper")
 PERCEPTIONS = ("numeric", "pixels")
-REWARDS = ("builtin", "gridworld")
+REWARDS = ("builtin", "gridworld", "minesweeper")
 
 # Grounds with no pixel Ground built yet (see M4_ToDo.md, scope discipline).
-_NO_PIXELS_BUILT_FOR = {"cartpole"}
+_NO_PIXELS_BUILT_FOR = {"cartpole", "minesweeper"}
 
 _REQUIRED_FIELDS = (
     "ground",
@@ -42,6 +42,15 @@ _REQUIRED_FIELDS = (
     "ent_coef",
     "margin_over_baseline",
 )
+
+_OPTIONAL_FIELDS = {
+    "step_cost",
+    "goal_reward",
+    "min_goal_rate",
+    "safe_reveal_reward",
+    "mine_penalty",
+    "win_reward",
+}
 
 
 @dataclass(frozen=True)
@@ -68,6 +77,9 @@ class Profile:
     step_cost: Optional[float] = None
     goal_reward: Optional[float] = None
     min_goal_rate: Optional[float] = None
+    safe_reveal_reward: Optional[float] = None
+    mine_penalty: Optional[float] = None
+    win_reward: Optional[float] = None
 
     @classmethod
     def from_yaml(cls, path: str) -> "Profile":
@@ -80,7 +92,7 @@ class Profile:
                 f"{path}: profile must be a YAML mapping, got {type(raw).__name__}"
             )
 
-        allowed_fields = set(_REQUIRED_FIELDS) | {"step_cost", "goal_reward", "min_goal_rate"}
+        allowed_fields = set(_REQUIRED_FIELDS) | _OPTIONAL_FIELDS
         unknown = sorted(set(raw) - allowed_fields)
         if unknown:
             raise ValueError(f"{path}: unknown field(s): {', '.join(unknown)}")
@@ -122,12 +134,24 @@ class Profile:
                     f"{', '.join(reward_missing)}"
                 )
 
+        if reward == "minesweeper":
+            reward_missing = [
+                k
+                for k in ("safe_reveal_reward", "mine_penalty", "win_reward")
+                if k not in raw
+            ]
+            if reward_missing:
+                raise ValueError(
+                    f"{path}: reward 'minesweeper' requires field(s): "
+                    f"{', '.join(reward_missing)}"
+                )
+
         min_goal_rate = raw.get("min_goal_rate")
         if min_goal_rate is not None:
-            if ground == "cartpole":
+            if ground in ("cartpole", "minesweeper"):
                 raise ValueError(
-                    f"{path}: 'min_goal_rate' is not supported for ground 'cartpole' "
-                    f"— CartPole has no discrete goal cell to measure"
+                    f"{path}: 'min_goal_rate' is not supported for ground '{ground}' "
+                    f"— {ground} has no discrete goal cell to measure"
                 )
             if not (0.0 <= min_goal_rate <= 1.0):
                 raise ValueError(
@@ -151,4 +175,7 @@ class Profile:
             step_cost=raw.get("step_cost"),
             goal_reward=raw.get("goal_reward"),
             min_goal_rate=min_goal_rate,
+            safe_reveal_reward=raw.get("safe_reveal_reward"),
+            mine_penalty=raw.get("mine_penalty"),
+            win_reward=raw.get("win_reward"),
         )
