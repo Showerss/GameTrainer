@@ -1,8 +1,8 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-09-04 (Bricks 0–4 done;
-> Bricks 5–8 not started).
+> **Status:** current — **open**. **Last verified:** 2026-09-05 (Bricks 0–5 done;
+> Bricks 6–8 not started).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -28,7 +28,7 @@ Fill in a brick's block **when it closes**, not at the end.
 | **Milestone** | M5 — Add the Hands (real key presses, a real game window) |
 | **Started** | 2026-08-25 (pre-flight spike + plan) |
 | **Branch** | `m5-implementation` |
-| **Current brick** | Brick 5 — The env — the contract |
+| **Current brick** | Brick 6 — The profile + factory wiring |
 | **Hardware** | CPU (Windows 11, Python 3.14). No GPU in play — M5 is plumbing, not training |
 | **Closed** | not yet |
 
@@ -203,5 +203,24 @@ cheap fix, if we ever need one, is a smaller game window.
   - Moving cursor or flagging gives `0.0`.
   - Termination helpers: `is_loss`, `is_win`, and `is_terminated`.
 - **Verified by:** `.venv/bin/python -m pytest tests/test_minesweeper_rewards.py` → **8 passed in 0.06 s**. Full suite **78 passed, 1 skipped in 1.51 s**. `ruff check` clean.
+
+---
+
+## Brick 5 — The env (the Gymnasium contract)
+
+**Status:** ✅ done 2026-09-05
+**File(s):** `tests/test_minesweeper_env.py` (red) → `src/gametrainer/minesweeper.py`
+
+- **What I built:** `MinesweeperEnv` subclassing `gymnasium.Env`.
+  - **Action space:** `spaces.Discrete(6)` mapped to UP (0), DOWN (1), LEFT (2), RIGHT (3), REVEAL (4), FLAG (5).
+  - **Observation space:** `spaces.Box(low=0, high=11, shape=(8, 8), dtype=np.int8)` matching tile classification states (0–8 counts, 9 HIDDEN, 10 FLAGGED, 11 MINE).
+  - **The contract:** `reset()` returns 2-tuple `(obs, info)` and triggers `hands.restart()` (`Ctrl+R`); `step()` returns 5-tuple `(obs, reward, terminated, truncated, info)`.
+  - **Pluggable dependencies:** Accepts injectable `hands` (`InputController`), `window` (`GameWindow`), `reward_calculator` (`MinesweeperRewardCalculator`), and `read_board_fn` for headless/test operation without requiring a live game window.
+  - **Step cap:** `truncated=True` when `_steps >= max_steps` and not terminated.
+- **Verified by:**
+  - `.venv/Scripts/python.exe -m pytest tests/test_minesweeper_env.py` → **9 passed in 0.95 s**.
+  - `gymnasium.utils.env_checker.check_env` runs completely clean.
+  - `stable_baselines3.common.env_checker.check_env` clean.
+  - Full test suite: **87 passed, 1 skipped in 2.73 s**. `ruff check` clean.
 
 ---
