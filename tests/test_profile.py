@@ -56,6 +56,26 @@ GOOD_CARTPOLE = dict(
     margin_over_baseline=22.0,
 )
 
+# A known-good Minesweeper profile (M5, Brick 6).
+GOOD_MINESWEEPER = dict(
+    ground="minesweeper",
+    perception="numeric",
+    reward="minesweeper",
+    safe_reveal_reward=1.0,
+    mine_penalty=-10.0,
+    win_reward=10.0,
+    total_timesteps=20_000,
+    learning_rate=3e-4,
+    n_steps=2048,
+    batch_size=64,
+    n_epochs=10,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.0,
+    margin_over_baseline=0.0,
+)
+
 
 def _write(tmpdir, fields: dict, filename: str = "profile.yaml") -> str:
     path = Path(tmpdir) / filename
@@ -86,6 +106,20 @@ def test_valid_cartpole_profile_loads_without_reward_numbers():
     assert profile.reward == "builtin"
     assert profile.step_cost is None
     assert profile.goal_reward is None
+
+
+def test_valid_minesweeper_profile_loads_expected_fields():
+    """Minesweeper loads with safe_reveal_reward, mine_penalty, and win_reward."""
+    with TemporaryDirectory() as tmpdir:
+        profile = Profile.from_yaml(_write(tmpdir, GOOD_MINESWEEPER))
+
+    assert profile.ground == "minesweeper"
+    assert profile.perception == "numeric"
+    assert profile.reward == "minesweeper"
+    assert profile.safe_reveal_reward == 1.0
+    assert profile.mine_penalty == -10.0
+    assert profile.win_reward == 10.0
+    assert profile.total_timesteps == 20_000
 
 
 def test_unknown_ground_raises_naming_legal_options():
@@ -123,6 +157,17 @@ def test_pixels_perception_on_cartpole_raises():
     assert "cartpole" in str(exc_info.value)
 
 
+def test_pixels_perception_on_minesweeper_raises():
+    """Minesweeper in M5 uses numeric perception -- reject pixels at load time."""
+    bad = {**GOOD_MINESWEEPER, "perception": "pixels"}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert "minesweeper" in str(exc_info.value)
+
+
 def test_unknown_perception_raises_naming_legal_options():
     bad = {**GOOD_GRIDWORLD, "perception": "vibes"}
     with TemporaryDirectory() as tmpdir:
@@ -142,3 +187,14 @@ def test_gridworld_reward_missing_numbers_raises():
             Profile.from_yaml(path)
 
     assert "step_cost" in str(exc_info.value)
+
+
+def test_minesweeper_reward_missing_numbers_raises():
+    """Missing mine_penalty raises ValueError at load time."""
+    bad = {k: v for k, v in GOOD_MINESWEEPER.items() if k != "mine_penalty"}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert "mine_penalty" in str(exc_info.value)

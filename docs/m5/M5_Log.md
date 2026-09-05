@@ -1,8 +1,8 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-09-05 (Bricks 0–5 done;
-> Bricks 6–8 not started).
+> **Status:** current — **open**. **Last verified:** 2026-09-05 (Bricks 0–6 done;
+> Bricks 7–8 not started).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -28,7 +28,7 @@ Fill in a brick's block **when it closes**, not at the end.
 | **Milestone** | M5 — Add the Hands (real key presses, a real game window) |
 | **Started** | 2026-08-25 (pre-flight spike + plan) |
 | **Branch** | `m5-implementation` |
-| **Current brick** | Brick 6 — The profile + factory wiring |
+| **Current brick** | Brick 7 — Wire check_hands.py (the verdict runs live) |
 | **Hardware** | CPU (Windows 11, Python 3.14). No GPU in play — M5 is plumbing, not training |
 | **Closed** | not yet |
 
@@ -222,5 +222,23 @@ cheap fix, if we ever need one, is a smaller game window.
   - `gymnasium.utils.env_checker.check_env` runs completely clean.
   - `stable_baselines3.common.env_checker.check_env` clean.
   - Full test suite: **87 passed, 1 skipped in 2.73 s**. `ruff check` clean.
+
+---
+
+## Brick 6 — The profile + factory wiring
+
+**Status:** ✅ done 2026-09-05
+**File(s):** `profiles/minesweeper.yaml`, `src/gametrainer/profile.py`, `src/gametrainer/factory.py`, `tests/test_profile.py`, `tests/test_make_env.py`
+
+- **What I built:**
+  - `Profile` validation updated: added `"minesweeper"` to legal grounds and rewards, added reward field validation (`safe_reveal_reward`, `mine_penalty`, `win_reward`), and restricted pixels perception for Minesweeper in M5.
+  - `profiles/minesweeper.yaml`: Flat YAML profile specifying ground `minesweeper`, perception `numeric`, reward numbers, and PPO hyperparameters.
+  - `make_env(profile)`: Factory branch building `MinesweeperEnv` configured directly from the YAML profile, with auto-discovery of live `LibreMines` window/hands and clean fallback to headless/null components in CI.
+- **Verified by:**
+  - `pytest tests/test_profile.py`: **10 passed in 0.05 s**.
+  - `pytest tests/test_make_env.py`: **9 passed in 1.02 s**.
+  - Full test suite: **93 passed, 1 skipped in 2.89 s**.
+  - `ruff check`: clean across entire repo.
+  - **No Python edited** to select Minesweeper — loading `profiles/minesweeper.yaml` builds the entire environment ready to train or run.
 
 ---

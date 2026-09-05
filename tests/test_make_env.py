@@ -24,28 +24,76 @@ from src.gametrainer.gridworld import GridWorldEnv, RandomStart
 from src.gametrainer.perception import PixelObservation
 from src.gametrainer.profile import Profile
 
-# Same three shapes Brick 4 will save as YAML.
+# Same shapes saved as YAML.
 CARTPOLE = Profile(
-    ground="cartpole", perception="numeric", reward="builtin",
-    total_timesteps=25_000, learning_rate=3e-4, n_steps=2048, batch_size=64,
-    n_epochs=10, gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.0,
+    ground="cartpole",
+    perception="numeric",
+    reward="builtin",
+    total_timesteps=25_000,
+    learning_rate=3e-4,
+    n_steps=2048,
+    batch_size=64,
+    n_epochs=10,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.0,
     margin_over_baseline=22.0,
 )
 
 GRIDWORLD = Profile(
-    ground="gridworld", perception="numeric", reward="gridworld",
-    step_cost=-0.01, goal_reward=1.0,
-    total_timesteps=25_000, learning_rate=3e-4, n_steps=2048, batch_size=64,
-    n_epochs=10, gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.0,
+    ground="gridworld",
+    perception="numeric",
+    reward="gridworld",
+    step_cost=-0.01,
+    goal_reward=1.0,
+    total_timesteps=25_000,
+    learning_rate=3e-4,
+    n_steps=2048,
+    batch_size=64,
+    n_epochs=10,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.0,
     margin_over_baseline=0.5,
 )
 
 GRIDWORLD_PIXELS = Profile(
-    ground="gridworld", perception="pixels", reward="gridworld",
-    step_cost=-0.01, goal_reward=1.0,
-    total_timesteps=20_000, learning_rate=3e-4, n_steps=512, batch_size=64,
-    n_epochs=4, gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.0,
+    ground="gridworld",
+    perception="pixels",
+    reward="gridworld",
+    step_cost=-0.01,
+    goal_reward=1.0,
+    total_timesteps=20_000,
+    learning_rate=3e-4,
+    n_steps=512,
+    batch_size=64,
+    n_epochs=4,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.0,
     margin_over_baseline=0.40,
+)
+
+MINESWEEPER = Profile(
+    ground="minesweeper",
+    perception="numeric",
+    reward="minesweeper",
+    safe_reveal_reward=1.0,
+    mine_penalty=-10.0,
+    win_reward=10.0,
+    total_timesteps=20_000,
+    learning_rate=3e-4,
+    n_steps=2048,
+    batch_size=64,
+    n_epochs=10,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.0,
+    margin_over_baseline=0.0,
 )
 
 
@@ -72,6 +120,48 @@ def test_gridworld_pixels_env_passes_check_env_and_matches_space():
     assert env.observation_space.high.max() == 255
 
 
+def test_minesweeper_env_passes_check_env_and_matches_space():
+    sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
+    env = make_env(MINESWEEPER)
+    sb3_checker.check_env(env)
+    assert env.observation_space.shape == (8, 8)
+    assert env.action_space.n == 6
+
+
+def test_minesweeper_reward_numbers_come_from_the_profile():
+    custom = Profile(
+        ground="minesweeper",
+        perception="numeric",
+        reward="minesweeper",
+        safe_reveal_reward=3.5,
+        mine_penalty=-42.0,
+        win_reward=100.0,
+        total_timesteps=1,
+        learning_rate=1,
+        n_steps=1,
+        batch_size=1,
+        n_epochs=1,
+        gamma=1,
+        gae_lambda=1,
+        clip_range=1,
+        ent_coef=1,
+        margin_over_baseline=1,
+    )
+    env = make_env(custom)
+    assert env.reward_calculator.safe_reveal_reward == 3.5
+    assert env.reward_calculator.mine_penalty == -42.0
+    assert env.reward_calculator.win_reward == 100.0
+
+
+def test_make_env_loads_from_yaml_file():
+    """Verify profiles/minesweeper.yaml builds clean without editing Python."""
+    profile_path = _project_root / "profiles" / "minesweeper.yaml"
+    profile = Profile.from_yaml(str(profile_path))
+    env = make_env(profile)
+    assert env.observation_space.shape == (8, 8)
+    assert env.action_space.n == 6
+
+
 def test_gridworld_pixels_wrapper_order_is_task_inside_pixels_outside():
     """Pins the M3 rule: task/RandomStart INSIDE, PixelObservation OUTSIDE."""
     env = make_env(GRIDWORLD_PIXELS)
@@ -85,10 +175,21 @@ def test_gridworld_reward_numbers_come_from_the_profile_not_the_class():
     class constants (-0.01 / 1.0) were still driving the reward, this would
     fail. Numbers here are deliberately not the class defaults."""
     custom = Profile(
-        ground="gridworld", perception="numeric", reward="gridworld",
-        step_cost=-5.0, goal_reward=99.0,
-        total_timesteps=1, learning_rate=1, n_steps=1, batch_size=1, n_epochs=1,
-        gamma=1, gae_lambda=1, clip_range=1, ent_coef=1, margin_over_baseline=1,
+        ground="gridworld",
+        perception="numeric",
+        reward="gridworld",
+        step_cost=-5.0,
+        goal_reward=99.0,
+        total_timesteps=1,
+        learning_rate=1,
+        n_steps=1,
+        batch_size=1,
+        n_epochs=1,
+        gamma=1,
+        gae_lambda=1,
+        clip_range=1,
+        ent_coef=1,
+        margin_over_baseline=1,
     )
     env = make_env(custom)
     env.reset()
@@ -101,9 +202,19 @@ def test_unknown_ground_perception_pair_raises():
     Profile can still reach make_env -- it must fail loudly, not silently
     build the wrong thing."""
     bad = Profile(
-        ground="cartpole", perception="pixels", reward="builtin",
-        total_timesteps=1, learning_rate=1, n_steps=1, batch_size=1, n_epochs=1,
-        gamma=1, gae_lambda=1, clip_range=1, ent_coef=1, margin_over_baseline=1,
+        ground="cartpole",
+        perception="pixels",
+        reward="builtin",
+        total_timesteps=1,
+        learning_rate=1,
+        n_steps=1,
+        batch_size=1,
+        n_epochs=1,
+        gamma=1,
+        gae_lambda=1,
+        clip_range=1,
+        ent_coef=1,
+        margin_over_baseline=1,
     )
     with pytest.raises(ValueError):
         make_env(bad)
