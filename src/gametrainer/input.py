@@ -249,17 +249,16 @@ class _INPUT(ctypes.Structure):
 
 _EXPECTED_INPUT_SIZE = 40  # x64, and v1 is x64 Windows only.
 
-if ctypes.sizeof(_INPUT) != _EXPECTED_INPUT_SIZE:
-    raise RuntimeError(
-        f"INPUT is {ctypes.sizeof(_INPUT)} bytes, expected "
-        f"{_EXPECTED_INPUT_SIZE}. SendInput would fail with error 87 and "
-        "change nothing on screen, which looks identical to a game that "
-        "ignores synthetic input. Checked here at import rather than in a "
-        "test, because an import cannot be skipped."
-    )
-
-
 if sys.platform == "win32":
+    if ctypes.sizeof(_INPUT) != _EXPECTED_INPUT_SIZE:
+        raise RuntimeError(
+            f"INPUT is {ctypes.sizeof(_INPUT)} bytes, expected "
+            f"{_EXPECTED_INPUT_SIZE}. SendInput would fail with error 87 and "
+            "change nothing on screen, which looks identical to a game that "
+            "ignores synthetic input. Checked here at import rather than in a "
+            "test, because an import cannot be skipped."
+        )
+
     _user32 = ctypes.WinDLL("user32", use_last_error=True)
     _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 

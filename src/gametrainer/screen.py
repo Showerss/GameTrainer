@@ -25,6 +25,7 @@ which is the worst way for anything to be wrong.
 from __future__ import annotations
 
 import ctypes
+import sys
 from ctypes import wintypes
 
 import mss
@@ -32,16 +33,20 @@ import numpy as np
 
 # use_last_error=True is what makes ctypes.get_last_error() below report the
 # real Windows error code instead of a stale one.
-_user32 = ctypes.WinDLL("user32", use_last_error=True)
+if sys.platform == "win32":
+    _user32 = ctypes.WinDLL("user32", use_last_error=True)
 
-# DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2. A magic constant from the Windows
-# headers; -4 means "give me real pixels, per monitor, and keep up if the user
-# drags the window to a display with different scaling."
-_DPI_PER_MONITOR_AWARE_V2 = ctypes.c_void_p(-4)
-
-# Windows error code returned when DPI awareness is already set for this
-# process. Setting it twice is a legitimate no-op, not a failure.
-_ERROR_ACCESS_DENIED = 5
+    # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2. A magic constant from the Windows
+    # headers; -4 means "give me real pixels, per monitor, and keep up if the user
+    # drags the window to a display with different scaling."
+    _DPI_PER_MONITOR_AWARE_V2 = ctypes.c_void_p(-4)
+    _ERROR_ACCESS_DENIED = 5
+    _EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+else:
+    _user32 = None
+    _DPI_PER_MONITOR_AWARE_V2 = None
+    _ERROR_ACCESS_DENIED = 5
+    _EnumWindowsProc = None
 
 
 class WindowNotFound(Exception):
@@ -54,6 +59,9 @@ def set_dpi_awareness() -> None:
     Raises if the call fails for any reason other than "already set", because
     a silent failure here produces captures that are aligned to nothing.
     """
+    if sys.platform != "win32":
+        return
+
     if _user32.SetProcessDpiAwarenessContext(_DPI_PER_MONITOR_AWARE_V2):
         return
 
@@ -69,10 +77,8 @@ def set_dpi_awareness() -> None:
 # Set it now, at import, before anything in this process can ask about a
 # window. Import order is load-bearing here, which is exactly why it is not
 # left to a caller to remember.
-set_dpi_awareness()
-
-
-_EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+if sys.platform == "win32":
+    set_dpi_awareness()
 
 
 def _window_title(hwnd: int) -> str:
@@ -93,6 +99,12 @@ def find_window(title_contains: str) -> int:
     find it. Raises WindowNotFound rather than returning a falsy handle, so a
     missing game fails here instead of somewhere further downstream.
     """
+    if sys.platform != "win32":
+        raise WindowNotFound(
+            f"No visible window with {title_contains!r} in its title. "
+            "Game window discovery requires Windows."
+        )
+
     matches: list[int] = []
 
     def visit(hwnd, _lparam):
@@ -112,6 +124,9 @@ def find_window(title_contains: str) -> int:
 
 def window_rect(hwnd: int) -> dict[str, int]:
     """Where the window is on screen, as the box mss wants to grab."""
+    if sys.platform != "win32":
+        raise OSError("window_rect requires Windows.")
+
     rect = wintypes.RECT()
     if not _user32.GetWindowRect(hwnd, ctypes.byref(rect)):
         raise OSError(f"GetWindowRect failed for window {hwnd}")
@@ -141,6 +156,11 @@ class GameWindow:
     """
 
     def __init__(self, title_contains: str = "LibreMines"):
+        if sys.platform != "win32":
+            raise RuntimeError(
+                "GameWindow requires Windows. On macOS/Linux, pass window=None or "
+                "mock window to run headlessly."
+            )
         self.title_contains = title_contains
         self.hwnd = find_window(title_contains)
         self._sct = mss.mss()
