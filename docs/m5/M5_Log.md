@@ -1,8 +1,8 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-09-05 (Bricks 0–6 done;
-> Bricks 7–8 not started).
+> **Status:** current — **open**. **Last verified:** 2026-09-06 (Bricks 0–6 done;
+> Brick 7 wired and unit-tested; Brick 8 doc closeout in progress).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -201,7 +201,7 @@ cheap fix, if we ever need one, is a smaller game window.
   - `win_reward` (e.g. `+10.0`) when all 54 safe cells on an 8×8 Easy board are revealed.
   - `safe_reveal_reward` (e.g. `+1.0`) per newly revealed safe cell (`0`–`8`). Cascades scale the reward directly with cells revealed.
   - Moving cursor or flagging gives `0.0`.
-  - Termination helpers: `is_loss`, `is_win`, and `is_terminated`.
+  - Termination helpers: `is_loss`, `is_win`, and `is_terminated` spectacles.
 - **Verified by:** `.venv/bin/python -m pytest tests/test_minesweeper_rewards.py` → **8 passed in 0.06 s**. Full suite **78 passed, 1 skipped in 1.51 s**. `ruff check` clean.
 
 ---
@@ -240,5 +240,28 @@ cheap fix, if we ever need one, is a smaller game window.
   - Full test suite: **93 passed, 1 skipped in 2.89 s**.
   - `ruff check`: clean across entire repo.
   - **No Python edited** to select Minesweeper — loading `profiles/minesweeper.yaml` builds the entire environment ready to train or run.
+
+---
+
+## Brick 7 — The controls (the proof)
+
+**Status:** 🟡 wired 2026-09-06 (ready for live run on Windows host)
+**File(s):** `scripts/check_hands.py`, `tests/test_check_hands.py`
+
+- **What I built:**
+  - Implemented `collect_measurements()` in `scripts/check_hands.py` to drive all 4 controls against LibreMines:
+    1. **Control 1 (Keys live):** Resets board, navigates cursor down 1 and right 2 to cell `(1, 2)`, flags it, and verifies exactly cell `(1, 2)` changes state (`HIDDEN` -> `FLAGGED`).
+    2. **Control 2 (NullInput):** Swaps in `NullInput()`, dispatches identical moves + flag, and verifies 0 cells change (the negative case).
+    3. **Control 3 (Frozen frame):** Grabs a frozen frame, flags a cell with live hands to alter the screen, and asserts that the frozen-frame observation stays completely stationary while the live observation reflects the screen update.
+    4. **Control 4 (Reset):** Loops 20 times unattended, dirtying the board by flagging a cell, sending `Ctrl+R`, and verifying all 64 cells cleanly return to `HIDDEN`.
+  - Added unit test suite `tests/test_check_hands.py` to test the pure referee logic (`decide_keys_live`, `decide_null_input`, `decide_frozen_frame`, `decide_reset`, `decide_verdict`) with passing and failing synthetic `Measurements`.
+- **Platform note & discovery:**
+  - `collect_measurements()` and `KeyboardInput` use Windows `SendInput` and `ctypes.WinDLL("user32")`.
+  - On macOS/Linux, `main()` catches `(WindowNotFound, RuntimeError, OSError)` and prints an honest message: `M5 VERDICT: NOT RUN (Game window or environment unavailable)` instead of crashing.
+  - Cross-platform native input (macOS Quartz `CGEventPost`, Linux `uinput`/X11) has been scheduled in `docs/PRD.md` §7.1 as Future Milestone M7.
+- **Verified by:**
+  - Unit tests: `pytest tests/test_check_hands.py` → **7 passed in 0.04 s**. Full suite: **101 passed, 1 skipped in 1.46 s**.
+  - Off-Windows execution: `python scripts/check_hands.py` → exits 1 with honest `NOT RUN` explanation.
+  - Windows live test: Ready to run on Windows 11 host with `libremines.exe` open.
 
 ---

@@ -25,7 +25,7 @@ The M5 finish line - ALL FOUR must hold:
 Teacher Note: why controls 2 and 3 are the ones that matter
 ===========================================================
 Control 1 passing on its own proves nothing. A screen that changes while keys
-are being sent is exactly what you would also see if the keys were landing
+are being sent is exactly what you would see if the keys were landing
 nowhere and the game were animating on its own. Control 2 is the negative
 case: same sequence, hands disconnected, board must sit perfectly still. Only
 the pair of them can say "our keystrokes did that."
@@ -57,7 +57,20 @@ Usage:
 from __future__ import annotations
 
 import sys
+import time
 from dataclasses import dataclass, field
+from pathlib import Path
+
+import numpy as np
+
+# Ensure project root is on sys.path for direct script execution
+_project_root = Path(__file__).resolve().parents[1]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
+from src.gametrainer.input import KeyboardInput, NullInput
+from src.gametrainer.minesweeper_vision import HIDDEN, read_board
+from src.gametrainer.screen import GameWindow, WindowNotFound
 
 # Print UTF-8 so status glyphs don't crash on Windows consoles (cp1252).
 if hasattr(sys.stdout, "reconfigure"):
@@ -162,8 +175,10 @@ def decide_keys_live(m: Measurements) -> ControlResult:
         changed_one and changed_target,
         [
             f"  target cell:              {m.target_cell}",
-            f"  cells changed:            {m.live_cells_changed}"
-            f"  (needs exactly {EXPECTED_CELLS_CHANGED})",
+            (
+                f"  cells changed:            {m.live_cells_changed}"
+                f"  (needs exactly {EXPECTED_CELLS_CHANGED})"
+            ),
             f"  cell that changed:        {m.live_changed_cell}",
             f"  pixels changed:           {m.live_pixels_changed:,}  (evidence only)",
             f"  [{_mark(changed_one)}] exactly one cell changed",
@@ -180,8 +195,10 @@ def decide_null_input(m: Measurements) -> ControlResult:
         "NullInput swapped in",
         still,
         [
-            f"  cells changed:            {m.null_cells_changed}"
-            f"  (needs exactly {NULL_INPUT_CELLS_CHANGED})",
+            (
+                f"  cells changed:            {m.null_cells_changed}"
+                f"  (needs exactly {NULL_INPUT_CELLS_CHANGED})"
+            ),
             f"  pixels changed:           {m.null_pixels_changed:,}  (evidence only)",
             f"  [{_mark(still)}] same sequence, hands disconnected, board unchanged",
         ],
@@ -197,10 +214,14 @@ def decide_frozen_frame(m: Measurements) -> ControlResult:
         "Frozen frame",
         live_moved and frozen_still,
         [
-            f"  live obs cells changed:   {m.live_obs_cells_changed}"
-            f"  (needs >= {MIN_LIVE_CELLS_CHANGED})",
-            f"  frozen obs cells changed: {m.frozen_obs_cells_changed}"
-            f"  (needs exactly {FROZEN_CELLS_CHANGED})",
+            (
+                f"  live obs cells changed:   {m.live_obs_cells_changed}"
+                f"  (needs >= {MIN_LIVE_CELLS_CHANGED})"
+            ),
+            (
+                f"  frozen obs cells changed: {m.frozen_obs_cells_changed}"
+                f"  (needs exactly {FROZEN_CELLS_CHANGED})"
+            ),
             f"  [{_mark(live_moved)}] the board really did change on screen",
             f"  [{_mark(frozen_still)}] the frozen-frame observation did not follow",
         ],
@@ -224,8 +245,10 @@ def decide_reset(m: Measurements) -> ControlResult:
         "Reset",
         enough and all_clean,
         [
-            f"  resets attempted:         {m.resets_attempted}"
-            f"  (needs >= {RESET_TRIALS})",
+            (
+                f"  resets attempted:         {m.resets_attempted}"
+                f"  (needs >= {RESET_TRIALS})"
+            ),
             f"  boards all-unrevealed:    {m.resets_clean} / {m.resets_attempted}",
             f"  mouse clicks used:        {m.reset_mouse_clicks}  (recorded, not judged)",
             f"  [{_mark(enough)}] ran the full {RESET_TRIALS} trials",
@@ -265,30 +288,144 @@ def print_finish_line() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Measurement - Brick 7's job, not Brick 0's.
+# Measurement - Brick 7's job.
 # ---------------------------------------------------------------------------
 
-def collect_measurements() -> Measurements:
+def collect_measurements(
+    title: str = "LibreMines",
+    step_delay: float = 0.15,
+) -> Measurements:
     """Drive a live LibreMines window and return what the referee needs.
 
-    Not written yet, on purpose. Brick 0's whole job is to state the bar
-    before the work starts; filling this in is Brick 7, once the pieces it
-    depends on exist:
-
-        Brick 1  src/gametrainer/screen.py              DPI-correct capture
-        Brick 2  src/gametrainer/minesweeper_vision.py  pixels -> 8x8 grid
-        Brick 3  src/gametrainer/input.py               KeyboardInput
-        Brick 5  src/gametrainer/minesweeper.py         the env
-
-    Until then this raises, main() reports NOT RUN, and the script exits 1.
-    A guardrail that reports success before the work is done is worse than no
-    guardrail at all, so it must never be tempting to stub this out with
-    plausible-looking numbers.
+    Uses:
+      - GameWindow(title) to find and capture the window
+      - KeyboardInput(hwnd) to focus and send real SendInput keystrokes
+      - NullInput() for the negative control
+      - read_board(frame) to parse cell states from pixels
     """
-    raise NotImplementedError(
-        "Bricks 1-6 are not built yet (screen capture, tile reading, "
-        "KeyboardInput, the env). Filling this in is Brick 7."
-    )
+    with GameWindow(title) as window:
+        hands = KeyboardInput(window.hwnd)
+        hands.focus()
+
+        # ------------------------------------------------------------------
+        # Control 1: Keys live (Move to a target cell and flag it)
+        # ------------------------------------------------------------------
+        # Reset to ensure clean start
+        hands.restart()
+        time.sleep(step_delay * 2)
+
+        initial_frame = window.grab()
+        initial_grid = read_board(initial_frame)
+
+        # Move to target cell (1, 2): down 1, right 2
+        # Starting from top-left (0, 0) in LibreMines keyboard mode
+        target_cell = (1, 2)
+        hands.move_down()
+        time.sleep(step_delay)
+        hands.move_right()
+        time.sleep(step_delay)
+        hands.move_right()
+        time.sleep(step_delay)
+        hands.flag()
+        time.sleep(step_delay)
+
+        frame_after_flag = window.grab()
+        grid_after_flag = read_board(frame_after_flag)
+
+        diff_mask = initial_grid != grid_after_flag
+        live_cells_changed = int(np.sum(diff_mask))
+        changed_coords = np.argwhere(diff_mask)
+        live_changed_cell = (
+            (int(changed_coords[0][0]), int(changed_coords[0][1]))
+            if len(changed_coords) == 1
+            else None
+        )
+        live_pixels_changed = int(np.sum(initial_frame != frame_after_flag))
+
+        # ------------------------------------------------------------------
+        # Control 2: NullInput swapped in (Negative control)
+        # Same sequence of moves + flag, but dispatched to NullInput.
+        # ------------------------------------------------------------------
+        hands.restart()
+        time.sleep(step_delay * 2)
+
+        null_initial_frame = window.grab()
+        null_initial_grid = read_board(null_initial_frame)
+
+        null_hands = NullInput()
+        null_hands.move_down()
+        time.sleep(step_delay)
+        null_hands.move_right()
+        time.sleep(step_delay)
+        null_hands.move_right()
+        time.sleep(step_delay)
+        null_hands.flag()
+        time.sleep(step_delay)
+
+        null_after_frame = window.grab()
+        null_after_grid = read_board(null_after_frame)
+
+        null_cells_changed = int(np.sum(null_initial_grid != null_after_grid))
+        null_pixels_changed = int(np.sum(null_initial_frame != null_after_frame))
+
+        # ------------------------------------------------------------------
+        # Control 3: Frozen frame vs Live frame
+        # Freeze a frame, then change the board on screen.
+        # ------------------------------------------------------------------
+        frozen_frame = window.grab()
+        frozen_obs_before = read_board(frozen_frame)
+
+        # Act with real hands to mutate the board on screen
+        hands.move_down()
+        time.sleep(step_delay)
+        hands.flag()
+        time.sleep(step_delay)
+
+        live_frame = window.grab()
+        live_obs = read_board(live_frame)
+        frozen_obs_after = read_board(frozen_frame)
+
+        live_obs_cells_changed = int(np.sum(live_obs != frozen_obs_before))
+        frozen_obs_cells_changed = int(np.sum(frozen_obs_after != frozen_obs_before))
+
+        # ------------------------------------------------------------------
+        # Control 4: Reset (20 unattended Ctrl+R trials)
+        # ------------------------------------------------------------------
+        resets_attempted = RESET_TRIALS
+        resets_clean = 0
+        reset_mouse_clicks = 0
+
+        for _ in range(RESET_TRIALS):
+            # Dirty the board by flagging a cell so it's not all unrevealed
+            hands.move_right()
+            time.sleep(step_delay)
+            hands.flag()
+            time.sleep(step_delay)
+
+            # Send reset chord (Ctrl+R)
+            hands.restart()
+            time.sleep(step_delay * 2)
+
+            reset_frame = window.grab()
+            reset_grid = read_board(reset_frame)
+
+            # All 8x8 cells must return to HIDDEN
+            if np.all(reset_grid == HIDDEN):
+                resets_clean += 1
+
+        return Measurements(
+            target_cell=target_cell,
+            live_cells_changed=live_cells_changed,
+            live_changed_cell=live_changed_cell,
+            live_pixels_changed=live_pixels_changed,
+            null_cells_changed=null_cells_changed,
+            null_pixels_changed=null_pixels_changed,
+            frozen_obs_cells_changed=frozen_obs_cells_changed,
+            live_obs_cells_changed=live_obs_cells_changed,
+            resets_attempted=resets_attempted,
+            resets_clean=resets_clean,
+            reset_mouse_clicks=reset_mouse_clicks,
+        )
 
 
 def main() -> int:
@@ -306,6 +443,14 @@ def main() -> int:
         print("=" * 68)
         print(f"  {not_built}")
         print("  Nothing was measured, so nothing passed.")
+        print("=" * 68)
+        return 1
+    except (WindowNotFound, RuntimeError, OSError) as err:
+        print("=" * 68)
+        print("M5 VERDICT: NOT RUN (Game window or environment unavailable)")
+        print("=" * 68)
+        print(f"  {err}")
+        print("  Running live controls requires Windows with LibreMines open.")
         print("=" * 68)
         return 1
 

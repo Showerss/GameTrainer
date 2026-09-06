@@ -2,11 +2,10 @@
 
 > **Covers:** what gets built, and in what order — the milestone plan, scope, and
 > the architecture this project is proving out.
-> **Status:** current. **Last verified:** 2026-08-26 (§8 gained the minimised-window
-> v1 limitation found in M5 Brick 1; rest of the file re-read and still accurate.
-> Previous pass 2026-08-14: M4 closed; §5's UML diagram gained a correction note —
-> see below. This file had no DOC_STANDARD header until that pass; it predates the
-> standard, which took effect 2026-08-08).
+> **Status:** current. **Last verified:** 2026-09-06 (§7.1 added Future Milestones
+> list including cross-platform macOS/Linux native hands; §8 gained Windows-only
+> v1 live hands note; rest of file re-read and still accurate. Previous pass
+> 2026-08-26: §8 gained minimised-window v1 limitation found in M5 Brick 1).
 > **Authority:** this file wins on *what* gets built and in what order.
 > `docs/DOC_STANDARD.md` wins on *how* docs are written.
 
@@ -215,6 +214,16 @@ Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly
 
 **The win condition for a portfolio:** finishing **M4** already proves the whole thesis — any ground, any brain, one socket. Everything after is bonus.
 
+### 7.1 Future milestones (v2+ / post-M6 roadmap)
+
+Items intentionally deferred to preserve v1 crawl-first scope discipline, scheduled for post-M6 iterations:
+
+| Milestone | Goal | Why deferred from v1 |
+| :--- | :--- | :--- |
+| **M7: Cross-Platform Hands** | Native synthetic input & window capture on **macOS** (Quartz `CGEventPost` / Accessibility APIs, `CGWindowListCopyWindowInfo`) and **Linux** (`uinput` / `X11` / `Wayland`). | M5 proved the socket and live loop using Windows `SendInput` and `user32.dll`. Cross-platform OS event queues require platform-specific permissions (e.g. macOS Accessibility prompt) and different display servers. |
+| **M8: Window Resilience & Background Capture** | Handle minimized/occluded windows via automatic restoration (`ShowWindow`) or background composition capture (`PrintWindow` / `PW_RENDERFULLCONTENT`). | Documented v1 limitation (M5 Brick 1). The current loop requires the window to stay active and visible in foreground. |
+| **M9: Continuous Mouse Hands** | Extend discrete cursor keys (W/A/S/D) to smooth 2D continuous mouse movement, dragging, and hover states. | V1 deliberately proved discrete actions (6 keys) to keep the action space small and deterministic. |
+
 ---
 
 ## 8. Risks & honest notes
@@ -223,6 +232,7 @@ Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly
 - **Keep the contract strict.** If you ever break the `reset()` / `step()` shape to "make it work," you lose swappability — the one thing that matters. Don't.
 - **Light hours = scope discipline.** Resist jumping to Stardew. The boring CartPole step is what teaches the loop that scales to everything.
 - **A minimised game window cannot be captured (v1 limitation, found M5 Brick 1, 2026-08-26).** `GameWindow` finds and follows a window at any size or position — it matches on title and re-reads the rect every grab — but a minimised window is not drawn by Windows at all, so there is nothing to grab. It raises rather than returning a blank frame. Consequence: **minimising the game mid-run kills the run.** Deferred to v2, where the fix is either restoring the window automatically (`ShowWindow`) or capturing without visibility (`PrintWindow` with `PW_RENDERFULLCONTENT`, which works for some apps and not others). Not worth spending M5 on: the loop already requires the window to be foreground for keystrokes to land.
+- **Windows-only live hands in v1 (found M5, 2026-09-06).** `KeyboardInput` drives games via Windows `SendInput` and `GameWindow` discovers `HWND` handles via `user32.dll`. Off Windows (e.g. macOS, Linux), the suite runs cleanly headlessly using `NullInput` (M0–M4), but live window driving requires Windows 11. Cross-platform native hands (macOS Quartz `CGEventPost`, Linux `uinput`/X11) are catalogued in §7.1 as Future Milestone M7.
 
 ---
 
