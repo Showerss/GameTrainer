@@ -286,6 +286,47 @@ else:
     _user32 = _kernel32 = None
 
 
+# macOS real hands, added alongside the Windows ones so check_hands.py can run
+# on this machine too (see docs/m5/M5_Log.md, "macOS backend"). Same job as
+# SendInput above - CGEventPost puts a synthetic event on the same queue a
+# real keypress would - but a different OS API and different key numbers, so
+# it needs its own translation table rather than reusing VK_W etc. directly.
+if sys.platform == "darwin":
+    import Quartz
+    from AppKit import NSApplicationActivateIgnoringOtherApps, NSRunningApplication
+
+    # macOS virtual keycodes (Carbon's kVK_* constants), keyed by the shared
+    # VK_* constants above so the rest of the class can stay platform-blind.
+    # These come from Apple's own keycode table - not measured, just looked up.
+    _MAC_KEYCODE = {
+        InputController.VK_W: 0x0D,
+        InputController.VK_A: 0x00,
+        InputController.VK_S: 0x01,
+        InputController.VK_D: 0x02,
+        InputController.VK_O: 0x1F,
+        InputController.VK_P: 0x23,
+        InputController.VK_R: 0x0F,
+    }
+
+    # Teacher Note: Ctrl+R on Windows became Cmd+R here - verified live, not
+    # assumed
+    # ================================================================
+    # LibreMines' own shortcut is written once, "Ctrl+R", in its Qt code - but
+    # Qt follows Mac convention and remaps that to the Command key on macOS,
+    # not physical Control. Tried against the real game on 2026-09-07: raw
+    # Control (posted as its own keydown/keyup, and as an explicit
+    # CGEventFlagMaskControl on the R event) left the board untouched both
+    # times: same flag, mine counter, everything, before and after. Command
+    # reset it instantly, every time. So the modifier tap_chord sends for
+    # restart() is Command on this platform - a deliberate remap, not a typo.
+    _MAC_MODIFIER_FLAG = {
+        InputController.VK_CONTROL: Quartz.kCGEventFlagMaskCommand,
+    }
+else:
+    _MAC_KEYCODE = {}
+    _MAC_MODIFIER_FLAG = {}
+
+
 class WindowNotFocused(Exception):
     """The target window is not in front, so keystrokes would land elsewhere."""
 
@@ -318,18 +359,26 @@ class KeyboardInput(InputController):
     _FOCUS_POLL = 0.02
 
     def __init__(self, hwnd: int):
-        if sys.platform != "win32":
+        if sys.platform not in ("win32", "darwin"):
             raise RuntimeError(
-                "KeyboardInput needs Windows (SendInput). Off Windows, use "
-                "NullInput - that is what CartPole and GridWorld run with."
+                "KeyboardInput needs Windows (SendInput) or macOS (CGEventPost). "
+                "Off those, use NullInput - that is what CartPole and GridWorld "
+                "run with."
             )
         super().__init__()
+        # On macOS this is a PID (see screen.py's _find_window_macos), not a
+        # true window handle - there is no HWND equivalent there. Kept under
+        # the same name so the rest of this class, and every caller, stays
+        # platform-blind.
         self.hwnd = int(hwnd)
 
     # --- focus: who the keystrokes will actually reach ---
 
     def has_focus(self) -> bool:
-        """Is our window the one Windows will deliver keystrokes to?"""
+        """Is our window the one the OS will deliver keystrokes to?"""
+        if sys.platform == "darwin":
+            app = NSRunningApplication.runningApplicationWithProcessIdentifier_(self.hwnd)
+            return app is not None and app.isActive()
         return int(_user32.GetForegroundWindow() or 0) == self.hwnd
 
     def focus(self) -> None:
@@ -345,27 +394,42 @@ class KeyboardInput(InputController):
         queue, which makes the request come from "inside" the game's own
         thread and be granted. Then we detach again - and because the call
         lies, we check the window really is in front before trusting it.
+
+        macOS has no equivalent lock: any process the user has granted
+        Accessibility access to (System Settings -> Privacy & Security ->
+        Accessibility) can activate another app directly - no attach/detach
+        dance needed. That permission prompt is the macOS parallel to this
+        whole method, just asked once by the OS instead of coded here.
         """
         if self.has_focus():
             return
 
-        our_thread = _kernel32.GetCurrentThreadId()
-        game_thread = _user32.GetWindowThreadProcessId(ctypes.c_void_p(self.hwnd), None)
-        attached = _user32.AttachThreadInput(our_thread, game_thread, True)
-        try:
-            _user32.SetForegroundWindow(ctypes.c_void_p(self.hwnd))
-        finally:
-            if attached:
-                _user32.AttachThreadInput(our_thread, game_thread, False)
+        if sys.platform == "darwin":
+            app = NSRunningApplication.runningApplicationWithProcessIdentifier_(self.hwnd)
+            if app is None:
+                raise WindowNotFocused(
+                    f"No running application with pid {self.hwnd}. Nothing was "
+                    "typed."
+                )
+            app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        else:
+            our_thread = _kernel32.GetCurrentThreadId()
+            game_thread = _user32.GetWindowThreadProcessId(ctypes.c_void_p(self.hwnd), None)
+            attached = _user32.AttachThreadInput(our_thread, game_thread, True)
+            try:
+                _user32.SetForegroundWindow(ctypes.c_void_p(self.hwnd))
+            finally:
+                if attached:
+                    _user32.AttachThreadInput(our_thread, game_thread, False)
 
         deadline = time.monotonic() + self._FOCUS_TIMEOUT
         while not self.has_focus():
             if time.monotonic() > deadline:
                 raise WindowNotFocused(
                     f"Window {self.hwnd} did not come to the foreground within "
-                    f"{self._FOCUS_TIMEOUT}s. Windows refused the request (the "
-                    "foreground lock), or the window is minimised. Nothing was "
-                    "typed."
+                    f"{self._FOCUS_TIMEOUT}s. The OS refused the request (the "
+                    "Windows foreground lock, or missing macOS Accessibility "
+                    "access), or the window is minimised. Nothing was typed."
                 )
             time.sleep(self._FOCUS_POLL)
 
@@ -387,6 +451,13 @@ class KeyboardInput(InputController):
         no gap to hold open. LibreMines reacts to the key going down.
         """
         self._require_focus()
+        if sys.platform == "darwin":
+            mac_code = _MAC_KEYCODE[key_code]
+            self._send_darwin(
+                Quartz.CGEventCreateKeyboardEvent(None, mac_code, True),
+                Quartz.CGEventCreateKeyboardEvent(None, mac_code, False),
+            )
+            return
         self._send(self._key_event(key_code), self._key_event(key_code, up=True))
 
     def tap_chord(self, modifier_code: int, key_code: int):
@@ -397,12 +468,39 @@ class KeyboardInput(InputController):
         Ctrl stuck down.
         """
         self._require_focus()
+        if sys.platform == "darwin":
+            # Set the modifier as a flag on the key event itself, rather than
+            # posting separate down/up events for the modifier key. Both look
+            # equally reasonable on paper; only the flag version actually
+            # reset the game when tried live (2026-09-07) - see
+            # _MAC_MODIFIER_FLAG above for the full story.
+            mac_code = _MAC_KEYCODE[key_code]
+            mac_flag = _MAC_MODIFIER_FLAG[modifier_code]
+            down = Quartz.CGEventCreateKeyboardEvent(None, mac_code, True)
+            up = Quartz.CGEventCreateKeyboardEvent(None, mac_code, False)
+            Quartz.CGEventSetFlags(down, mac_flag)
+            Quartz.CGEventSetFlags(up, mac_flag)
+            self._send_darwin(down, up)
+            return
         self._send(
             self._key_event(modifier_code),
             self._key_event(key_code),
             self._key_event(key_code, up=True),
             self._key_event(modifier_code, up=True),
         )
+
+    @staticmethod
+    def _send_darwin(*events) -> None:
+        """Post each Quartz event to the HID event tap, in order.
+
+        Teacher Note: unlike SendInput, CGEventPost returns nothing - there is
+        no "N events delivered" count to check the way _send() does below. So
+        this half of the class has no equivalent of _send()'s OSError on a
+        short delivery; the only proof a macOS keystroke landed is the
+        behavioural one - check_hands.py's controls, reading the actual board.
+        """
+        for event in events:
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 
     @staticmethod
     def _key_event(key_code: int, up: bool = False) -> _INPUT:

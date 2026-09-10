@@ -1,8 +1,9 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-09-06 (Bricks 0–6 done;
-> Brick 7 wired and unit-tested; Brick 8 doc closeout in progress).
+> **Status:** current — **open**. **Last verified:** 2026-09-07 (Bricks 0–6 done;
+> Brick 7 verified **PASS live on macOS** — the Windows live run is still
+> outstanding; Brick 8 doc closeout not yet started).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -28,8 +29,8 @@ Fill in a brick's block **when it closes**, not at the end.
 | **Milestone** | M5 — Add the Hands (real key presses, a real game window) |
 | **Started** | 2026-08-25 (pre-flight spike + plan) |
 | **Branch** | `m5-implementation` |
-| **Current brick** | Brick 7 — Wire check_hands.py (the verdict runs live) |
-| **Hardware** | CPU (Windows 11, Python 3.14). No GPU in play — M5 is plumbing, not training |
+| **Current brick** | Brick 7 — `check_hands.py` PASSes live on macOS; the Windows live run is still outstanding |
+| **Hardware** | CPU only, no GPU in play — M5 is plumbing, not training. Windows 11 + Python 3.14 for Bricks 0–6; macOS 26.3.1 (Apple Silicon, arm64) + Python 3.14.7 added for Brick 7's live run |
 | **Closed** | not yet |
 
 ---
@@ -171,6 +172,13 @@ controls; it is the number that decides whether any *learning* observation is
 affordable later. Most of it is scanning a mostly-empty maximized window, so the
 cheap fix, if we ever need one, is a smaller game window.
 
+**Amended 2026-09-07 (found during Brick 7's live macOS run):** `classify_cell`
+only knew two backgrounds — hidden and revealed. A hidden cell with the
+keyboard cursor on it is a third, measured, flat grey. `board_easy_01.png`
+never contains that state; it was captured with the mouse. Full story,
+measurements and the two new fixtures are logged under Brick 7 below, since
+that is where and why it was found — recorded once, not duplicated here.
+
 ---
 
 ## Brick 3 — KeyboardInput (the real hands)
@@ -245,23 +253,171 @@ cheap fix, if we ever need one, is a smaller game window.
 
 ## Brick 7 — The controls (the proof)
 
-**Status:** 🟡 wired 2026-09-06 (ready for live run on Windows host)
-**File(s):** `scripts/check_hands.py`, `tests/test_check_hands.py`
+**Status:** ✅ macOS — verified **PASS**, live, 2026-09-07. 🟡 Windows — wired
+2026-09-06, still not run live. `M5_ToDo.md`'s own bar was written against
+`SendInput`/Windows specifically, so this brick isn't closed until that run
+happens too — see "Still open" at the end of this entry.
+**File(s):** `scripts/check_hands.py`, `tests/test_check_hands.py`,
+`src/gametrainer/screen.py`, `src/gametrainer/input.py`, `setup.py`,
+`src/gametrainer/minesweeper_vision.py`, `tests/test_minesweeper_vision.py`
 
-- **What I built:**
+- **What I built (2026-09-06, unchanged today):**
   - Implemented `collect_measurements()` in `scripts/check_hands.py` to drive all 4 controls against LibreMines:
     1. **Control 1 (Keys live):** Resets board, navigates cursor down 1 and right 2 to cell `(1, 2)`, flags it, and verifies exactly cell `(1, 2)` changes state (`HIDDEN` -> `FLAGGED`).
     2. **Control 2 (NullInput):** Swaps in `NullInput()`, dispatches identical moves + flag, and verifies 0 cells change (the negative case).
     3. **Control 3 (Frozen frame):** Grabs a frozen frame, flags a cell with live hands to alter the screen, and asserts that the frozen-frame observation stays completely stationary while the live observation reflects the screen update.
     4. **Control 4 (Reset):** Loops 20 times unattended, dirtying the board by flagging a cell, sending `Ctrl+R`, and verifying all 64 cells cleanly return to `HIDDEN`.
   - Added unit test suite `tests/test_check_hands.py` to test the pure referee logic (`decide_keys_live`, `decide_null_input`, `decide_frozen_frame`, `decide_reset`, `decide_verdict`) with passing and failing synthetic `Measurements`.
-- **Platform note & discovery:**
-  - `collect_measurements()` and `KeyboardInput` use Windows `SendInput` and `ctypes.WinDLL("user32")`.
-  - On macOS/Linux, `main()` catches `(WindowNotFound, RuntimeError, OSError)` and prints an honest message: `M5 VERDICT: NOT RUN (Game window or environment unavailable)` instead of crashing.
-  - Cross-platform native input (macOS Quartz `CGEventPost`, Linux `uinput`/X11) has been scheduled in `docs/PRD.md` §7.1 as Future Milestone M7.
-- **Verified by:**
-  - Unit tests: `pytest tests/test_check_hands.py` → **7 passed in 0.04 s**. Full suite: **101 passed, 1 skipped in 1.46 s**.
-  - Off-Windows execution: `python scripts/check_hands.py` → exits 1 with honest `NOT RUN` explanation.
-  - Windows live test: Ready to run on Windows 11 host with `libremines.exe` open.
+
+- **Scope changed mid-brick, with sign-off, not silently — 2026-09-07.** The
+  2026-09-06 entry above scheduled cross-platform native input as "Future
+  Milestone M7" and left this brick "ready for a live run on Windows host."
+  Windows still hasn't happened. What happened instead: the agent runs
+  directly on this Mac, so rather than wait for a Windows session, the user
+  asked for a macOS `KeyboardInput`/`GameWindow` backend now, so Brick 7 could
+  actually be proven live today. Recorded as a correction, per DOC_STANDARD
+  rule 4, rather than quietly overwriting the earlier "M7" note — the M7 plan
+  still stands for Linux; macOS just arrived early.
+
+- **The macOS backend, built and proven live (`screen.py`, `input.py`):**
+  mirrors the Windows Brick 1/Brick 3 split exactly — one platform branch per
+  function, same public interface, same class names:
+  - **Window finding:** `Quartz.CGWindowListCopyWindowInfo`, matched by
+    **owning app name**, not title — `kCGWindowName` (the title bar text)
+    comes back `None` for LibreMines even with every permission granted,
+    measured rather than assumed. Returns the app's PID; there is no HWND
+    equivalent on this platform, so `GameWindow`/`KeyboardInput` just carry it
+    under the same `hwnd` name and never need to know the difference.
+  - **Capture:** `mss`, unchanged, fed the Quartz-reported rect. **No DPI
+    trap** — verified by capturing a real window and looking at the PNG:
+    `CGWindowListCopyWindowInfo` bounds and `mss.grab()` already agree in
+    points on this machine, no scale-factor correction needed. Windows and
+    macOS disagree about whether "window coordinates" already mean "screen
+    pixels," and only a real capture said which this one is.
+  - **Focus:** `NSRunningApplication.activateWithOptions_`. Simpler than
+    Windows — no foreground-lock/`AttachThreadInput` dance needed; any process
+    with Accessibility access can activate another app directly. The OS
+    permission prompt for that (System Settings -> Privacy & Security ->
+    Accessibility, granted once, by the user, mid-session, to the terminal
+    host process) is the macOS parallel to the whole of Windows' `focus()`.
+  - **Keys:** `Quartz.CGEventCreateKeyboardEvent` + `CGEventPost`, macOS
+    virtual keycodes (`kVK_*`) translated from the shared `VK_*` constants via
+    a small lookup table. `CGEventPost` returns nothing, unlike `SendInput` —
+    no "N delivered" count to check, so this half of `KeyboardInput` has no
+    equivalent of the Windows `_send()`'s `OSError` on a short delivery. The
+    only proof a macOS keystroke landed is the behavioural one below.
+
+- **Trap — the official macOS build doesn't launch, out of the box.**
+  `libremines-v2.3.0-macos-arm64-qt6.dmg` (sha256
+  `eda50945663e1f8ec7218e174bdc4f8f72b873c60c359b39210c340d89fbf8d9`, 41,216,061
+  bytes, same v2.3.0 GitHub release as the Windows zip) is ad-hoc-signed but
+  the signature covers **no resources** — `spctl -a -vv` says so outright
+  ("code has no resources but signature indicates they must be present").
+  macOS `SIGKILL`s the process (`CODESIGNING`/"Invalid Page", confirmed in
+  four crash reports under `~/Library/Logs/DiagnosticReports/`) the moment it
+  tries to load a bundled `.dylib` — which reads exactly like a broken build,
+  not a signature problem. Fixed locally: `codesign --remove-signature`, then
+  `codesign --deep --force --sign - libremines.app`, re-sealing all 159
+  resources under one ad-hoc signature. Not a repo problem — `games/` is
+  git-ignored, same as the Windows build — but worth recording once so the
+  next machine doesn't lose a session to it.
+
+- **Trap — `Ctrl+R` does nothing on macOS. `Cmd+R` is the real shortcut.**
+  LibreMines' own keybinding, unchanged from the Windows spike, is written
+  once as "Ctrl+R" (confirmed in the app's bundled README). Qt follows Mac
+  convention and remaps that to the **Command** key at runtime, not physical
+  Control. Tried three ways before finding this, each against the real
+  running game: a raw Control keydown/keyup pair around R, an explicit
+  `CGEventFlagMaskControl` set on the R event, and macOS's own `System Events`
+  `keystroke "r" using control down` — all three left the board completely
+  unchanged (same flag, same mine counter, everything, before and after).
+  `keystroke "r" using command down` reset it instantly; a raw `CGEventPost`
+  with `CGEventFlagMaskCommand` set on the R event did too. `tap_chord`'s
+  macOS branch uses the latter. Recorded in `input.py` as a Teacher Note, same
+  style as the Windows `INPUT`-struct-size trap.
+
+- **Bug found and fixed — Brick 2's `classify_cell` didn't know about the
+  keyboard cursor.** Moving onto a cell tints its background a third flat
+  grey, `(185, 185, 185)` — measured live, 100% fill, on every cell tried,
+  flagged or not. `board_easy_01.png` (Brick 2's fixture) never contains this
+  state; it was captured with the mouse, and the highlight only appears in
+  keyboard mode. `classify_cell` now recognises three backgrounds instead of
+  two (`_CURSOR_BODY`, alongside the existing `_HIDDEN_BODY`/`_REVEALED_BODY`);
+  a cursor-highlighted cell reads as `HIDDEN`, same as an unhighlighted one,
+  and the flag/digit logic on top is unchanged. Two new single-cell fixtures
+  (`tests/fixtures/cell_cursor_hidden.png`, `cell_cursor_flagged.png`,
+  captured live 2026-09-07) and two new red-first tests in
+  `tests/test_minesweeper_vision.py`. **Almost certainly not mac-specific** —
+  this is the game's own cursor, not something the OS draws — so the Windows
+  live run would very likely have hit the identical `UnreadableCell` the first
+  time it tried Control 1.
+
+- **Bug found and fixed — `check_hands.py`'s own Control 1 had an
+  off-by-one.** The comment said "down 1, right 2" lands on `(1, 2)`; measured
+  live, it landed on `(0, 2)` — the crash that surfaced the `classify_cell`
+  gap above was at "row 0, column 2," not row 1. Traced key-by-key: the
+  **first** W/A/S/D press only *activates* keyboard-cursor mode and lands the
+  cursor at `(0, 0)` — it does not itself count as a move, in any direction.
+  Every press after that moves normally (confirmed: two `move_right()` calls
+  walked the cursor cleanly `(0,0) -> (0,1) -> (0,2)`). Fixed by sending one
+  throwaway `move_down()` to activate mode before the two moves meant to
+  count, so `target_cell = (1, 2)` is reached for real — four keys sent for a
+  two-step walk, not three. Controls 2-4 were never at risk: none of them
+  hardcode a target cell, so landing the activation press on `(0, 0)` instead
+  of further along never mattered for what they measure.
+
+- **Verified by — the actual milestone bar, live, on this Mac:**
+  `.venv/bin/python scripts/check_hands.py` (LibreMines' theme forced to
+  Aqua/light via `defaults write io.github.Bollos00.LibreMines
+  NSRequiresAquaSystemAppearance -bool YES`, scoped to this one app, so the
+  board matches the fixture's theme rather than this machine's system Dark
+  Mode) ->
+
+  ```
+  M5 VERDICT: PASS
+  [PASS] Control 1 - Keys live       (1 cell changed, target (1,2), exactly)
+  [PASS] Control 2 - NullInput       (0 cells changed, 0 pixels)
+  [PASS] Control 3 - Frozen frame    (live obs: 1 changed; frozen obs: 0)
+  [PASS] Control 4 - Reset           (20/20 resets clean, 0 mouse clicks)
+  ```
+
+  Exit code 0. Apple Silicon (arm64), macOS 26.3.1, Python 3.14.7, mss 10.2.0,
+  pyobjc-framework-Quartz 12.2.1 (already pulled in transitively by `pynput`;
+  declared directly in `setup.py` too, darwin-gated, since this code imports
+  `Quartz`/`AppKit` itself). Full suite: **102 passed, 1 skipped** (was 100 + 1
+  before today's two new vision tests). `ruff check` clean on every file
+  touched today.
+
+- **Two permissions only a human could grant, mid-session:** macOS
+  Accessibility (System Settings -> Privacy & Security -> Accessibility,
+  granted to the terminal host process this session ran under) for
+  `CGEventPost` to reach another app, and Screen Recording (already granted
+  before today) for `mss` to capture real pixels. Both are one-time,
+  per-machine toggles — the closest macOS parallel to Windows needing no
+  elevated privilege at all, just a foreground window.
+
+- **Known follow-up, not fixed today — `make_env`'s live auto-discovery is
+  now reachable on macOS too.** `factory.py`'s bare `make_env(MINESWEEPER)`
+  tries `GameWindow("LibreMines")` and falls back to `NullInput` only on
+  exception (Brick 6 design, unchanged today). Before today this always fell
+  back on macOS, because `GameWindow` always raised there; now that it
+  doesn't, a real LibreMines window left open on the developer's desktop
+  while running `pytest` gets picked up and actually driven by
+  `test_minesweeper_env_passes_check_env_and_matches_space` (it calls
+  `stable_baselines3`'s `check_env`, which really exercises `reset()`/
+  `step()`). Caused one flaky failure mid-session, immediately after a live
+  `check_hands.py` run; not reproduced across three clean repeats with the
+  game fully closed afterward. Left alone deliberately — this is a Brick 6
+  test-isolation question (should that test inject stub `hands`/`window`
+  instead of relying on auto-discovery-plus-fallback?), and the identical risk
+  already existed on Windows, just never triggered there by accident. Needs a
+  decision, not a quiet patch.
+
+- **Still open: the Windows live run itself.** Everything above proves the
+  macOS backend and fixes two bugs that would very likely have hit Windows
+  too, but `M5_ToDo.md`'s own bar was written against `SendInput`/Windows
+  specifically, and nobody has run `check_hands.py` there since Brick 3's
+  platform guard was added 2026-09-06. That run — with both fixes above
+  already in place — is what actually closes this brick.
 
 ---

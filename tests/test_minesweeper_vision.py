@@ -29,9 +29,26 @@ import cv2
 
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
-from src.gametrainer.minesweeper_vision import FLAGGED, HIDDEN, MINE, read_board
+from src.gametrainer.minesweeper_vision import (
+    FLAGGED,
+    HIDDEN,
+    MINE,
+    classify_cell,
+    read_board,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "board_easy_01.png"
+
+# Single-cell fixtures, not a full board: a hidden cell with the keyboard
+# cursor sitting on it is a third background colour (185, 185, 185) that
+# board_easy_01.png never contains - it was captured with the mouse, and the
+# cursor highlight only appears in keyboard mode. Captured live on macOS,
+# 2026-09-07 (see docs/m5/M5_Log.md, Brick 7 - "macOS backend"): move onto a
+# cell, save it; flag that same cell, save it again. Same trap as the main
+# fixture's own Teacher Note - a misread background is silent and wrong, not
+# loud and wrong, so this is measured, not guessed.
+CURSOR_HIDDEN_FIXTURE = Path(__file__).parent / "fixtures" / "cell_cursor_hidden.png"
+CURSOR_FLAGGED_FIXTURE = Path(__file__).parent / "fixtures" / "cell_cursor_flagged.png"
 
 # The answer key, kept in the shape it was verified in: one character per cell.
 #   .  hidden      _  revealed blank      F  flag      1-8  revealed digit
@@ -72,3 +89,15 @@ def test_fixture_reads_back_as_the_verified_grid():
 
 def test_board_is_eight_by_eight():
     assert read_board(_load_fixture()).shape == (8, 8)
+
+
+def test_cursor_highlighted_hidden_cell_reads_as_hidden():
+    frame = cv2.imread(str(CURSOR_HIDDEN_FIXTURE))
+    assert frame is not None, f"fixture image not readable: {CURSOR_HIDDEN_FIXTURE}"
+    assert classify_cell(frame) == HIDDEN
+
+
+def test_cursor_highlighted_flagged_cell_reads_as_flagged():
+    frame = cv2.imread(str(CURSOR_FLAGGED_FIXTURE))
+    assert frame is not None, f"fixture image not readable: {CURSOR_FLAGGED_FIXTURE}"
+    assert classify_cell(frame) == FLAGGED

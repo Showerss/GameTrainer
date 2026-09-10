@@ -74,6 +74,16 @@ MINE = 11
 # --- The measured palette (BGR, the order OpenCV and Brick 1 both use) ---
 _HIDDEN_BODY = np.array([70, 70, 70])
 _REVEALED_BODY = np.array([26, 26, 26])
+# A hidden cell with the keyboard cursor sitting on it is tinted a third,
+# lighter flat grey - measured 2026-09-07, macOS: moving onto a cell (with or
+# without then flagging it) reads back (185, 185, 185) at 100% fill, every
+# time, on every cell tried. Still conceptually "hidden" - only the body
+# colour used for the ink threshold below needs to know which grey it is.
+# The same highlight almost certainly exists on Windows too (this is the
+# game's own cross-platform cursor, not an OS-drawn one) but has never been
+# measured there - the original fixture never captured a cell with the
+# cursor on it.
+_CURSOR_BODY = np.array([185, 185, 185])
 _DIGIT_COLOURS = {1: (255, 104, 0), 2: (0, 130, 0), 3: (0, 0, 255)}
 
 # --- Thresholds, each one sitting in a measured gap ---
@@ -183,18 +193,31 @@ def classify_cell(patch: np.ndarray) -> int:
     pixels = patch.reshape(-1, 3).astype(int)
     colourful = pixels.max(axis=1) - pixels.min(axis=1) > _COLOURFUL
 
-    # Step 1: what is underneath? A hidden cell and a revealed one are two
-    # different flat greys, and the answer decides how the glyph is read.
-    hidden_share = _share_matching(pixels, _HIDDEN_BODY)
-    revealed_share = _share_matching(pixels, _REVEALED_BODY)
-    if max(hidden_share, revealed_share) < _BODY_FRACTION:
+    # Step 1: what is underneath? A hidden cell, a revealed one and a hidden
+    # cell with the cursor on it are three different flat greys, and the
+    # answer decides how the glyph is read. Cursor counts as hidden - it is
+    # the same cell, just highlighted - but the ink check below needs the
+    # right one of the three as "background" or the highlight itself would
+    # be mistaken for a glyph.
+    shares = {
+        "hidden": _share_matching(pixels, _HIDDEN_BODY),
+        "cursor": _share_matching(pixels, _CURSOR_BODY),
+        "revealed": _share_matching(pixels, _REVEALED_BODY),
+    }
+    best = max(shares, key=shares.get)
+    if shares[best] < _BODY_FRACTION:
         raise UnreadableCell(
             f"no recognisable cell background (most common colour "
-            f"{_dominant_colour(pixels)}; expected a hidden {tuple(_HIDDEN_BODY)} "
-            f"or a revealed {tuple(_REVEALED_BODY)})"
+            f"{_dominant_colour(pixels)}; expected a hidden {tuple(_HIDDEN_BODY)}, "
+            f"a cursor-highlighted hidden {tuple(_CURSOR_BODY)}, or a revealed "
+            f"{tuple(_REVEALED_BODY)})"
         )
-    is_hidden = hidden_share > revealed_share
-    background = _HIDDEN_BODY if is_hidden else _REVEALED_BODY
+    is_hidden = best != "revealed"
+    background = {
+        "hidden": _HIDDEN_BODY,
+        "cursor": _CURSOR_BODY,
+        "revealed": _REVEALED_BODY,
+    }[best]
 
     # Step 2: is anything drawn on top of it, and can we name it?
     ink = np.abs(pixels - background).max(axis=1) > _INK_DISTANCE
