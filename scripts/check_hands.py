@@ -317,14 +317,22 @@ def collect_measurements(
         initial_frame = window.grab()
         initial_grid = read_board(initial_frame)
 
-        # Move to target cell (1, 2): down 1, right 2
-        # Starting from top-left (0, 0) in LibreMines keyboard mode
+        # Move to target cell (1, 2): down 1, right 2, from top-left (0, 0).
+        #
+        # Teacher Note: the first W/A/S/D press only ACTIVATES keyboard-cursor
+        # mode - measured live 2026-09-07: one move_down() alone after a
+        # restart left the cursor at (0, 0), not (1, 0). It does not count as
+        # a move in any direction. So reaching (1, 2) needs one extra
+        # activation press before the two real moves below - four keys sent
+        # for a two-step walk, not three.
         target_cell = (1, 2)
-        hands.move_down()
+        hands.move_down()  # activates keyboard mode; lands at (0, 0)
         time.sleep(step_delay)
-        hands.move_right()
+        hands.move_down()  # down 1: (0, 0) -> (1, 0)
         time.sleep(step_delay)
-        hands.move_right()
+        hands.move_right()  # right 1: (1, 0) -> (1, 1)
+        time.sleep(step_delay)
+        hands.move_right()  # right 2: (1, 1) -> (1, 2)
         time.sleep(step_delay)
         hands.flag()
         time.sleep(step_delay)
@@ -450,7 +458,7 @@ def main() -> int:
         print("M5 VERDICT: NOT RUN (Game window or environment unavailable)")
         print("=" * 68)
         print(f"  {err}")
-        print("  Running live controls requires Windows with LibreMines open.")
+        print("  Running live controls requires Windows or macOS with LibreMines open.")
         print("=" * 68)
         return 1
 
