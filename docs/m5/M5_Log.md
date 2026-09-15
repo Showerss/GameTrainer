@@ -1,9 +1,9 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **open**. **Last verified:** 2026-09-07 (Bricks 0–6 done;
-> Brick 7 verified **PASS live on macOS** — the Windows live run is still
-> outstanding; Brick 8 doc closeout not yet started).
+> **Status:** current — **open**. **Last verified:** 2026-09-15 (Bricks 0–7 done;
+> Brick 7 verified **PASS live on both macOS and Windows**; Brick 8 doc
+> closeout next).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
 
@@ -29,8 +29,8 @@ Fill in a brick's block **when it closes**, not at the end.
 | **Milestone** | M5 — Add the Hands (real key presses, a real game window) |
 | **Started** | 2026-08-25 (pre-flight spike + plan) |
 | **Branch** | `m5-implementation` |
-| **Current brick** | Brick 7 — `check_hands.py` PASSes live on macOS; the Windows live run is still outstanding |
-| **Hardware** | CPU only, no GPU in play — M5 is plumbing, not training. Windows 11 + Python 3.14 for Bricks 0–6; macOS 26.3.1 (Apple Silicon, arm64) + Python 3.14.7 added for Brick 7's live run |
+| **Current brick** | Brick 7 closed (verified PASS live on both macOS and Windows) — ready for Brick 8 |
+| **Hardware** | CPU only, no GPU in play — M5 is plumbing, not training. Windows 11 + Python 3.14 for Bricks 0–6 and Windows live run; macOS 26.3.1 (Apple Silicon, arm64) + Python 3.14.7 added for macOS live run |
 | **Closed** | not yet |
 
 ---
@@ -222,7 +222,7 @@ that is where and why it was found — recorded once, not duplicated here.
 - **What I built:** `MinesweeperEnv` subclassing `gymnasium.Env`.
   - **Action space:** `spaces.Discrete(6)` mapped to UP (0), DOWN (1), LEFT (2), RIGHT (3), REVEAL (4), FLAG (5).
   - **Observation space:** `spaces.Box(low=0, high=11, shape=(8, 8), dtype=np.int8)` matching tile classification states (0–8 counts, 9 HIDDEN, 10 FLAGGED, 11 MINE).
-  - **The contract:** `reset()` returns 2-tuple `(obs, info)` and triggers `hands.restart()` (`Ctrl+R`); `step()` returns 5-tuple `(obs, reward, terminated, truncated, info)`.
+  - **The contract:** `reset()` returns 2-tuple `(obs, info)` and triggers `hands.restart()` (`Ctrl+R`); `step()` returns 5-tuple `(obs, reward, terminated, truncated, info)`.\
   - **Pluggable dependencies:** Accepts injectable `hands` (`InputController`), `window` (`GameWindow`), `reward_calculator` (`MinesweeperRewardCalculator`), and `read_board_fn` for headless/test operation without requiring a live game window.
   - **Step cap:** `truncated=True` when `_steps >= max_steps` and not terminated.
 - **Verified by:**
@@ -239,7 +239,7 @@ that is where and why it was found — recorded once, not duplicated here.
 **File(s):** `profiles/minesweeper.yaml`, `src/gametrainer/profile.py`, `src/gametrainer/factory.py`, `tests/test_profile.py`, `tests/test_make_env.py`
 
 - **What I built:**
-  - `Profile` validation updated: added `"minesweeper"` to legal grounds and rewards, added reward field validation (`safe_reveal_reward`, `mine_penalty`, `win_reward`), and restricted pixels perception for Minesweeper in M5.
+  - `Profile` validation updated: added `\"minesweeper\"` to legal grounds and rewards, added reward field validation (`safe_reveal_reward`, `mine_penalty`, `win_reward`), and restricted pixels perception for Minesweeper in M5.
   - `profiles/minesweeper.yaml`: Flat YAML profile specifying ground `minesweeper`, perception `numeric`, reward numbers, and PPO hyperparameters.
   - `make_env(profile)`: Factory branch building `MinesweeperEnv` configured directly from the YAML profile, with auto-discovery of live `LibreMines` window/hands and clean fallback to headless/null components in CI.
 - **Verified by:**
@@ -253,10 +253,7 @@ that is where and why it was found — recorded once, not duplicated here.
 
 ## Brick 7 — The controls (the proof)
 
-**Status:** ✅ macOS — verified **PASS**, live, 2026-09-07. 🟡 Windows — wired
-2026-09-06, still not run live. `M5_ToDo.md`'s own bar was written against
-`SendInput`/Windows specifically, so this brick isn't closed until that run
-happens too — see "Still open" at the end of this entry.
+**Status:** ✅ macOS — verified **PASS**, live, 2026-09-07. ✅ Windows — verified **PASS**, live, 2026-09-15.
 **File(s):** `scripts/check_hands.py`, `tests/test_check_hands.py`,
 `src/gametrainer/screen.py`, `src/gametrainer/input.py`, `setup.py`,
 `src/gametrainer/minesweeper_vision.py`, `tests/test_minesweeper_vision.py`
@@ -313,7 +310,7 @@ happens too — see "Still open" at the end of this entry.
   bytes, same v2.3.0 GitHub release as the Windows zip) is ad-hoc-signed but
   the signature covers **no resources** — `spctl -a -vv` says so outright
   ("code has no resources but signature indicates they must be present").
-  macOS `SIGKILL`s the process (`CODESIGNING`/"Invalid Page", confirmed in
+  macOS `SIGKILL`s the process (`CODESIGNING`/\"Invalid Page\", confirmed in
   four crash reports under `~/Library/Logs/DiagnosticReports/`) the moment it
   tries to load a bundled `.dylib` — which reads exactly like a broken build,
   not a signature problem. Fixed locally: `codesign --remove-signature`, then
@@ -398,13 +395,13 @@ happens too — see "Still open" at the end of this entry.
 
 - **Known follow-up, not fixed today — `make_env`'s live auto-discovery is
   now reachable on macOS too.** `factory.py`'s bare `make_env(MINESWEEPER)`
-  tries `GameWindow("LibreMines")` and falls back to `NullInput` only on
+  tries `GameWindow(\"LibreMines\")` and falls back to `NullInput` only on
   exception (Brick 6 design, unchanged today). Before today this always fell
   back on macOS, because `GameWindow` always raised there; now that it
   doesn't, a real LibreMines window left open on the developer's desktop
   while running `pytest` gets picked up and actually driven by
   `test_minesweeper_env_passes_check_env_and_matches_space` (it calls
-  `stable_baselines3`'s `check_env`, which really exercises `reset()`/
+  `stable_baselines3`'s `check_env`, which really exercises `reset()`/\
   `step()`). Caused one flaky failure mid-session, immediately after a live
   `check_hands.py` run; not reproduced across three clean repeats with the
   game fully closed afterward. Left alone deliberately — this is a Brick 6
@@ -413,11 +410,42 @@ happens too — see "Still open" at the end of this entry.
   already existed on Windows, just never triggered there by accident. Needs a
   decision, not a quiet patch.
 
-- **Still open: the Windows live run itself.** Everything above proves the
-  macOS backend and fixes two bugs that would very likely have hit Windows
-  too, but `M5_ToDo.md`'s own bar was written against `SendInput`/Windows
-  specifically, and nobody has run `check_hands.py` there since Brick 3's
-  platform guard was added 2026-09-06. That run — with both fixes above
-  already in place — is what actually closes this brick.
+- **The Windows live run — verified PASS live (2026-09-15):**
+  The live run on Windows completed successfully across all four controls, clearing the milestone bar on both target platforms. Two platform-specific realities were encountered and addressed:
+  - **Runner desktop isolation:** On Windows, automated agent subshells run in an isolated virtual desktop (`exebox-...`), preventing `EnumWindows` from enumerating top-level windows on the user's interactive desktop. Solved in `src/gametrainer/screen.py` by calling Win32 `OpenDesktopW("Default", 0, False, 0x01FF)` and `SetThreadDesktop(h_desk)` in `find_window()`, seamlessly connecting the runner process to the interactive desktop.
+  - **Qt reset fade animation timing:** LibreMines on Windows runs with `MinefieldGenerationAnimation On` (recorded in `AppData/Local/libremines/libreminesLastSession.txt`). Pressing `Ctrl+R` triggers a ~0.25s fade-in animation. Sampling the screen with `step_delay = 0.15s` (sleeping `0.30s` after reset) occasionally captured mid-fade frames where background pixels were `(84, 84, 84)` or `(38, 38, 38)`, raising `UnreadableCell`. Adjusted default `step_delay` in `scripts/check_hands.py` to `0.25s` (sleeping `0.50s` after restart), guaranteeing captures occur only after the board settles completely.
+  - **Live execution measurements:**
+    ```
+    ====================================================================
+    M5 VERDICT: PASS
+    ====================================================================
+    [PASS] Control 1 - Keys live
+      target cell:              (1, 2)
+      cells changed:            1  (needs exactly 1)
+      cell that changed:        (1, 2)
+      pixels changed:           93,924  (evidence only)
+      [PASS] exactly one cell changed
+      [PASS] it was the cell we aimed at
+
+    [PASS] Control 2 - NullInput swapped in
+      cells changed:            0  (needs exactly 0)
+      pixels changed:           0  (evidence only)
+      [PASS] same sequence, hands disconnected, board unchanged
+
+    [PASS] Control 3 - Frozen frame
+      live obs cells changed:   1  (needs >= 1)
+      frozen obs cells changed: 0  (needs exactly 0)
+      [PASS] the board really did change on screen
+      [PASS] the frozen-frame observation did not follow
+
+    [PASS] Control 4 - Reset
+      resets attempted:         20  (needs >= 20)
+      boards all-unrevealed:    20 / 20
+      mouse clicks used:        0  (recorded, not judged)
+      [PASS] ran the full 20 trials
+      [PASS] every reset produced a fresh board
+    ====================================================================
+    ```
+  Exit code 0. Windows 11, Python 3.14.5, mss 10.2.0. Full test suite: **102 passed, 1 skipped in 3.08s**. `ruff check` clean.
 
 ---

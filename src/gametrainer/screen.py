@@ -154,6 +154,14 @@ def find_window(title_contains: str) -> int:
             "Game window discovery requires Windows or macOS."
         )
 
+    # Attach to the interactive Default desktop if currently running on a subdesktop
+    try:
+        h_desk = _user32.OpenDesktopW("Default", 0, False, 0x01FF)
+        if h_desk:
+            _user32.SetThreadDesktop(h_desk)
+    except Exception:
+        pass
+
     matches: list[int] = []
 
     def visit(hwnd, _lparam):

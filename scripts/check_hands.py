@@ -293,7 +293,7 @@ def print_finish_line() -> None:
 
 def collect_measurements(
     title: str = "LibreMines",
-    step_delay: float = 0.15,
+    step_delay: float = 0.25,
 ) -> Measurements:
     """Drive a live LibreMines window and return what the referee needs.
 
