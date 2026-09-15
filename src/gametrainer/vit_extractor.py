@@ -72,8 +72,8 @@ We "fine-tune" this on game images - the model adapts its knowledge to games.
 This is MUCH faster than training from scratch.
 """
 
-import torch
 import gymnasium as gym
+import torch
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 

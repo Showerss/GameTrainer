@@ -8,13 +8,12 @@ running on, without hard-requiring CUDA.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class AcceleratorInfo:
     chosen: str
-    torch_version: Optional[str]
+    torch_version: str | None
     cuda_available: bool
     mps_available: bool
 
@@ -27,7 +26,7 @@ def detect_accelerator(prefer_gpu: bool = True) -> AcceleratorInfo:
     """
     try:
         import torch
-    except Exception:
+    except ImportError:
         # If torch isn't importable yet (e.g. before dependency install),
         # default to CPU.
         return AcceleratorInfo(
@@ -79,4 +78,3 @@ def print_accelerator_banner(info: AcceleratorInfo) -> None:
         print("  Note: Training on CPU will be very slow for ViT + PPO.")
         print("        If you expected GPU training, check your torch install.")
     print("=" * 60 + "\n")
-

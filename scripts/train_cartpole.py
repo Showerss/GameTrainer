@@ -33,9 +33,10 @@ Usage:
     python scripts/train_cartpole.py --render       # watch the agent play
 """
 
+import argparse
 import os
 import sys
-import argparse
+
 import numpy as np
 
 # Print UTF-8 so status glyphs (≥, ×, ✅) don't crash on Windows consoles (cp1252).
@@ -48,8 +49,8 @@ sys.path.insert(0, _project_root)
 
 import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 # We import NullInput to keep the architecture in view even though CartPole
 # is programmatic and doesn't need real key presses. Consistent with run_cartpole.py.
@@ -119,7 +120,7 @@ def make_eval_env(render: bool) -> gym.Env:
     render_mode = "human" if render else None
     try:
         return gym.make("CartPole-v1", render_mode=render_mode)
-    except Exception:
+    except Exception:  # noqa: BLE001 - silent fallback if display/human render is unavailable
         # Fall back silently if human rendering isn't available
         return gym.make("CartPole-v1")
 

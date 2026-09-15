@@ -13,12 +13,12 @@ import time
 
 # Import our custom C++ "hands" extension (only built at M5; see setup.py).
 try:
-    import src.gametrainer.clib as clib
+    from src.gametrainer import clib
 except ImportError:
     # No compiled extension found. Expected for M0–M2 (CartPole/GridWorld).
     import warnings
     warnings.warn(
-        "[input] C++ input extension not loaded (fine for CartPole/GridWorld; needed at M5).",
+        "[input] C++ input extension not loaded (optional; KeyboardInput uses native OS input).",
         RuntimeWarning,
         stacklevel=2,
     )
@@ -67,7 +67,7 @@ class InputController:
         """
         try:
             clib.send_key(key_code)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"ERROR: Failed to send key {key_code}: {e}")
 
     # Movement keys
@@ -117,7 +117,7 @@ class InputController:
         """
         try:
             clib.send_mouse_click()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"ERROR: Failed to send mouse click: {e}")
 
     def mouse_right_click(self):
@@ -127,7 +127,7 @@ class InputController:
         """
         try:
             clib.send_mouse_right_click()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"ERROR: Failed to send right mouse click: {e}")
 
 class NullInput(InputController):
@@ -141,12 +141,10 @@ class NullInput(InputController):
 
     def tap_key(self, key_code: int, duration: float = 0.1):
         """No-op key press."""
-        pass
 
     def tap_chord(self, modifier_code: int, key_code: int):
         """No-op chord. reveal(), flag() and restart() route through this and
         tap_key, so they need no override of their own and cannot drift."""
-        pass
 
     def move_up(self): pass
     def move_down(self): pass
@@ -159,15 +157,12 @@ class NullInput(InputController):
 
     def mouse_move(self, dx: int, dy: int):
         """No-op mouse move."""
-        pass
 
     def mouse_click(self):
         """No-op left mouse click."""
-        pass
 
     def mouse_right_click(self):
         """No-op right mouse click."""
-        pass
 
 
 # ===========================================================================
@@ -240,7 +235,7 @@ class _MOUSEINPUT(ctypes.Structure):
 
 
 class _INPUT_UNION(ctypes.Union):
-    _fields_ = [("ki", _KEYBDINPUT), ("mi", _MOUSEINPUT)]
+    _fields_ = [("ki", _KEYBDINPUT), ("mi", _MOUSEINPUT)]  # noqa: RUF012
 
 
 class _INPUT(ctypes.Structure):

@@ -220,10 +220,14 @@ def decide_verdict(
     lines = [
         f"  Live random baseline:   {live_baseline:+.2f} reward/episode",
         f"  Trained mean reward:    {trained_mean_reward:+.2f} reward/episode",
-        f"  [{mark(beats_baseline)}] beats baseline by >= {MARGIN_OVER_BASELINE:.2f}"
-        f"  (needs >= {live_baseline + MARGIN_OVER_BASELINE:+.2f})",
-        f"  [{mark(reaches_goal)}] reaches goal in most episodes"
-        f"  ({goal_rate * 100:.0f}%, needs >= {GOAL_RATE_TO_PASS * 100:.0f}%)",
+        (
+            f"  [{mark(beats_baseline)}] beats baseline by >= {MARGIN_OVER_BASELINE:.2f}"
+            f"  (needs >= {live_baseline + MARGIN_OVER_BASELINE:+.2f})"
+        ),
+        (
+            f"  [{mark(reaches_goal)}] reaches goal in most episodes"
+            f"  ({goal_rate * 100:.0f}%, needs >= {GOAL_RATE_TO_PASS * 100:.0f}%)"
+        ),
         f"  [{mark(shapes_ok)}] reset()/step() shapes unchanged from M2",
     ]
     return passed, lines

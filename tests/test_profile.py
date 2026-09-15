@@ -21,60 +21,60 @@ from src.gametrainer.profile import Profile
 
 # A known-good GridWorld profile. Individual tests below change ONE field so
 # the reason a load fails is never ambiguous. Numbers match train_gridworld.py.
-GOOD_GRIDWORLD = dict(
-    ground="gridworld",
-    perception="numeric",
-    reward="gridworld",
-    step_cost=-0.01,
-    goal_reward=1.0,
-    total_timesteps=25_000,
-    learning_rate=3e-4,
-    n_steps=2048,
-    batch_size=64,
-    n_epochs=10,
-    gamma=0.99,
-    gae_lambda=0.95,
-    clip_range=0.2,
-    ent_coef=0.0,
-    margin_over_baseline=0.5,
-)
+GOOD_GRIDWORLD = {
+    "ground": "gridworld",
+    "perception": "numeric",
+    "reward": "gridworld",
+    "step_cost": -0.01,
+    "goal_reward": 1.0,
+    "total_timesteps": 25_000,
+    "learning_rate": 3e-4,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.0,
+    "margin_over_baseline": 0.5,
+}
 
 # A known-good CartPole profile. reward: builtin -- no step_cost/goal_reward.
-GOOD_CARTPOLE = dict(
-    ground="cartpole",
-    perception="numeric",
-    reward="builtin",
-    total_timesteps=25_000,
-    learning_rate=3e-4,
-    n_steps=2048,
-    batch_size=64,
-    n_epochs=10,
-    gamma=0.99,
-    gae_lambda=0.95,
-    clip_range=0.2,
-    ent_coef=0.0,
-    margin_over_baseline=22.0,
-)
+GOOD_CARTPOLE = {
+    "ground": "cartpole",
+    "perception": "numeric",
+    "reward": "builtin",
+    "total_timesteps": 25_000,
+    "learning_rate": 3e-4,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.0,
+    "margin_over_baseline": 22.0,
+}
 
 # A known-good Minesweeper profile (M5, Brick 6).
-GOOD_MINESWEEPER = dict(
-    ground="minesweeper",
-    perception="numeric",
-    reward="minesweeper",
-    safe_reveal_reward=1.0,
-    mine_penalty=-10.0,
-    win_reward=10.0,
-    total_timesteps=20_000,
-    learning_rate=3e-4,
-    n_steps=2048,
-    batch_size=64,
-    n_epochs=10,
-    gamma=0.99,
-    gae_lambda=0.95,
-    clip_range=0.2,
-    ent_coef=0.0,
-    margin_over_baseline=0.0,
-)
+GOOD_MINESWEEPER = {
+    "ground": "minesweeper",
+    "perception": "numeric",
+    "reward": "minesweeper",
+    "safe_reveal_reward": 1.0,
+    "mine_penalty": -10.0,
+    "win_reward": 10.0,
+    "total_timesteps": 20_000,
+    "learning_rate": 3e-4,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.0,
+    "margin_over_baseline": 0.0,
+}
 
 
 def _write(tmpdir, fields: dict, filename: str = "profile.yaml") -> str:

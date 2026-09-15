@@ -13,7 +13,8 @@ See docs/m5/M5_ToDo.md, Brick 5.
 from __future__ import annotations
 
 import time
-from typing import Callable
+from collections.abc import Callable
+from typing import ClassVar
 
 import gymnasium as gym
 import numpy as np
@@ -28,7 +29,7 @@ from src.gametrainer.screen import GameWindow
 class MinesweeperEnv(gym.Env):
     """An 8x8 Minesweeper environment that follows the Gymnasium contract."""
 
-    metadata = {"render_modes": ["ansi"]}
+    metadata: ClassVar[dict[str, list[str]]] = {"render_modes": ["ansi"]}
 
     GRID_SIZE = GRID  # 8x8 Easy board
 

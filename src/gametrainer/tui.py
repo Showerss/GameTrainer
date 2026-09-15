@@ -15,13 +15,11 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import IntPrompt, Prompt
 from rich.text import Text
-
 
 console = Console()
 
@@ -50,7 +48,7 @@ def _project_root() -> Path:
 def _safe_read_text(path: Path, max_chars: int = 25_000) -> str:
     try:
         data = path.read_text(encoding="utf-8")
-    except Exception as e:
+    except OSError as e:
         return f"[Could not read {path}: {type(e).__name__}: {e}]"
     if len(data) > max_chars:
         return data[:max_chars] + "\n\n[... truncated ...]\n"
@@ -64,7 +62,7 @@ def _get_meta() -> tuple[str, str]:
     try:
         from src.gametrainer import __author__, __version__
         return str(__version__), str(__author__)
-    except Exception:
+    except (ImportError, AttributeError):
         return "unknown", "unknown"
 
 
@@ -100,7 +98,7 @@ def _menu() -> Panel:
     return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
 
 
-def _run_script(relpath: str, extra_args: Optional[list[str]] = None) -> int:
+def _run_script(relpath: str, extra_args: list[str] | None = None) -> int:
     root = _project_root()
     script_path = (root / relpath).resolve()
     if not script_path.is_file():
@@ -122,13 +120,13 @@ def _pip_install_editable(with_rl: bool) -> int:
     return subprocess.call([sys.executable, "-m", "pip", "install", "-e", pkg], cwd=str(root))
 
 
-def run_tui(cfg: Optional[TuiConfig] = None) -> int:
+def run_tui(cfg: TuiConfig | None = None) -> int:
     cfg = cfg or TuiConfig()
 
     while True:
         console.clear()
         console.print(_header(cfg))
-        console.print(_menu())
+        console.print(_menu())\
 
         choice = IntPrompt.ask(
             "Selection",
@@ -212,4 +210,3 @@ def run_tui(cfg: Optional[TuiConfig] = None) -> int:
             continue
 
         return 0
-

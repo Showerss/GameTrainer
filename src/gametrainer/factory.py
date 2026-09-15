@@ -9,7 +9,7 @@ See docs/m4/M4_ToDo.md, Brick 3 and docs/m5/M5_ToDo.md, Brick 6.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import gymnasium as gym
 import numpy as np
@@ -62,7 +62,7 @@ def make_env(
             try:
                 resolved_window = GameWindow("LibreMines")
                 resolved_hands = KeyboardInput(resolved_window.hwnd)
-            except Exception:
+            except Exception:  # noqa: BLE001 - fallback to NullInput/headless if game window isn't open
                 resolved_window = None
                 resolved_hands = NullInput()
         elif resolved_hands is None:

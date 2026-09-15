@@ -21,8 +21,8 @@ if hasattr(sys.stdout, "reconfigure"):
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _project_root)
 
-from src.gametrainer.input import NullInput
 from src.gametrainer.gridworld import GridWorldEnv
+from src.gametrainer.input import NullInput
 
 
 def main():
@@ -53,7 +53,7 @@ def main():
 
     print(f"\nRunning {episodes} episodes of random actions...\n")
     for ep in range(1, episodes + 1):
-        obs, info = env.reset()
+        _obs, info = env.reset()
         ep_reward = 0.0
         terminated = truncated = False
 
@@ -61,7 +61,7 @@ def main():
         while not (terminated or truncated):
             action = env.action_space.sample()
             move[action]()  # hands press a key; NullInput does nothing
-            obs, reward, terminated, truncated, info = env.step(action)
+            _obs, reward, terminated, truncated, info = env.step(action)
             ep_reward += reward
 
         reached = terminated  # GridWorld only terminates by reaching the goal

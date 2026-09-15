@@ -8,7 +8,8 @@ We use C++ for input because it needs direct access to Windows APIs.
 
 import os
 import sys
-from setuptools import setup, Extension
+
+from setuptools import Extension, setup
 
 # The C++ input-injection extension ("the hands") is OPT-IN — not built by default.
 #

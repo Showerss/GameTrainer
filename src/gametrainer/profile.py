@@ -16,7 +16,6 @@ docs/m4/M4_ToDo.md, "The name collision".
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import yaml
 
@@ -74,21 +73,21 @@ class Profile:
     clip_range: float
     ent_coef: float
     margin_over_baseline: float
-    step_cost: Optional[float] = None
-    goal_reward: Optional[float] = None
-    min_goal_rate: Optional[float] = None
-    safe_reveal_reward: Optional[float] = None
-    mine_penalty: Optional[float] = None
-    win_reward: Optional[float] = None
+    step_cost: float | None = None
+    goal_reward: float | None = None
+    min_goal_rate: float | None = None
+    safe_reveal_reward: float | None = None
+    mine_penalty: float | None = None
+    win_reward: float | None = None
 
     @classmethod
-    def from_yaml(cls, path: str) -> "Profile":
+    def from_yaml(cls, path: str) -> Profile:
         """Load and validate a profile. Raises ValueError, loudly, at load time."""
         with open(path, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
 
         if not isinstance(raw, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004 - ValueError required by profile contract & test_profile.py
                 f"{path}: profile must be a YAML mapping, got {type(raw).__name__}"
             )
 

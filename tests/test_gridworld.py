@@ -54,7 +54,7 @@ def test_reaching_goal_terminates_with_reward():
         env.step(GridWorldEnv.DOWN)
     for _ in range(3):
         env.step(GridWorldEnv.RIGHT)
-    obs, reward, terminated, truncated, info = env.step(GridWorldEnv.RIGHT)
+    _obs, reward, terminated, truncated, _info = env.step(GridWorldEnv.RIGHT)
 
     assert terminated is True
     assert truncated is False
@@ -132,7 +132,7 @@ def test_ordinary_step_pays_step_cost():
     env = GridWorldEnv()
     env.reset()
 
-    obs, reward, terminated, truncated, info = env.step(GridWorldEnv.DOWN)
+    _obs, reward, terminated, truncated, _info = env.step(GridWorldEnv.DOWN)
     assert reward == GridWorldEnv.STEP_COST
     assert terminated is False
     assert truncated is False

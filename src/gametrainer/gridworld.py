@@ -19,8 +19,10 @@ class still owns the two numbers (STEP_COST, GOAL_REWARD) and feeds them in,
 so behaviour is unchanged from M2/M3.
 """
 
-import numpy as np
+from typing import ClassVar
+
 import gymnasium as gym
+import numpy as np
 from gymnasium import spaces
 from gymnasium.wrappers import TimeLimit
 
@@ -30,7 +32,7 @@ from src.gametrainer.rewards import RewardCalculator
 class GridWorldEnv(gym.Env):
     """A 5x5 walk-to-the-goal world that follows the Gymnasium contract."""
 
-    metadata = {"render_modes": ["human", "rgb_array"]}
+    metadata: ClassVar[dict[str, list[str]]] = {"render_modes": ["human", "rgb_array"]}
 
     # World shape (fixed for M2).
     SIZE = 5                 # 5x5 grid
