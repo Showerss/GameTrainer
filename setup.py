@@ -42,6 +42,7 @@ _install_requires = [
     "pyyaml",         # YAML config file parsing
     "pynput",         # Global keyboard/mouse input capture
     "rich",           # Terminal formatting for the TUI menu (main.py's default path)
+    "typing-extensions>=4.7",  # Self type available on Python 3.9
 ]
 
 # macOS's KeyboardInput/GameWindow (M5) use Quartz and AppKit directly for
