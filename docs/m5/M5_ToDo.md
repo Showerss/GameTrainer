@@ -21,7 +21,9 @@ process. M5 is the first milestone where the loop **leaves the process**: the ga
 a separate program, the eyes are a screen grab, and the hands are keystrokes the
 operating system delivers to a window we do not own.
 
----\n\n## The bar is plumbing, not learning
+---
+
+## The bar is plumbing, not learning
 
 **M5 does not require PPO to learn Minesweeper.** Say it out loud, because the
 temptation to move this bar mid-milestone will be real (CLAUDE.md §5 forbids it).
