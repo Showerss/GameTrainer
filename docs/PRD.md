@@ -2,14 +2,10 @@
 
 > **Covers:** what gets built, and in what order — the milestone plan, scope, and
 > the architecture this project is proving out.
-> **Status:** current. **Last verified:** 2026-09-10 (§8's "Windows-only live
-> hands" note corrected in place — a live macOS backend shipped in M5 Brick 7,
-> 2026-09-07, one day after that note was written; see the dated correction
-> in §8. This pass only checked §8, not the rest of the file). Previous full
-> pass 2026-09-06 (§7.1 added Future Milestones list including cross-platform
-> macOS/Linux native hands; §8 gained the now-corrected Windows-only note.
-> Earlier pass 2026-08-26: §8 gained minimised-window v1 limitation found in
-> M5 Brick 1).
+> **Status:** current. **Last verified:** 2026-09-19 (M5 closed and verified PASS
+> live on both macOS and Windows; all 8 bricks complete). Previous pass 2026-09-10
+> (§8's "Windows-only live hands" note corrected in place — a live macOS backend
+> shipped in M5 Brick 7, 2026-09-07). Previous full pass 2026-09-06.
 > **Authority:** this file wins on *what* gets built and in what order.
 > `docs/DOC_STANDARD.md` wins on *how* docs are written.
 
@@ -36,9 +32,9 @@ Three big parts:
 
 The **AI** is itself three pieces:
 
-- **Eyes** → a Vision Transformer (ViT). *Only sees.* Turns pixels into a summary.
+- **Eyes** → a Vision Transformer (ViT) or CV tile classifier. *Only sees.* Turns pixels into a summary.
 - **Brain** → PPO (from stable-baselines3). *Only decides.* Learns what's good.
-- **Hands** → a Python input library. *Only acts.* Presses keys.
+- **Hands** → a Python/native input layer. *Only acts.* Presses keys.
 
 The whole thing is one tiny loop, forever:
 
@@ -49,7 +45,7 @@ observe  →  act  →  reward  →  repeat
 **What we build vs. borrow:**
 
 - ✅ **We build:** the Ground (game worlds) and the Link (the socket + profiles).
-- 🔁 **We borrow:** the Brain (PPO) and the Eyes backbone (a pretrained ViT).
+- 🔄 **We borrow:** the Brain (PPO) and the Eyes backbone (a pretrained ViT).
 
 ---
 
@@ -60,8 +56,9 @@ We do **NOT** start on Stardew Valley. It has no clear score and messy rewards. 
 1. **CartPole** (built-in game) → prove the link + borrowed brain work. *Build nothing.*
 2. **Tiny GridWorld** (our own game) → prove we can author a Ground with its own reward.
 3. **Add the Eyes** → make the agent learn from a *picture* of the grid instead of from numbers.
-4. **Add the Hands** → drive a real, simple game window with Python key-presses.
-5. **Stardew (stretch / later)** → it becomes *just another profile*.
+4. **Make it swappable** → prove switching games is config-only.
+5. **Add the Hands** → drive a real, simple game window with real key-presses (**VERIFIED LIVE**).
+6. **Stardew (stretch / later)** → it becomes *just another profile*.
 
 **Non-goals (on purpose, for now):**
 
@@ -87,8 +84,8 @@ observation, reward, terminated, truncated, info = env.step(action)
 If a Ground obeys that, **any** brain can plug in. That swappability *is* the architecture flex.
 
 - **`GameEnvironment`** — wraps a game. Holds a **Perception** (eyes), an **InputController** (hands), a **RewardCalculator**, and a **Profile**.
-- **`Perception`** — swappable. `NumericPerception` early on; `VisionPerception` (ViT) later.
-- **`InputController`** — swappable. `NullInput` (programmatic, for CartPole/GridWorld); `KeyboardInput` (Python lib, for real games).
+- **`Perception`** — swappable. `NumericPerception` early on; `VisionPerception` (ViT / CV) later.
+- **`InputController`** — swappable. `NullInput` (programmatic, for CartPole/GridWorld); `KeyboardInput` (SendInput/Quartz, for real games).
 - **`RewardCalculator`** — turns game state into a score.
 - **`Profile`** — loads `profile.yaml` (key mappings, settings). Adding a new game = adding a profile.
 - **`Agent`** — *borrowed*. PPO from stable-baselines3. We don't write this.
@@ -195,10 +192,8 @@ classDiagram
 | `tensorboard` | Watch training improve | 1 |
 | `timm` | The Eyes (pretrained ViT) | 3 |
 | `opencv-python` | Resize / process screen images | 3 |
-| `mss` | Fast screen capture of a real game | 4 |
-| `pydirectinput` | The Hands (sends key presses) | 4 |
-
-> ⚠️ **AMD note (your RX 9070 XT):** GPU PyTorch on AMD (ROCm) can be fiddly. Good news — CartPole and GridWorld train fine on **CPU**, so you don't need the GPU working until Phase 3 (the ViT). Sort ROCm out before then, or start the ViT phase small.
+| `mss` | Fast screen capture of a real game | 4 / 5 |
+| `SendInput` / `Quartz` | The Hands (native OS key presses) | 5 |
 
 ---
 
@@ -208,12 +203,12 @@ Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly
 
 | # | Goal | Done when… | ~Time |
 | :--- | :--- | :--- | :--- |
-| **M0** | Setup | Repo + virtualenv created, libs installed, a script runs CartPole with random actions for 100 steps without crashing. | Week 1 |
-| **M1** | Borrow the brain | PPO trains on CartPole through your runner; average reward clearly rises vs. the random baseline. | Week 2–3 |
-| **M2** | Build your own Ground | A `GridWorld` env obeys the Gymnasium contract; a random agent runs, then PPO learns to reach the goal. | Week 4–5 |
-| **M3** | Add the Eyes | `VisionPerception` feeds a *picture* of GridWorld to the ViT; PPO still learns (slower is fine). | Week 6–8 |
-| **M4** | Make it swappable | `Profile` + `RewardCalculator` exist; switching between CartPole and GridWorld is **config-only**, no code edits. | Week 9–10 |
-| **M5** | Add the Hands | `KeyboardInput` sends real key presses; the loop drives a tiny real game window end-to-end. | Week 11–13 |
+| **M0** | Setup | Repo + virtualenv created, libs installed, a script runs CartPole with random actions for 100 steps without crashing. | Week 1 (DONE) |
+| **M1** | Borrow the brain | PPO trains on CartPole through your runner; average reward clearly rises vs. the random baseline. | Week 2–3 (DONE) |
+| **M2** | Build your own Ground | A `GridWorld` env obeys the Gymnasium contract; a random agent runs, then PPO learns to reach the goal. | Week 4–5 (DONE) |
+| **M3** | Add the Eyes | `VisionPerception` feeds a *picture* of GridWorld to the ViT; PPO still learns (slower is fine). | Week 6–8 (DONE) |
+| **M4** | Make it swappable | `Profile` + `RewardCalculator` exist; switching between CartPole and GridWorld is **config-only**, no code edits. | Week 9–10 (DONE) |
+| **M5** | Add the Hands | `KeyboardInput` sends real key presses; the loop drives a tiny real game window end-to-end. | Week 11–13 (DONE 2026-09-19) |
 | **M6** | *(Stretch)* Stardew | A `stardew.yaml` profile loads and the agent does *something* sensible on screen. | Later |
 
 **The win condition for a portfolio:** finishing **M4** already proves the whole thesis — any ground, any brain, one socket. Everything after is bonus.
@@ -224,7 +219,7 @@ Items intentionally deferred to preserve v1 crawl-first scope discipline, schedu
 
 | Milestone | Goal | Why deferred from v1 |
 | :--- | :--- | :--- |
-| **M7: Cross-Platform Hands** | Native synthetic input & window capture on **macOS** (Quartz `CGEventPost` / Accessibility APIs, `CGWindowListCopyWindowInfo`) and **Linux** (`uinput` / `X11` / `Wayland`). | M5 proved the socket and live loop using Windows `SendInput` and `user32.dll`. Cross-platform OS event queues require platform-specific permissions (e.g. macOS Accessibility prompt) and different display servers. |
+| **M7: Cross-Platform Hands (Linux)** | Native synthetic input & window capture on **Linux** (`uinput` / `X11` / `Wayland`). | M5 proved the socket and live loop on Windows and macOS. Linux display servers (X11 vs Wayland) and uinput permissions require dedicated iteration. |
 | **M8: Window Resilience & Background Capture** | Handle minimized/occluded windows via automatic restoration (`ShowWindow`) or background composition capture (`PrintWindow` / `PW_RENDERFULLCONTENT`). | Documented v1 limitation (M5 Brick 1). The current loop requires the window to stay active and visible in foreground. |
 | **M9: Continuous Mouse Hands** | Extend discrete cursor keys (W/A/S/D) to smooth 2D continuous mouse movement, dragging, and hover states. | V1 deliberately proved discrete actions (6 keys) to keep the action space small and deterministic. |
 

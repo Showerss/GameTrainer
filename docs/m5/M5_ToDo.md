@@ -2,10 +2,9 @@
 
 > **Covers:** the M5 plan — scope, the verified pre-flight spike, design decisions,
 > bricks, and the finish line.
-> **Status:** current. **Last verified:** 2026-08-26 (Brick 0 written; control 1
-> corrected from *reveal* to *flag* and the verdict fixed to cells-not-pixels — see
-> the dated note under "Brick 0". Rest of the file re-read and still accurate;
-> pre-flight spike from 2026-08-25 unchanged).
+> **Status:** current — **closed**. **Last verified:** 2026-09-19 (All 8 bricks
+> complete; Brick 7 verified PASS live on both macOS and Windows; Brick 8 doc
+> closeout complete; milestone closed).
 > **Authority:** `docs/PRD.md` owns *what* gets built and in what order. This file
 > owns *what M5 requires*. Brick-by-brick notes go in `docs/m5/M5_Log.md`; the
 > retrospective is `docs/m5/M5_Review.md`, written last.
@@ -22,9 +21,7 @@ process. M5 is the first milestone where the loop **leaves the process**: the ga
 a separate program, the eyes are a screen grab, and the hands are keystrokes the
 operating system delivers to a window we do not own.
 
----
-
-## The bar is plumbing, not learning
+---\n\n## The bar is plumbing, not learning
 
 **M5 does not require PPO to learn Minesweeper.** Say it out loud, because the
 temptation to move this bar mid-milestone will be real (CLAUDE.md §5 forbids it).
@@ -35,9 +32,7 @@ proves is that **the socket carries real input and real vision** — the same th
 `NullInput` has been standing in for since M0. Whether the borrowed brain then
 masters this particular game is M6's business or nobody's.
 
----
-
-## Pre-flight — the spike (run 2026-08-25, PASS)
+---\n\n## Pre-flight — the spike (run 2026-08-25, PASS)
 
 Option B ("a game you didn't write") normally dies on two problems: how the agent
 restarts the game, and where a score comes from. Both were checked **before**
@@ -102,9 +97,7 @@ second monitor at a different size), `SetForegroundWindow` hits the Windows
 foreground lock and needs the `AttachThreadInput` dance, and the game process dies
 with its parent when the parent's process tree is killed.
 
----
-
-## Scope discipline (what M5 is NOT)
+---\n\n## Scope discipline (what M5 is NOT)
 
 - ❌ **PPO is not required to learn Minesweeper.** See "The bar is plumbing" above.
   A learning curve is a *nice-to-have* observation for the Log, never the finish line.
@@ -122,9 +115,7 @@ with its parent when the parent's process tree is killed.
 - ❌ **The game binary is not committed.** 31 MB of GPL-3 build artefacts don't belong
   in this repo — it's a documented, checksummed download step.
 
----
-
-## The design (proposed — confirm before Brick 1)
+---\n\n## The design (proposed — confirm before Brick 1)
 
 | Decision | Choice | Why |
 | :--- | :--- | :--- |
@@ -144,9 +135,7 @@ with its parent when the parent's process tree is killed.
 > something M3 already proved. The pixel path stays available as a second profile if
 > we want it later — the perception seam is exactly what M3 and M4 built.
 
----
-
-## How we build M5: testing policy
+---\n\n## How we build M5: testing policy
 
 Follows **CLAUDE.md §5**. What earns a test here:
 
@@ -167,9 +156,7 @@ enter.** A misread tile doesn't crash — it quietly poisons the reward, exactly
 M3's blind-solvable GridWorld quietly flattered a reward curve. That's why tile
 reading is red-first against fixtures, and why control #3 below exists at all.
 
----
-
-## The to-do list
+---\n\n## The to-do list
 
 | # | Brick | File(s) | Done when… |
 | :--- | :--- | :--- | :--- |
@@ -186,9 +173,7 @@ reading is red-first against fixtures, and why control #3 below exists at all.
 Brick 0 is the finish line; Bricks 1–6 are the work; Brick 7 is the proof; Brick 8 is
 closing.
 
----
-
-## Brick 0 — The guardrail (write this FIRST)
+---\n\n## Brick 0 — The guardrail (write this FIRST)
 
 **File:** `scripts/check_hands.py`
 
@@ -222,9 +207,7 @@ style of the pre-flight table, but they decide nothing.
 > **Verify:** `python scripts/check_hands.py` prints PASS for all four, with the cell
 > counts that justify each and the pixel counts alongside as evidence.
 
----
-
-## Open questions for the Log
+---\n\n## Open questions for the Log
 
 - Does `Ctrl+R` preserve the difficulty, or return to the chooser? If it returns to
   the chooser, control 4 needs one mouse click per episode, and that must be recorded
