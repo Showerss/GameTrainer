@@ -198,3 +198,15 @@ def test_minesweeper_reward_missing_numbers_raises():
             Profile.from_yaml(path)
 
     assert "mine_penalty" in str(exc_info.value)
+
+
+def test_unsupported_ground_reward_pair_raises():
+    bad = {**GOOD_MINESWEEPER, "reward": "builtin"}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    message = str(exc_info.value)
+    assert "minesweeper" in message
+    assert "builtin" in message

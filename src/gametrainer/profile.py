@@ -22,6 +22,11 @@ import yaml
 GROUNDS = ("cartpole", "gridworld", "minesweeper")
 PERCEPTIONS = ("numeric", "pixels")
 REWARDS = ("builtin", "gridworld", "minesweeper")
+_SUPPORTED_REWARD_BY_GROUND = {
+    "cartpole": "builtin",
+    "gridworld": "gridworld",
+    "minesweeper": "minesweeper",
+}
 
 # Grounds with no pixel Ground built yet (see M4_ToDo.md, scope discipline).
 _NO_PIXELS_BUILT_FOR = {"cartpole", "minesweeper"}
@@ -123,6 +128,13 @@ class Profile:
         if reward not in REWARDS:
             raise ValueError(
                 f"{path}: unknown reward '{reward}' — legal options: {', '.join(REWARDS)}"
+            )
+
+        expected_reward = _SUPPORTED_REWARD_BY_GROUND[ground]
+        if reward != expected_reward:
+            raise ValueError(
+                f"{path}: ground '{ground}' only supports reward '{expected_reward}', "
+                f"got '{reward}'"
             )
 
         if reward == "gridworld":
