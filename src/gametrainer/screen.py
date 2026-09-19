@@ -2,8 +2,7 @@
 screen.py - M5 Brick 1. The eyes for a window we do not own.
 
 Two jobs, and nothing else: find a window by its title, and return the pixels
-inside it as a numpy array. No game knowledge lives here - reading a
-Minesweeper board out of those pixels is Brick 2's job.
+inside it as a numpy array. No game knowledge lives here - reading a Minesweeper board out of those pixels is Brick 2's job.
 
 Teacher Note: the DPI trap (the one that cost the spike a day)
 =============================================================
@@ -27,7 +26,7 @@ from __future__ import annotations
 import ctypes
 import sys
 from ctypes import wintypes
-from typing import Self
+from typing_extensions import Self
 
 import mss
 import numpy as np
