@@ -15,7 +15,9 @@
 >
 > Companion file: [`docs/UML_FULL.md`](UML_FULL.md) — the diagrams.
 
----\n\n## 1. What is this project, in one paragraph?
+---
+
+## 1. What is this project, in one paragraph?
 
 GameTrainer teaches a computer to play a game by **watching, acting, and being
 scored** — over and over, thousands of times, until it gets good. That's it.
