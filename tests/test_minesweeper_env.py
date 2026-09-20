@@ -146,6 +146,18 @@ def test_render_ansi():
     assert "." in rendered
 
 
+def test_close_releases_owned_window_once():
+    """close() must release an owned GameWindow exactly once."""
+    mock_window = MagicMock()
+    env = MinesweeperEnv(window=mock_window, owns_window=True)
+
+    env.close()
+    env.close()
+
+    mock_window.close.assert_called_once()
+    assert env.window is None
+
+
 def test_gymnasium_check_env_clean():
     """Official Gymnasium check_env runs without errors."""
     env = MinesweeperEnv()

@@ -50,11 +50,13 @@ class MinesweeperEnv(gym.Env):
         read_board_fn: Callable[[], np.ndarray] | None = None,
         step_delay: float = 0.0,
         render_mode: str | None = None,
+        owns_window: bool = False,
     ):
         super().__init__()
         self.render_mode = render_mode
         self.hands: InputController = hands if hands is not None else NullInput()
         self.window = window
+        self._owns_window = owns_window
         self.reward_calculator = (
             reward_calculator
             if reward_calculator is not None
@@ -166,3 +168,9 @@ class MinesweeperEnv(gym.Env):
                 lines.append(row_str)
             return "\n".join(lines)
         return None
+
+    def close(self) -> None:
+        if self._owns_window and self.window is not None:
+            self.window.close()
+            self.window = None
+        super().close()

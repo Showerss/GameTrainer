@@ -56,12 +56,14 @@ def make_env(
 
         resolved_hands = hands
         resolved_window = window
+        owns_window = False
 
         # If live components were not injected, attempt auto-discovery of LibreMines
         if resolved_hands is None and resolved_window is None and read_board_fn is None:
             try:
                 resolved_window = GameWindow("LibreMines")
                 resolved_hands = KeyboardInput(resolved_window.hwnd)
+                owns_window = True
             except Exception:  # noqa: BLE001 - fallback to NullInput/headless if game window isn't open
                 resolved_window = None
                 resolved_hands = NullInput()
@@ -73,6 +75,7 @@ def make_env(
             window=resolved_window,
             reward_calculator=reward_calc,
             read_board_fn=read_board_fn,
+            owns_window=owns_window,
         )
 
     raise ValueError(
