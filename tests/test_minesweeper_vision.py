@@ -14,10 +14,10 @@ answer key below was read off the fixture by eye and confirmed by hand
 (2026-08-30). It is ground truth, not output -- never regenerate it from
 read_board().
 
-Coverage limit, on purpose: this fixture holds 6 of the 12 cell states --
-hidden, flagged, blank, 1, 2, 3. It has no 4-8 and no mine. Those are rarer
-and need their own fixture; a second one can be added when a board produces
-them naturally.
+Coverage split, on purpose: the full-board fixture holds 6 of the 12 cell
+states -- hidden, flagged, blank, 1, 2, 3. The remaining revealed states
+(4-8 and mine) are locked by small single-cell fixtures so every advertised
+state still has a deterministic answer key.
 
 Mirrors tests/test_rewards.py: same path-insertion trick, plain functions.
 """
@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 
 import cv2
+import pytest
 
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
@@ -49,6 +50,14 @@ FIXTURE = Path(__file__).parent / "fixtures" / "board_easy_01.png"
 # loud and wrong, so this is measured, not guessed.
 CURSOR_HIDDEN_FIXTURE = Path(__file__).parent / "fixtures" / "cell_cursor_hidden.png"
 CURSOR_FLAGGED_FIXTURE = Path(__file__).parent / "fixtures" / "cell_cursor_flagged.png"
+REVEALED_CELL_FIXTURES = {
+    4: Path(__file__).parent / "fixtures" / "cell_revealed_4.png",
+    5: Path(__file__).parent / "fixtures" / "cell_revealed_5.png",
+    6: Path(__file__).parent / "fixtures" / "cell_revealed_6.png",
+    7: Path(__file__).parent / "fixtures" / "cell_revealed_7.png",
+    8: Path(__file__).parent / "fixtures" / "cell_revealed_8.png",
+    MINE: Path(__file__).parent / "fixtures" / "cell_revealed_mine.png",
+}
 
 # The answer key, kept in the shape it was verified in: one character per cell.
 #   .  hidden      _  revealed blank      F  flag      1-8  revealed digit
@@ -101,3 +110,10 @@ def test_cursor_highlighted_flagged_cell_reads_as_flagged():
     frame = cv2.imread(str(CURSOR_FLAGGED_FIXTURE))
     assert frame is not None, f"fixture image not readable: {CURSOR_FLAGGED_FIXTURE}"
     assert classify_cell(frame) == FLAGGED
+
+
+@pytest.mark.parametrize("expected, fixture", REVEALED_CELL_FIXTURES.items())
+def test_revealed_single_cell_fixtures_cover_remaining_states(expected, fixture):
+    frame = cv2.imread(str(fixture))
+    assert frame is not None, f"fixture image not readable: {fixture}"
+    assert classify_cell(frame) == expected

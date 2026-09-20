@@ -13,7 +13,9 @@ depend on YAML files Brick 4 hasn't created yet.
 
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 from gymnasium.wrappers import TimeLimit
 
@@ -21,6 +23,8 @@ _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
 from src.gametrainer.factory import make_env
 from src.gametrainer.gridworld import GridWorldEnv, RandomStart
+from src.gametrainer.input import NullInput
+from src.gametrainer.minesweeper_vision import GRID, HIDDEN
 from src.gametrainer.perception import PixelObservation
 from src.gametrainer.profile import Profile
 
@@ -97,6 +101,10 @@ MINESWEEPER = Profile(
 )
 
 
+def _hidden_minesweeper_board():
+    return np.full((GRID, GRID), HIDDEN, dtype=np.int8)
+
+
 def test_cartpole_env_passes_check_env_and_matches_space():
     sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
     env = make_env(CARTPOLE)
@@ -122,7 +130,11 @@ def test_gridworld_pixels_env_passes_check_env_and_matches_space():
 
 def test_minesweeper_env_passes_check_env_and_matches_space():
     sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
-    env = make_env(MINESWEEPER)
+    env = make_env(
+        MINESWEEPER,
+        hands=NullInput(),
+        read_board_fn=_hidden_minesweeper_board,
+    )
     sb3_checker.check_env(env)
     assert env.observation_space.shape == (8, 8)
     assert env.action_space.n == 6
@@ -147,7 +159,7 @@ def test_minesweeper_reward_numbers_come_from_the_profile():
         ent_coef=1,
         margin_over_baseline=1,
     )
-    env = make_env(custom)
+    env = make_env(custom, hands=NullInput(), read_board_fn=_hidden_minesweeper_board)
     assert env.reward_calculator.safe_reveal_reward == 3.5
     assert env.reward_calculator.mine_penalty == -42.0
     assert env.reward_calculator.win_reward == 100.0
@@ -157,9 +169,35 @@ def test_make_env_loads_from_yaml_file():
     """Verify profiles/minesweeper.yaml builds clean without editing Python."""
     profile_path = _project_root / "profiles" / "minesweeper.yaml"
     profile = Profile.from_yaml(str(profile_path))
-    env = make_env(profile)
+    env = make_env(profile, hands=NullInput(), read_board_fn=_hidden_minesweeper_board)
     assert env.observation_space.shape == (8, 8)
     assert env.action_space.n == 6
+
+
+def test_live_minesweeper_auto_discovery_focuses_window_and_waits_for_capture():
+    mock_window = MagicMock()
+    mock_window.hwnd = 123
+    mock_hands = MagicMock()
+
+    with (
+        patch("src.gametrainer.factory.GameWindow", return_value=mock_window) as game_window,
+        patch("src.gametrainer.factory.KeyboardInput", return_value=mock_hands) as keyboard,
+    ):
+        env = make_env(MINESWEEPER)
+
+    game_window.assert_called_once_with("LibreMines")
+    keyboard.assert_called_once_with(123)
+    mock_hands.focus.assert_called_once_with()
+    assert env.window is mock_window
+    assert env.hands is mock_hands
+    assert env.step_delay == 0.5
+    assert env._owns_window is True
+
+
+def test_live_minesweeper_auto_discovery_failures_propagate():
+    with patch("src.gametrainer.factory.GameWindow", side_effect=RuntimeError("boom")):
+        with pytest.raises(RuntimeError, match="boom"):
+            make_env(MINESWEEPER)
 
 
 def test_gridworld_pixels_wrapper_order_is_task_inside_pixels_outside():

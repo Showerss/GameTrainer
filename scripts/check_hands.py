@@ -363,6 +363,8 @@ def collect_measurements(
         null_hands = NullInput()
         null_hands.move_down()
         time.sleep(step_delay)
+        null_hands.move_down()
+        time.sleep(step_delay)
         null_hands.move_right()
         time.sleep(step_delay)
         null_hands.move_right()

@@ -200,6 +200,17 @@ def test_minesweeper_reward_missing_numbers_raises():
     assert "mine_penalty" in str(exc_info.value)
 
 
+@pytest.mark.parametrize("field, value", [("mine_penalty", None), ("win_reward", "ten")])
+def test_minesweeper_reward_numbers_must_be_real_numbers(field, value):
+    bad = {**GOOD_MINESWEEPER, field: value}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert field in str(exc_info.value)
+
+
 def test_unsupported_ground_reward_pair_raises():
     bad = {**GOOD_MINESWEEPER, "reward": "builtin"}
     with TemporaryDirectory() as tmpdir:

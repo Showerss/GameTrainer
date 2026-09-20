@@ -1,7 +1,7 @@
 # M5 — Build Log (the lab notebook)
 
 > **Covers:** what actually happened while building M5, brick by brick, as it happened.
-> **Status:** current — **closed**. **Last verified:** 2026-09-19 (all 8 bricks
+> **Status:** current — **closed**. **Last verified:** 2026-09-20 (all 8 bricks
 > done and PASS; Brick 8 doc closeout complete; DOC_STANDARD rule 7 ticked).
 > **Authority:** `docs/m5/M5_ToDo.md` owns *the plan*. This file owns *the record of
 > doing it*. `docs/m5/M5_Review.md` (written last) owns *what it all meant*.
@@ -520,3 +520,33 @@ Every full behavioral check and milestone experiment gets a row per Rule 3.
       **Resolved 2026-08-26:** Re-read rect on every grab, and use CV connected components to locate the square board.
 - [x] How to handle unit test isolation when a live game window is open on the desktop?
       **Resolved 2026-09-19:** Unit tests in `test_minesweeper_env.py` and `test_make_env.py` should explicitly inject stub/mock controllers when validating Gymnasium contract logic, preventing ambient desktop leaks.
+
+---
+
+## Post-PR review follow-up (2026-09-20)
+
+### What Copilot caught
+
+- A broken live setup could quietly pretend the game was running, instead of
+  telling us the real problem.
+- A real LibreMines window left open on the desktop could leak into pytest.
+- Some legal board states (`4`-`8` and the mine) were still missing from the
+  vision safety net.
+- Control 2 in `check_hands.py` was meant to replay the same key sequence as
+  Control 1, but it skipped one move.
+
+### What is fixed now
+
+- `make_env()` now fails loudly, focuses the discovered game window, and waits
+  before live captures so reset animations do not get mistaken for board state.
+- Minesweeper reward numbers must now be real numbers from the profile; the
+  factory no longer sneaks in fallback values.
+- The vision tests now cover every advertised revealed state, including `4`-`8`
+  and the mine, so those cases no longer crash the live environment.
+- The factory tests now use stubbed hands and board reads, so pytest stays away
+  from the user's real desktop.
+- Control 2 now replays the full movement sequence before flagging, making the
+  negative control a true apples-to-apples check.
+
+**Verification (2026-09-20):** `pytest -q` → **110 passed, 2 skipped** on Linux
+CI after these follow-up fixes.

@@ -40,16 +40,12 @@ looking at the colour can separate them - only what lies underneath can. Red
 on grey is a flag on a hidden cell; red on dark is a 3 on a revealed one.
 Background first, glyph second, always.
 
-Known gap, on purpose
-=====================
-The fixture holds 6 of the 12 cell states: hidden, flagged, blank, 1, 2, 3.
-It has no 4-8 and no mine, so their appearance has never been measured here.
-Rather than invent colours for them, an unrecognised glyph raises
-UnreadableCell naming what it saw. Loud and wrong beats quiet and wrong: a
-guessed colour for a 5 would be indistinguishable from a correct one right up
-until it poisoned a reward. The missing states get measured the day a second
-fixture is captured (Brick 5 needs the mine, since that is how an episode
-ends).
+Coverage note
+=============
+The full-board fixture still only shows hidden, flagged, blank, 1, 2 and 3.
+The remaining revealed states (4-8 and mine) are locked by dedicated
+single-cell fixtures. That keeps the board test small while still pinning every
+state the environment advertises.
 
 Every colour here also belongs to the theme the game happened to open with.
 A different LibreMines minefield theme is a different set of numbers.
@@ -84,7 +80,16 @@ _REVEALED_BODY = np.array([26, 26, 26])
 # measured there - the original fixture never captured a cell with the
 # cursor on it.
 _CURSOR_BODY = np.array([185, 185, 185])
-_DIGIT_COLOURS = {1: (255, 104, 0), 2: (0, 130, 0), 3: (0, 0, 255)}
+_DIGIT_COLOURS = {
+    1: (255, 104, 0),
+    2: (0, 130, 0),
+    3: (0, 0, 255),
+    4: (255, 68, 0),
+    5: (0, 0, 132),
+    6: (132, 130, 0),
+    7: (132, 0, 132),
+}
+_EIGHT_COLOUR = (117, 117, 117)
 
 # --- Thresholds, each one sitting in a measured gap ---
 _BODY_TOLERANCE = 12  # how far a background pixel may drift and still count
@@ -179,9 +184,27 @@ def _dominant_colour(pixels: np.ndarray) -> tuple[int, int, int]:
 
 def _nearest_digit(colour: tuple[int, int, int]) -> int | None:
     """Which digit is drawn in this colour, or None if we have never seen it."""
+    best_digit = None
+    best_distance = _COLOUR_TOLERANCE + 1
     for digit, known in _DIGIT_COLOURS.items():
-        if max(abs(a - b) for a, b in zip(colour, known)) <= _COLOUR_TOLERANCE:
-            return digit
+        distance = max(abs(a - b) for a, b in zip(colour, known))
+        if distance <= _COLOUR_TOLERANCE and distance < best_distance:
+            best_digit = digit
+            best_distance = distance
+    return best_digit
+
+
+def _classify_monochrome_glyph(pixels: np.ndarray) -> int | None:
+    """Classify the revealed states that are drawn without a colourful ink."""
+    dominant = _dominant_colour(pixels)
+    if max(abs(a - b) for a, b in zip(dominant, _EIGHT_COLOUR)) <= _COLOUR_TOLERANCE:
+        return 8
+
+    # The mine sprite mixes a dark body with a bright white highlight; the 8
+    # never does. That bright patch is the simplest reliable separator.
+    if int(pixels.max()) >= 220:
+        return MINE
+
     return None
 
 
@@ -228,11 +251,17 @@ def classify_cell(patch: np.ndarray) -> int:
         return HIDDEN if is_hidden else 0
 
     if coloured_ink < _INK_FRACTION:
+        if is_hidden:
+            raise UnreadableCell(
+                f"a grey glyph on a hidden cell ({grey_ink:.0%} of the cell). "
+                "Only flags are supported there."
+            )
+        state = _classify_monochrome_glyph(pixels[ink & ~colourful])
+        if state is not None:
+            return state
         raise UnreadableCell(
-            f"a glyph with no colour in it ({grey_ink:.0%} of the cell). That "
-            f"is probably a 7, an 8 or a mine - states this fixture never "
-            f"showed, so their appearance has never been measured. Capture a "
-            f"fixture containing one before trusting a reading here."
+            f"a glyph with no colour in it ({grey_ink:.0%} of the cell), with "
+            f"dominant grey {_dominant_colour(pixels[ink & ~colourful])}"
         )
 
     # A flag is the only coloured thing that can sit on a cell that is still

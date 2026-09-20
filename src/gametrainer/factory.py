@@ -22,6 +22,15 @@ from src.gametrainer.profile import Profile
 from src.gametrainer.rewards import MinesweeperRewardCalculator
 from src.gametrainer.screen import GameWindow
 
+_LIVE_CAPTURE_DELAY = 0.5
+
+
+def _require_profile_number(value: float | None, field: str) -> float:
+    """Reject unset Minesweeper reward numbers instead of silently defaulting."""
+    if value is None:
+        raise ValueError(f"minesweeper profile field '{field}' must be set")
+    return float(value)
+
 
 def make_env(
     profile: Profile,
@@ -43,15 +52,11 @@ def make_env(
 
     if profile.ground == "minesweeper" and profile.perception == "numeric":
         reward_calc = MinesweeperRewardCalculator(
-            safe_reveal_reward=profile.safe_reveal_reward
-            if profile.safe_reveal_reward is not None
-            else 1.0,
-            mine_penalty=profile.mine_penalty
-            if profile.mine_penalty is not None
-            else -10.0,
-            win_reward=profile.win_reward
-            if profile.win_reward is not None
-            else 10.0,
+            safe_reveal_reward=_require_profile_number(
+                profile.safe_reveal_reward, "safe_reveal_reward"
+            ),
+            mine_penalty=_require_profile_number(profile.mine_penalty, "mine_penalty"),
+            win_reward=_require_profile_number(profile.win_reward, "win_reward"),
         )
 
         resolved_hands = hands
@@ -60,21 +65,21 @@ def make_env(
 
         # If live components were not injected, attempt auto-discovery of LibreMines
         if resolved_hands is None and resolved_window is None and read_board_fn is None:
-            try:
-                resolved_window = GameWindow("LibreMines")
-                resolved_hands = KeyboardInput(resolved_window.hwnd)
-                owns_window = True
-            except Exception:  # noqa: BLE001 - fallback to NullInput/headless if game window isn't open
-                resolved_window = None
-                resolved_hands = NullInput()
+            resolved_window = GameWindow("LibreMines")
+            resolved_hands = KeyboardInput(resolved_window.hwnd)
+            resolved_hands.focus()
+            owns_window = True
         elif resolved_hands is None:
             resolved_hands = NullInput()
+
+        live_window = resolved_window is not None and read_board_fn is None
 
         return MinesweeperEnv(
             hands=resolved_hands,
             window=resolved_window,
             reward_calculator=reward_calc,
             read_board_fn=read_board_fn,
+            step_delay=_LIVE_CAPTURE_DELAY if live_window else 0.0,
             owns_window=owns_window,
         )
 

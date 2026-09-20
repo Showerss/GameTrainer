@@ -1,7 +1,7 @@
 # M5 — Milestone Review (the sprint retrospective)
 
 > **Covers:** what Milestone 5 proved, what failed along the way, and what we learned.
-> **Status:** current. **Last verified:** 2026-09-19 (verified PASS live on both macOS and Windows; all 8 bricks complete).
+> **Status:** current. **Last verified:** 2026-09-20 (verified PASS live on both macOS and Windows; all 8 bricks complete).
 > **Authority:** `docs/m5/M5_ToDo.md` owns the plan. `docs/m5/M5_Log.md` owns the lab notebook. This file owns *what it all meant*.
 
 ---
@@ -30,7 +30,9 @@ Every live behavioral check and verification run recorded under identical, repro
 | 2026-09-07 | macOS 26.3.1 (Apple Silicon arm64), Python 3.14.7 | `.venv/bin/python scripts/check_hands.py` | PASS (target `(1, 2)`, exactly 1 cell changed) | PASS (0 cells changed, 0 px) | PASS (live obs changed 1, frozen obs changed 0) | PASS (20/20 clean boards, 0 mouse clicks) | 16.8s | **PASS** |
 | 2026-09-15 | Windows 11 x64, Python 3.14.5 | `.venv/Scripts/python.exe scripts/check_hands.py` | PASS (target `(1, 2)`, 1 cell changed, 93,924 px) | PASS (0 cells changed, 0 px) | PASS (live obs changed 1, frozen obs changed 0) | PASS (20/20 clean boards, 0 mouse clicks) | 22.4s | **PASS** |
 
-Full automated test suite status: **102 passed, 1 skipped** (E2E experiment skipped by design) in 15.25s on Windows 11; `ruff check .` clean.
+Current automated test suite status after the PR-review follow-up: **110 passed,
+2 skipped** in 2.79s on Linux CI. The live milestone proof still remains the
+macOS and Windows PASS runs recorded above.
 
 ---
 
@@ -65,6 +67,19 @@ Full automated test suite status: **102 passed, 1 skipped** (E2E experiment skip
 ---
 
 ## 5. DOC_STANDARD Rule 7 Closeout Checklist
+
+### Short post-PR review follow-up
+
+After the milestone landed, Copilot review still found four practical gaps:
+
+- the live factory could fail quietly instead of telling us what went wrong,
+- tests could accidentally touch a real LibreMines window left open on the desktop,
+- the vision code still missed some real board states, and
+- one negative-control script path was not truly replaying the same move list.
+
+Those are now closed. In plain English: the game setup now fails honestly, the
+tests stay in their sandbox, the board reader covers the missing `4`-`8` and
+mine cases, and the control proof now compares like with like.
 
 - [x] `docs/m5/M5_Review.md` exists, with a results table meeting Rule 3.
 - [x] `docs/CHANGELOG.md` has the milestone entry.

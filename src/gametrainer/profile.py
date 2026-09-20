@@ -16,6 +16,7 @@ docs/m4/M4_ToDo.md, "The name collision".
 from __future__ import annotations
 
 from dataclasses import dataclass
+from numbers import Real
 
 import yaml
 
@@ -55,6 +56,14 @@ _OPTIONAL_FIELDS = {
     "mine_penalty",
     "win_reward",
 }
+
+
+def _require_real(path: str, raw: dict, field: str) -> float:
+    """Return one numeric field, or fail loudly if YAML gave us junk."""
+    value = raw[field]
+    if value is None or isinstance(value, bool) or not isinstance(value, Real):
+        raise ValueError(f"{path}: '{field}' must be a number, got {value!r}")
+    return float(value)
 
 
 @dataclass(frozen=True)
@@ -145,6 +154,9 @@ class Profile:
                     f"{', '.join(reward_missing)}"
                 )
 
+        safe_reveal_reward = None
+        mine_penalty = None
+        win_reward = None
         if reward == "minesweeper":
             reward_missing = [
                 k
@@ -156,6 +168,9 @@ class Profile:
                     f"{path}: reward 'minesweeper' requires field(s): "
                     f"{', '.join(reward_missing)}"
                 )
+            safe_reveal_reward = _require_real(path, raw, "safe_reveal_reward")
+            mine_penalty = _require_real(path, raw, "mine_penalty")
+            win_reward = _require_real(path, raw, "win_reward")
 
         min_goal_rate = raw.get("min_goal_rate")
         if min_goal_rate is not None:
@@ -186,7 +201,7 @@ class Profile:
             step_cost=raw.get("step_cost"),
             goal_reward=raw.get("goal_reward"),
             min_goal_rate=min_goal_rate,
-            safe_reveal_reward=raw.get("safe_reveal_reward"),
-            mine_penalty=raw.get("mine_penalty"),
-            win_reward=raw.get("win_reward"),
+            safe_reveal_reward=safe_reveal_reward,
+            mine_penalty=mine_penalty,
+            win_reward=win_reward,
         )
