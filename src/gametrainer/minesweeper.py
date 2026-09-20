@@ -108,6 +108,7 @@ class MinesweeperEnv(gym.Env):
         self.hands.restart()
         if self.step_delay > 0:
             time.sleep(self.step_delay)
+        self.hands.move_down()
 
         obs = self._read_obs()
         self.prev_grid = obs.copy()

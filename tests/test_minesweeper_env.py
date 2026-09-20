@@ -72,6 +72,8 @@ def test_hands_dispatched_correctly():
 
     env.reset()
     mock_hands.restart.assert_called_once()
+    mock_hands.move_down.assert_called_once()
+    mock_hands.move_down.reset_mock()
 
     action_to_method = {
         MinesweeperEnv.UP: mock_hands.move_up,
