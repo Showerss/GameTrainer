@@ -227,8 +227,10 @@ def decide_verdict(
     lines = [
         f"  Live random baseline:   {live_baseline:+.2f} reward/episode",
         f"  Trained mean reward:    {trained_mean_reward:+.2f} reward/episode",
-        f"  [{mark(beats_baseline)}] beats baseline by >= {margin_over_baseline:.2f}"
-        f"  (needs >= {live_baseline + margin_over_baseline:+.2f})",
+        (
+            f"  [{mark(beats_baseline)}] beats baseline by >= {margin_over_baseline:.2f}"
+            f"  (needs >= {live_baseline + margin_over_baseline:+.2f})"
+        ),
     ]
     if min_goal_rate is None:
         lines.append("  [ -- ] goal rate: not applicable to this Ground")

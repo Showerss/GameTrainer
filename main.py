@@ -55,7 +55,7 @@ def _launch_tui() -> int:
     """
     try:
         from src.gametrainer.tui import run_tui
-    except Exception as e:
+    except ImportError as e:
         print(f"[!!] Failed to launch TUI: {type(e).__name__}: {e}")
         print("\nFalling back to CLI usage.\n")
         _print_usage()

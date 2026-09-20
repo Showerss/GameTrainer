@@ -33,7 +33,6 @@ import pytest
 
 from scripts.train_from_profile import decide_verdict, source_fingerprint
 
-
 # ---------------------------------------------------------------------------
 # decide_verdict -- the three M4 conditions
 #
@@ -45,14 +44,14 @@ from scripts.train_from_profile import decide_verdict, source_fingerprint
 
 # A clearly-passing GridWorld-pixels run, in the M3 shape. Individual tests
 # below change ONE field, so the reason a verdict flips is never ambiguous.
-PASSING = dict(
-    trained_mean_reward=0.99,
-    live_baseline=0.48,
-    margin_over_baseline=0.40,
-    shapes_ok=True,
-    goal_rate=1.0,
-    min_goal_rate=0.80,
-)
+PASSING = {
+    "trained_mean_reward": 0.99,
+    "live_baseline": 0.48,
+    "margin_over_baseline": 0.40,
+    "shapes_ok": True,
+    "goal_rate": 1.0,
+    "min_goal_rate": 0.80,
+}
 
 
 def test_all_conditions_met_passes():

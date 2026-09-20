@@ -27,7 +27,7 @@ class Logger:
 
     def __init__(self, log_dir="logs"):
         os.makedirs(log_dir, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now().astimezone().strftime("%Y-%m-%d_%H-%M-%S")
         self.log_file = os.path.join(log_dir, f"session_{timestamp}.log")
 
         self._logger = logging.getLogger("GameTrainer")

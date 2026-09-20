@@ -8,7 +8,8 @@ We use C++ for input because it needs direct access to Windows APIs.
 
 import os
 import sys
-from setuptools import setup, Extension
+
+from setuptools import Extension, setup
 
 # The C++ input-injection extension ("the hands") is OPT-IN — not built by default.
 #
@@ -33,6 +34,28 @@ if sys.platform == "win32" and os.environ.get("GAMETRAINER_BUILD_CPP") == "1":
     ]
 
 
+_install_requires = [
+    "opencv-python",  # Image processing and computer vision
+    "mss",            # Fast screen capture
+    "numpy",          # Array operations (used by OpenCV)
+    "pydantic",       # JSON schema validation for knowledge base
+    "pyyaml",         # YAML config file parsing
+    "pynput",         # Global keyboard/mouse input capture
+    "rich",           # Terminal formatting for the TUI menu (main.py's default path)
+    "typing-extensions>=4.7",  # Self type available on Python 3.9
+]
+
+# macOS's KeyboardInput/GameWindow (M5) use Quartz and AppKit directly for
+# window finding, capture and CGEventPost key injection. pynput already pulls
+# these in transitively on macOS, but they're declared directly here too,
+# since this project imports them itself rather than only through pynput.
+if sys.platform == "darwin":
+    _install_requires += [
+        "pyobjc-framework-Quartz",
+        "pyobjc-framework-Cocoa",
+    ]
+
+
 setup(
     name="gametrainer",
     version="2.0",
@@ -44,15 +67,7 @@ setup(
     ext_modules=_ext_modules,
 
     # Python dependencies
-    install_requires=[
-        "opencv-python",  # Image processing and computer vision
-        "mss",            # Fast screen capture
-        "numpy",          # Array operations (used by OpenCV)
-        "pydantic",       # JSON schema validation for knowledge base
-        "pyyaml",         # YAML config file parsing
-        "pynput",         # Global keyboard/mouse input capture
-        "rich",           # Terminal formatting for the TUI menu (main.py's default path)
-    ],
+    install_requires=_install_requires,
 
     # Optional dependencies for development
     extras_require={

@@ -7,8 +7,8 @@
 > **Status:** **archived — historical reference.** Superseded by
 > [`docs/PRD.md`](PRD.md) (the plan) and [`docs/ONBOARDING.md`](ONBOARDING.md)
 > (the tour).
-> **Last verified:** 2026-08-14 — re-confirmed as an accurate record *of the old
-> design*, including the 2026-08-04 correction note below. M4 closed without
+> **Last verified:** 2026-09-19 — re-confirmed as an accurate record *of the old
+> design*, including the 2026-08-04 correction note below. M5 closed without
 > touching anything this page claims about Track B, which was already fully
 > corrected. Its claims about the **current** system are wrong, deliberately
 > left unedited.
@@ -17,10 +17,10 @@
 >
 > | This page says | Reality (per `docs/PRD.md`) |
 > | :--- | :--- |
-> | Runs on GPU | **CPU-first.** M0–M3 all ran on CPU. GPU is not required and is not used. |
-> | Input via a C++ `SendInput` extension | **No C++ in v1.** Not built, not used. Real key presses are M5. |
-> | 12-action space, multi-component reward | That's the Stardew env (`env_vit.py`, Track B). The live world is a 5×5 GridWorld: 4 actions, `-0.01`/step, `+1.0` on goal. |
-> | `python main.py train`, `scripts/train.py`, `scripts/play.py` | Track B entry points. The live path is `scripts/train_gridworld_vit.py` (M3). |
+> | Runs on GPU | **CPU-first.** M0–M5 all ran on CPU. GPU is not required and is not used. |
+> | Input via a C++ `SendInput` extension | **Python & OS APIs in v1.** M5 uses Win32 `SendInput` (via Python `ctypes`) on Windows and `Quartz.CGEventPost` on macOS. The C++ `clib` extension remains optional. |
+> | 12-action space, multi-component reward | That's the Stardew env (`env_vit.py`, Track B). The live worlds are CartPole, GridWorld, and LibreMines (6 actions). |
+> | `python main.py train`, `scripts/train.py`, `scripts/play.py` | Track B entry points. The live path is `scripts/train_from_profile.py` (M4) and `scripts/check_hands.py` (M5). |
 > | `black`, `mypy` | The project uses **`ruff`** (`ruff check .`). |
 > | ViT-Small recommended, VRAM tables | M3 uses frozen **ViT-Tiny** on CPU. VRAM is irrelevant. |
 > | "this `README.md` is the canonical narrative" | It is not. `docs/PRD.md` is. |

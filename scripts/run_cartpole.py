@@ -12,6 +12,7 @@ Baseline note (for M1):
 
 import os
 import sys
+
 import gymnasium as gym
 
 # Print UTF-8 so any status glyphs don't crash on Windows consoles (cp1252).
@@ -39,11 +40,11 @@ def main():
         # Try human render mode first
         env = gym.make("CartPole-v1", render_mode="human")
         print("  [OK] Initialized with human rendering.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - display init can fail in headless/non-GUI setups
         print(f"  [!] Human rendering not available ({e}). Falling back to no-render mode.")
         env = gym.make("CartPole-v1")
 
-    obs, info = env.reset()
+    obs, _info = env.reset()
     print(f"Initial Observation: {obs}")
 
     total_reward = 0.0
@@ -63,7 +64,7 @@ def main():
         # Since it's CartPole (programmatic), NullInput does nothing
         hands.tap_key(action)
 
-        obs, reward, terminated, truncated, info = env.step(action)
+        obs, reward, terminated, truncated, _info = env.step(action)
         total_reward += reward
         current_episode_reward += reward
 
@@ -75,7 +76,7 @@ def main():
         if terminated or truncated:
             episode_rewards.append(current_episode_reward)
             current_episode_reward = 0.0
-            obs, info = env.reset()
+            obs, _info = env.reset()
 
     # Count the final partial episode if it didn't terminate in time
     if current_episode_reward > 0:

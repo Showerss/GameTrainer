@@ -32,9 +32,10 @@ Usage:
     python scripts/train_gridworld.py --render       # print the learned path at the end
 """
 
+import argparse
 import os
 import sys
-import argparse
+
 import numpy as np
 
 # Print UTF-8 so status glyphs (>=, x, checkmarks) don't crash on Windows consoles (cp1252).
@@ -46,8 +47,8 @@ _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _project_root)
 
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 # GridWorld is ours (M2). NullInput keeps the eyes -> brain -> hands shape visible
 # even though GridWorld is programmatic — consistent with run_gridworld.py.
@@ -160,7 +161,7 @@ def render_one_episode(model) -> None:
     env.render()
     while not (terminated or truncated):
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env.step(action)
+        obs, _reward, terminated, truncated, info = env.step(action)
         env.render()
     outcome = "GOAL reached" if terminated else "ran out of moves"
     print(f"  -> {outcome} in {info['steps']} steps.\n")

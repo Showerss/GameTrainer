@@ -39,8 +39,9 @@ import pytest
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
 
-from src.gametrainer.gridworld import GridWorldEnv
 from stable_baselines3 import PPO
+
+from src.gametrainer.gridworld import GridWorldEnv
 
 # How much to look at. Kept small so the guardrail stays quick to run.
 RANDOM_EPISODES = 20   # episodes to measure the random baseline over

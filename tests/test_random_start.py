@@ -147,7 +147,7 @@ def test_contract_shapes_survive_the_extra_wrapper():
 
     step_result = env.step(env.action_space.sample())
     assert isinstance(step_result, tuple) and len(step_result) == 5
-    obs, reward, terminated, truncated, info = step_result
+    obs, _reward, _terminated, _truncated, _info = step_result
     assert env.observation_space.contains(obs)
 
 
@@ -224,8 +224,7 @@ def test_an_agent_that_can_see_does_pass_this_task():
     """The other half: the task must be winnable, or the bar is impossible.
 
     This oracle cheats -- it reads the true positions instead of looking at the
-    picture. That is the point: it measures what perfect eyes would be worth.
-    """
+    picture. That is the point: it measures what perfect eyes would be worth."""
     def walks_to_the_goal(env, rng):
         grid = env.unwrapped
         goal_row, goal_col = grid.GOAL

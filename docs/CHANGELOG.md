@@ -2,7 +2,7 @@
 
 
 > **Covers:** every change to this project, newest first.
-> **Status:** current. **Last verified:** 2026-08-14 (M4 milestone entry added;
+> **Status:** current. **Last verified:** 2026-09-19 (M5 milestone entry added;
 > all earlier entries reconfirmed accurate).
 > **Authority:** this file owns *what happened and when*. `docs/PRD.md` owns *what
 > gets built next*. Written to `docs/DOC_STANDARD.md`.
@@ -18,10 +18,47 @@ preserved at the **bottom** of this file under *Pre-milestone*.
 
 ---
 
+## [M5] — Add the Hands (LibreMines + Real Input)
+
+M1–M4 operated entirely within synthetic or simulated environments (CartPole, GridWorld). M5 bridges the gap to a **real, external desktop game process** (`LibreMines`), proving real screen capture and real keyboard keystroke injection with zero human intervention and 100% unattended reset reliability. Verified live across four negative controls on both macOS and Windows 11. Full brick-by-brick record: `docs/m5/M5_Log.md`. Retrospective: `docs/m5/M5_Review.md`.
+
+### Added
+
+- **Window capture & focus management (`src/gametrainer/screen.py`):**
+  `GameWindow` discovers the target window by title or owning process name and grabs BGR frames using `mss`. Includes `set_dpi_awareness()` at import time (`SetProcessDpiAwarenessContext(-4)`) on Windows to eliminate logical-to-physical coordinate scaling artifacts. Dynamically re-queries window geometry on every grab. On Windows, connects to `OpenDesktopW("Default")` to allow automated agent subshells to see the interactive desktop. On macOS, discovers windows via `Quartz.CGWindowListCopyWindowInfo` and activates via `NSRunningApplication`.
+- **Real keyboard hands (`src/gametrainer/input.py`):**
+  `KeyboardInput` implements `InputController` via Win32 `SendInput` on Windows and `Quartz.CGEventPost` on macOS. Injects W/A/S/D directional navigation, `O` (reveal), `P` (flag), and `Ctrl+R` / `Cmd+R` (reset chord). Asserts `sizeof(_INPUT) == 40` at import on Windows x64 to prevent silent parameter errors; uses `AttachThreadInput` + `SetForegroundWindow` to bypass Windows foreground locks; guards against mode exit by making `escape()` raise `RuntimeError`.
+- **Computer vision & tile classification (`src/gametrainer/minesweeper_vision.py`):**
+  `read_board(frame)` locates the minefield dynamically using connected component analysis (`find_board`), finding the largest solid square dark blob (handling arbitrary window sizes and maximized states). `classify_cell` extracts the 8×8 grid of cell states (`0`–`8`, `HIDDEN`, `FLAGGED`, `MINE`), distinguishing hidden grey, revealed dark, and keyboard cursor grey `(185, 185, 185)`. Raises `UnreadableCell` loudly on unknown glyphs rather than guessing.
+- **Minesweeper reward calculator (`src/gametrainer/rewards.py`):**
+  `MinesweeperRewardCalculator` provides pure functional scoring over `(prev_grid, curr_grid)`: `safe_reveal_reward` (+1.0 per newly revealed safe cell, scaling naturally with cascades), `mine_penalty` (-10.0 on mine hit), and `win_reward` (+10.0 on board clear).
+- **Gymnasium environment (`src/gametrainer/minesweeper.py`):**
+  `MinesweeperEnv` wraps LibreMines in the standard `gymnasium.Env` contract: `Discrete(6)` action space, `Box(0, 11, (8, 8), int8)` observation space. Manages episode resets via `hands.restart()`. Supports dependency injection of mock hands and window for hermetic testing. Passes `gymnasium` and `stable-baselines3` env checkers cleanly.
+- **Profile & factory wiring (`profiles/minesweeper.yaml`, `src/gametrainer/profile.py`, `src/gametrainer/factory.py`):**
+  Added `minesweeper` ground and reward validation to `Profile`. Added `profiles/minesweeper.yaml` specifying board rewards and PPO hyperparameters. Extended `make_env` to instantiate `MinesweeperEnv` with automatic live window discovery and headless fallback.
+- **Milestone proof script & tests (`scripts/check_hands.py`, `tests/test_check_hands.py`):**
+  Pure referee logic and measurement runner evaluating four controls: (1) Keys live (flags cell `(1, 2)` exactly), (2) NullInput negative control (0 cells changed), (3) Frozen frame negative control (obs stationary while screen changes), and (4) Reset (20/20 fresh boards unattended with 0 mouse clicks).
+- **Results:** PASS live on both macOS (Apple Silicon arm64, 16.8s) and Windows 11 (x64, 22.4s). Full test suite: 102 passed, 1 skipped.
+
+### Fixed
+
+- **Keyboard cursor highlight masked as unreadable:** LibreMines tints the cell under the keyboard cursor `(185, 185, 185)`; updated vision classifier with `_CURSOR_BODY` background recognition.
+- **LibreMines keyboard activation key offset:** The first directional keypress in LibreMines awakens cursor navigation at `(0, 0)` without stepping; added an initial activation keypress in `check_hands.py` so targeted navigation lands accurately on `(1, 2)`.
+- **macOS Qt reset shortcut translation:** Qt on macOS maps reset to Command+R rather than physical Control+R; implemented platform-specific chord dispatch.
+- **Windows runner desktop station isolation:** Automated agent processes running in isolated virtual desktops failed to enumerate interactive windows; added `OpenDesktopW` attachment in `screen.py`.
+- **Windows reset animation race condition:** Qt reset fade-in animation caused transient mid-fade frames at 0.15s; adjusted post-restart delay to 0.50s in `check_hands.py`.
+
+### Documentation
+
+- `docs/m5/M5_Log.md` — complete lab notebook for Bricks 0–8, including synthesis tables (Results, Decisions, Surprises, Open questions).
+- `docs/m5/M5_Review.md` — milestone sprint retrospective and Rule 3 results table.
+- `docs/ONBOARDING.md`, `docs/PRD.md`, `docs/README.md` — status headers and references updated to reflect M5 closed.
+
+---
+
 ## [M4] — Make It Swappable (`Profile` + `RewardCalculator`)
 
-M1–M3 each proved one thing could be swapped (the brain, then the Ground, then the
-sense organ). M4 proves the **whole Ground** is swappable: one runner, one
+M1–M4 operated entirely within synthetic or simulated environments (CartPole, GridWorld). M4 proves the **whole Ground** is swappable: one runner, one
 borrowed brain, and the *only* thing separating CartPole from GridWorld-through-
 pixels is which `.yaml` file gets passed on the command line. This is the
 milestone the PRD calls the portfolio win condition — any ground, any brain, one
