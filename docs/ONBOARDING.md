@@ -3,7 +3,7 @@
 > **Covers:** orientation for someone new to this repo — what it is, why it looks
 > this way, what every technology is for, and which code is current.
 > **Status:** current.
-> **Last verified:** 2026-09-19 (M5 closed — §5's Track A file table, §6's input
+> **Last verified:** 2026-09-24 (M5 closed — §5's Track A file table, §6's input
 > stack description, §7's tree, §8's status table and summary, and §12's links all
 > updated to match; see each section for what changed).
 > **Authority:** `docs/PRD.md` owns *what gets built*; this file is the tour.
@@ -272,7 +272,7 @@ GameTrainer/
 │   ├── train_from_profile.py # M4: one runner, any profile
 │   ├── check_swap.py        # M4: negative-control proof the config is real
 │   └── check_hands.py       # ★ M5: 4-control proof driving a live window
-├── tests/                   # pytest suite (102 passed, 1 skipped)
+├── tests/                   # pytest suite (114 passed, 1 skipped)
 └── docs/                    # PRD, changelog, per-milestone notes + UML
 
 ★ = current milestone

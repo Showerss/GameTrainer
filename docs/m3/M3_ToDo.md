@@ -1,5 +1,9 @@
 # M3 — Add the Eyes (GridWorld through a ViT)
 
+> **Covers:** the M3 plan — scope, design decisions, bricks, and finish line for frozen ViT perception.
+> **Status:** completed plan — **closed**. **Last verified:** 2026-09-24 (reconfirmed; M3 closed with trained +0.99 and 100% goals).
+> **Authority:** docs/PRD.md owns what gets built and in what order. This file owns what M3 requires.
+
 > **Milestone goal (from PRD):** `VisionPerception` feeds a *picture* of GridWorld
 > to the ViT; PPO still learns (slower is fine).
 >

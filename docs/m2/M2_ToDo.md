@@ -1,5 +1,9 @@
 # M2 — Build Your Own Ground (GridWorld)
 
+> **Covers:** the M2 plan — scope, design decisions, bricks, and finish line for our custom GridWorld.
+> **Status:** completed plan — **closed**. **Last verified:** 2026-09-24 (reconfirmed; M2 closed with trained +0.93 and 20/20 goals).
+> **Authority:** docs/PRD.md owns what gets built and in what order. This file owns what M2 requires.
+
 > **Milestone goal (from PRD):** A `GridWorld` env obeys the Gymnasium contract;
 > a random agent runs, then PPO learns to reach the goal.
 >
