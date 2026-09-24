@@ -2,14 +2,18 @@
 __pycache__/
 *.py[cod]
 *$py.class
-venv/
+*.so
 .env
 
-# C++ / Build
+# Python Virtual Environments
+.venv/
+.venv*/
+venv/
+
+# C++ / Build & Packaging
 build/
 dist/
 *.egg-info/
-*.so
 *.pyd
 *.dll
 *.exe
@@ -18,25 +22,29 @@ dist/
 CMakeCache.txt
 CMakeFiles/
 
-# IDEs
+# Testing & Linting
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDEs & OS
 .idea/
 .vscode/
 *.swp
-
-# macOS
 .DS_Store
 
 # Models and Training Artifacts
 models/
 logs/
+runs/
+wandb/
+checkpoints/
 *.zip
+*.pt
+*.pth
+*.onnx
+*.safetensors
 
-# Python virtual environments
-.venv/
-venv/
-
-# Python cache
-__pycache__/
-*.pyc
 # Game binaries (M5) — downloaded, not committed. See docs/m5/M5_ToDo.md
 games/
