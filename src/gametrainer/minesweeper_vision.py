@@ -53,19 +53,46 @@ A different LibreMines minefield theme is a different set of numbers.
 
 from __future__ import annotations
 
+from enum import IntEnum
+
 import cv2
 import numpy as np
 
 # Easy is 8x8, and M5 plays no other size (docs/m5/M5_ToDo.md, "The design").
 GRID = 8
 
+
 # Cell states. 0-8 are the revealed neighbour counts, so the three states that
 # are not a number simply continue the same run of integers: no negatives and
 # no gaps, which keeps every state a valid index into a 12-long table if a
 # later brick wants one-hot or MultiDiscrete.
-HIDDEN = 9
-FLAGGED = 10
-MINE = 11
+class CellState(IntEnum):
+    """Minesweeper cell states (0 to 11).
+
+    0 to 8 represent the revealed neighbour mine count.
+    9, 10, and 11 represent hidden, flagged, and mine cells.
+    Inherits from IntEnum so every instance is an int and behaves seamlessly
+    with NumPy arrays, Gymnasium Box spaces, and slice indexing.
+    """
+
+    BLANK = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 5
+    SIX = 6
+    SEVEN = 7
+    EIGHT = 8
+    HIDDEN = 9
+    FLAGGED = 10
+    MINE = 11
+
+
+# Backward compatibility aliases for module constants
+HIDDEN = CellState.HIDDEN
+FLAGGED = CellState.FLAGGED
+MINE = CellState.MINE
 
 # --- The measured palette (BGR, the order OpenCV and Brick 1 both use) ---
 _HIDDEN_BODY = np.array([70, 70, 70])
@@ -198,12 +225,12 @@ def _classify_monochrome_glyph(pixels: np.ndarray) -> int | None:
     """Classify the revealed states that are drawn without a colourful ink."""
     dominant = _dominant_colour(pixels)
     if max(abs(a - b) for a, b in zip(dominant, _EIGHT_COLOUR)) <= _COLOUR_TOLERANCE:
-        return 8
+        return CellState.EIGHT
 
     # The mine sprite mixes a dark body with a bright white highlight; the 8
     # never does. That bright patch is the simplest reliable separator.
     if int(pixels.max()) >= 220:
-        return MINE
+        return CellState.MINE
 
     return None
 
@@ -248,7 +275,7 @@ def classify_cell(patch: np.ndarray) -> int:
     grey_ink = (ink & ~colourful).mean()
 
     if coloured_ink < _INK_FRACTION and grey_ink < _INK_FRACTION:
-        return HIDDEN if is_hidden else 0
+        return CellState.HIDDEN if is_hidden else CellState.BLANK
 
     if coloured_ink < _INK_FRACTION:
         if is_hidden:
@@ -268,7 +295,7 @@ def classify_cell(patch: np.ndarray) -> int:
     # hidden - and it is the same red as a 3, which is why this is decided by
     # the background and not by the colour.
     if is_hidden:
-        return FLAGGED
+        return CellState.FLAGGED
 
     colour = _dominant_colour(pixels[ink & colourful])
     digit = _nearest_digit(colour)

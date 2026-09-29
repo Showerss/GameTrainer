@@ -34,6 +34,7 @@ from src.gametrainer.minesweeper_vision import (
     FLAGGED,
     HIDDEN,
     MINE,
+    CellState,
     classify_cell,
     read_board,
 )
@@ -90,6 +91,15 @@ def _load_fixture():
     frame = cv2.imread(str(FIXTURE))
     assert frame is not None, f"fixture image not readable: {FIXTURE}"
     return frame
+
+
+def test_cell_state_enum_and_constants():
+    """CellState enum values match module constants and int expectations."""
+    assert CellState.BLANK == 0
+    assert CellState.HIDDEN == HIDDEN == 9
+    assert CellState.FLAGGED == FLAGGED == 10
+    assert CellState.MINE == MINE == 11
+    assert isinstance(HIDDEN, int)
 
 
 def test_fixture_reads_back_as_the_verified_grid():
