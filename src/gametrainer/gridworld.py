@@ -161,6 +161,7 @@ class GridWorldEnv(gym.Env):
                     cells.append(".")
             print(" ".join(cells))
         print()
+        return None
 
     def close(self):
         pass

@@ -38,6 +38,8 @@ class TuiConfig:
     train_gridworld_vit_script_relpath: str = "scripts/train_gridworld_vit.py"
     # M4 surface: profile-driven training for any shipped profile.
     train_from_profile_script_relpath: str = "scripts/train_from_profile.py"
+    # M5 surface: verify live desktop hands against LibreMines.
+    check_hands_script_relpath: str = "scripts/check_hands.py"
 
 
 def _project_root() -> Path:
@@ -92,9 +94,10 @@ def _menu() -> Panel:
     menu.append("  [4] Train GridWorld - borrowed PPO brain (M2)\n")
     menu.append("  [5] Train GridWorld with ViT eyes - pixels only (M3)\n")
     menu.append("  [6] Train from profile - CartPole / GridWorld / GridWorld-pixels (M4)\n")
-    menu.append("  [7] View changelog\n")
-    menu.append("  [8] Update / install deps (pip)\n")
-    menu.append("  [9] Quit\n")
+    menu.append("  [7] Verify live desktop hands - LibreMines (M5)\n")
+    menu.append("  [8] View changelog\n")
+    menu.append("  [9] Update / install deps (pip)\n")
+    menu.append("  [10] Quit\n")
     return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
 
 
@@ -126,12 +129,12 @@ def run_tui(cfg: TuiConfig | None = None) -> int:
     while True:
         console.clear()
         console.print(_header(cfg))
-        console.print(_menu())\
+        console.print(_menu())
 
         choice = IntPrompt.ask(
             "Selection",
-            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-            default="9",
+            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+            default="10",
         )
 
         if choice == 1:
@@ -162,8 +165,8 @@ def run_tui(cfg: TuiConfig | None = None) -> int:
             return _run_script(cfg.train_gridworld_vit_script_relpath)
 
         if choice == 6:
-            # M4: profile-driven training.  Show a three-option submenu so the
-            # user can pick which shipped profile to run, then hand off to
+            # M4: profile-driven training.  Show a submenu so the user can pick
+            # which shipped profile to run, then hand off to
             # scripts/train_from_profile.py --profile <path>.
             console.clear()
             console.print(_header(cfg))
@@ -172,15 +175,17 @@ def run_tui(cfg: TuiConfig | None = None) -> int:
                 "  [1] CartPole (cartpole.yaml)\n"
                 "  [2] GridWorld flat (gridworld.yaml)\n"
                 "  [3] GridWorld pixels (gridworld_pixels.yaml)\n"
-                "  [4] Back",
+                "  [4] Minesweeper (minesweeper.yaml)\n"
+                "  [5] Back",
                 title="Train from Profile",
                 border_style="magenta",
             ))
-            sub = IntPrompt.ask("Selection", choices=["1", "2", "3", "4"], default="4")
+            sub = IntPrompt.ask("Selection", choices=["1", "2", "3", "4", "5"], default="5")
             profile_map = {
                 1: "profiles/cartpole.yaml",
                 2: "profiles/gridworld.yaml",
                 3: "profiles/gridworld_pixels.yaml",
+                4: "profiles/minesweeper.yaml",
             }
             if sub in profile_map:
                 console.print(f"\nLaunching train_from_profile.py --profile {profile_map[sub]} …\n")
@@ -188,6 +193,12 @@ def run_tui(cfg: TuiConfig | None = None) -> int:
             continue
 
         if choice == 7:
+            # M5: check live desktop hands on LibreMines (Windows/macOS).
+            console.print("\nLaunching live desktop hands check (LibreMines)...\n")
+            console.print("[dim]Requires LibreMines running on your desktop.[/dim]\n")
+            return _run_script(cfg.check_hands_script_relpath)
+
+        if choice == 8:
             root = _project_root()
             path = (root / cfg.changelog_relpath).resolve()
             console.clear()
@@ -196,7 +207,7 @@ def run_tui(cfg: TuiConfig | None = None) -> int:
             Prompt.ask("\nPress Enter to return", default="")
             continue
 
-        if choice == 8:
+        if choice == 9:
             console.clear()
             console.print(_header(cfg))
             console.print(Panel("Choose what to install:\n\n  [1] Core (.)\n  [2] Core + RL (.[rl])\n  [3] Back", border_style="green"))

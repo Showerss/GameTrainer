@@ -45,6 +45,8 @@ def _print_usage():
     print("  python scripts/run_gridworld.py        # M2: random actions baseline")
     print("  python scripts/train_gridworld.py      # M2: PPO on GridWorld")
     print("  python scripts/train_gridworld_vit.py  # M3: PPO on GridWorld pixels")
+    print("  python scripts/train_from_profile.py   # M4: train from YAML profile")
+    print("  python scripts/check_hands.py          # M5: verify live desktop hands")
 
 
 def _launch_tui() -> int:
