@@ -75,6 +75,7 @@ class GridWorldEnv(gym.Env):
         # Live state — actually set in reset(); seeded here so the object is valid.
         self.row, self.col = self.START
         self._steps = 0
+        self._terminated = False
 
         # Reward decision, pulled out to RewardCalculator (M4, Brick 2). Falls
         # back to the class constants so old callers (GridWorldEnv()) are
@@ -93,15 +94,32 @@ class GridWorldEnv(gym.Env):
         super().reset(seed=seed)
         self.row, self.col = self.START
         self._steps = 0
+        self._terminated = False
         return self._get_obs(), {}
 
     def step(self, action):
         """One move. Returns (obs, reward, terminated, truncated, info)."""
-        # Normalize action (SB3 may return a 1-element array) and clamp to Discrete range.
+        if self._terminated:
+            raise RuntimeError("step() called after termination; call reset()")
+
+        # Normalize action (SB3 may return a 1-element array) and validate Discrete range.
         action_arr = np.asarray(action)
-        if action_arr.shape != ():
-            action = action_arr.item()
-        action = int(np.clip(action, 0, self.action_space.n - 1))
+        if action_arr.shape not in ((), (1,)):
+            raise ValueError(f"invalid action: {action!r}")
+        try:
+            val = action_arr.item()
+            if isinstance(val, (bool, np.bool_)):
+                raise ValueError(f"invalid action: {action!r}")
+            if isinstance(val, (float, np.floating)) and np.isnan(val):
+                raise ValueError(f"invalid action: {action!r}")
+            action_int = int(val)
+            if float(val) != float(action_int):
+                raise ValueError(f"invalid action: {action!r}")
+            if action_int not in self.action_space:
+                raise ValueError(f"invalid action: {action!r}")
+        except (TypeError, ValueError):
+            raise ValueError(f"invalid action: {action!r}") from None
+        action = action_int
 
         # Propose the move, clamped to the grid so walls simply stop us.
         if action == self.UP:
@@ -120,6 +138,7 @@ class GridWorldEnv(gym.Env):
         reward = self._reward_calculator.reward(reached_goal)
         terminated = reached_goal  # won the game
         truncated = (self._steps >= self.MAX_STEPS) and not reached_goal  # ran out of moves
+        self._terminated = terminated
 
         info = {"steps": self._steps}
         return self._get_obs(), reward, terminated, truncated, info
@@ -211,9 +230,13 @@ class RandomStart(gym.Wrapper):
         # Any square except the goal -- starting on it means the episode is won
         # before it begins, which teaches nothing and inflates mean reward.
         row, col = self.goal
+        attempts = 0
         while (row, col) == self.goal:
+            if attempts >= 100:
+                raise ValueError("Could not find a starting cell different from the goal in 100 attempts")
             row = int(self.np_random.integers(grid.SIZE))
             col = int(self.np_random.integers(grid.SIZE))
+            attempts += 1
 
         grid.row, grid.col = row, col
         return grid._get_obs(), info

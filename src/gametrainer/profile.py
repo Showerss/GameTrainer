@@ -146,6 +146,8 @@ class Profile:
                 f"got '{reward}'"
             )
 
+        step_cost = None
+        goal_reward = None
         if reward == "gridworld":
             reward_missing = [k for k in ("step_cost", "goal_reward") if k not in raw]
             if reward_missing:
@@ -153,6 +155,8 @@ class Profile:
                     f"{path}: reward 'gridworld' requires field(s): "
                     f"{', '.join(reward_missing)}"
                 )
+            step_cost = _require_real(path, raw, "step_cost")
+            goal_reward = _require_real(path, raw, "goal_reward")
 
         safe_reveal_reward = None
         mine_penalty = None
@@ -172,6 +176,36 @@ class Profile:
             mine_penalty = _require_real(path, raw, "mine_penalty")
             win_reward = _require_real(path, raw, "win_reward")
 
+        total_timesteps = raw["total_timesteps"]
+        if (
+            isinstance(total_timesteps, bool)
+            or not isinstance(total_timesteps, Real)
+            or total_timesteps <= 0
+        ):
+            raise ValueError(
+                f"{path}: 'total_timesteps' must be > 0, got {total_timesteps!r}"
+            )
+
+        learning_rate = raw["learning_rate"]
+        if (
+            isinstance(learning_rate, bool)
+            or not isinstance(learning_rate, Real)
+            or learning_rate <= 0
+        ):
+            raise ValueError(
+                f"{path}: 'learning_rate' must be > 0, got {learning_rate!r}"
+            )
+
+        gamma = raw["gamma"]
+        if (
+            isinstance(gamma, bool)
+            or not isinstance(gamma, Real)
+            or not (0.0 < gamma <= 1.0)
+        ):
+            raise ValueError(
+                f"{path}: 'gamma' must be between 0 (exclusive) and 1 (inclusive), got {gamma!r}"
+            )
+
         min_goal_rate = raw.get("min_goal_rate")
         if min_goal_rate is not None:
             if ground in ("cartpole", "minesweeper"):
@@ -179,6 +213,7 @@ class Profile:
                     f"{path}: 'min_goal_rate' is not supported for ground '{ground}' "
                     f"— {ground} has no discrete goal cell to measure"
                 )
+            min_goal_rate = _require_real(path, raw, "min_goal_rate")
             if not (0.0 <= min_goal_rate <= 1.0):
                 raise ValueError(
                     f"{path}: 'min_goal_rate' must be between 0 and 1, got {min_goal_rate}"
@@ -188,18 +223,18 @@ class Profile:
             ground=ground,
             perception=perception,
             reward=reward,
-            total_timesteps=raw["total_timesteps"],
-            learning_rate=raw["learning_rate"],
+            total_timesteps=total_timesteps,
+            learning_rate=learning_rate,
             n_steps=raw["n_steps"],
             batch_size=raw["batch_size"],
             n_epochs=raw["n_epochs"],
-            gamma=raw["gamma"],
+            gamma=gamma,
             gae_lambda=raw["gae_lambda"],
             clip_range=raw["clip_range"],
             ent_coef=raw["ent_coef"],
             margin_over_baseline=raw["margin_over_baseline"],
-            step_cost=raw.get("step_cost"),
-            goal_reward=raw.get("goal_reward"),
+            step_cost=step_cost,
+            goal_reward=goal_reward,
             min_goal_rate=min_goal_rate,
             safe_reveal_reward=safe_reveal_reward,
             mine_penalty=mine_penalty,
