@@ -3,9 +3,8 @@
 > **Covers:** orientation for someone new to this repo — what it is, why it looks
 > this way, what every technology is for, and which code is current.
 > **Status:** current.
-> **Last verified:** 2026-09-24 (M5 closed — §5's Track A file table, §6's input
-> stack description, §7's tree, §8's status table and summary, and §12's links all
-> updated to match; see each section for what changed).
+> **Last verified:** 2026-10-04 (M5 closed; added C4 architecture companion reference;
+> confirmed Track A alignment).
 > **Authority:** `docs/PRD.md` owns *what gets built*; this file is the tour.
 > Written to `docs/DOC_STANDARD.md`.
 
@@ -13,7 +12,7 @@
 > does, what every technology in it is for, and — importantly — which parts of the
 > code are *current* and which are *leftovers from an older plan*.
 >
-> Companion file: [`docs/UML_FULL.md`](UML_FULL.md) — the diagrams.
+> Companion files: [`docs/UML_FULL.md`](UML_FULL.md) — the diagrams, and [`docs/C4_ARCHITECTURE.md`](C4_ARCHITECTURE.md) — the layered C4 architecture.
 
 ---
 
@@ -29,7 +28,9 @@ clean, standard connector between *any game* and *any AI*. If that connector is
 right, you can swap the game without touching the AI, and swap the AI without
 touching the game. That swappability is the entire point of the codebase.
 
----\n\n## 2. The mental model (learn these 3 words and you can read everything)
+---
+
+## 2. The mental model (learn these 3 words and you can read everything)
 
 The project uses a fixed vocabulary. Every doc, comment, and commit uses it.
 
@@ -61,7 +62,9 @@ observe  →  act  →  reward  →  repeat
 We deliberately do *not* write our own learning algorithm. That's a solved
 problem; re-solving it would teach nothing and take months.
 
----\n\n## 3. The one contract that must never break
+---
+
+## 3. The one contract that must never break
 
 Everything hangs off a single interface, defined by a library called
 **Gymnasium**. Every "Ground" must expose exactly these two methods:
@@ -86,7 +89,9 @@ must not be treated the same.
 `step()` to make something work — don't. The moment the shape drifts, the
 swappability (the whole thesis) is gone. Find another way.
 
----\n\n## 4. Why the project starts with toys instead of a real game
+---
+
+## 4. Why the project starts with toys instead of a real game
 
 The end goal is a complex farming game (Stardew Valley). We deliberately do
 **not** start there, because a real game has:
@@ -112,7 +117,9 @@ milestones, each of which changes exactly one thing:
 > **Portfolio note:** finishing **M4** already proves the whole thesis — any
 > ground, any brain, one socket. M5 bridges this plumbing to live OS windows.
 
----\n\n## 5. ⚠️ The single most confusing thing about this repo (historical — see correction)
+---
+
+## 5. ⚠️ The single most confusing thing about this repo (historical — see correction)
 
 > **Correction — 2026-08-04.** This section originally described two generations
 > of code living side by side, with Track B kept forever as reference material.
@@ -159,8 +166,8 @@ So when you open `src/`, you were looking at two tracks at once:
 | `src/gametrainer/factory.py` | M4: `make_env(profile)` — the one place a profile's name becomes an env |
 | `profiles/*.yaml` | M4: `cartpole`, `gridworld`, `gridworld_pixels`; M5: `minesweeper` |
 | `scripts/train_from_profile.py` | M4: one runner, any profile — replaces per-game train scripts |
-| `scripts/check_swap.py` | M4: negative-control proof the config layer is really wired |
-| `tests/test_profile.py`, `test_rewards.py`, `test_make_env.py`, `test_m4_verdict.py` | M4: profile validation, reward numbers, env-building, the referee |
+| `tests/test_m4_verdict.py` | M4: referee unit tests and source fingerprint swap proof |
+| `tests/test_profile.py`, `test_rewards.py`, `test_make_env.py` | M4: profile validation, reward numbers, env-building |
 | `src/gametrainer/screen.py` | M5: `GameWindow` — DPI-aware live window capture (Windows / macOS) |
 | `src/gametrainer/input.py` | M5: `KeyboardInput` — real OS key injection via SendInput / Quartz |
 | `src/gametrainer/minesweeper_vision.py` | M5: `read_board` — locates board and classifies 8×8 cells |
@@ -180,7 +187,9 @@ So when you open `src/`, you were looking at two tracks at once:
 | `src/gametrainer/config.py` | Loads per-game YAML config | M4 |
 | `scripts/train.py`, `scripts/play.py` | The Stardew train/play entry points | M3+ |
 
----\n\n## 6. Every technology, explained
+---
+
+## 6. Every technology, explained
 
 ### The core four (needed from day one)
 
@@ -248,7 +257,9 @@ dataclass, turned into a Gymnasium env by `src/gametrainer/factory.py`'s
 `make_env(profile)`. Adding LibreMines (`profiles/minesweeper.yaml`) required zero
 changes to the profile loading architecture.
 
----\n\n## 7. How the code is organised
+---
+
+## 7. How the code is organised
 
 ```
 GameTrainer/
@@ -270,7 +281,6 @@ GameTrainer/
 ├── profiles/                # cartpole.yaml, gridworld.yaml, gridworld_pixels.yaml, minesweeper.yaml
 ├── scripts/                 # runnable entry points, one per job
 │   ├── train_from_profile.py # M4: one runner, any profile
-│   ├── check_swap.py        # M4: negative-control proof the config is real
 │   └── check_hands.py       # ★ M5: 4-control proof driving a live window
 ├── tests/                   # pytest suite (114 passed, 1 skipped)
 └── docs/                    # PRD, changelog, per-milestone notes + UML
@@ -278,7 +288,9 @@ GameTrainer/
 ★ = current milestone
 ```
 
----\n\n## 8. Where the project actually stands today
+---
+
+## 8. Where the project actually stands today
 
 **Current branch:** `m5-implementation`. **Last milestone closed:** M5.
 
@@ -290,10 +302,12 @@ Done and working:
 | **M1** | Borrow the Brain | Reward **22 → 500** (500 is CartPole's ceiling) | CPU, PPO `MlpPolicy`, 25k steps |
 | **M2** | Build our own Ground | Trained **+0.93**, goal reached **20/20** greedy episodes | CPU, PPO `MlpPolicy`, 25k steps |
 | **M3** | Add the Eyes | Live baseline **+0.48** → trained **+0.99**, goal reached **100%** of greedy episodes | CPU, frozen `vit_tiny_patch16_224`, **19.2 min** |
-| **M4** | Make it swappable | All 3 profiles PASS through **one unedited runner**; 4/4 negative controls PASS (`scripts/check_swap.py`) | CPU, config-only — zero Python edits between runs |
+| **M4** | Make it swappable | All 3 profiles PASS through **one unedited runner**; 4/4 referee verdict checks PASS (`test_m4_verdict.py`) | CPU, config-only — zero Python edits between runs |
 | **M5** | Add the Hands | 4/4 controls PASS live on macOS (16.8s) and Windows (22.4s); 20/20 unattended resets clean with 0 mouse clicks (`scripts/check_hands.py`) | CPU, real desktop window (`LibreMines`) |
 
----\n\n## 9. How to run it
+---
+
+## 9. How to run it
 
 ```bash
 # Install
@@ -310,7 +324,9 @@ pytest
 ruff check .
 ```
 
----\n\n## 10. Design decisions and the reasoning behind them
+---
+
+## 10. Design decisions and the reasoning behind them
 
 | Decision | Why |
 | :--- | :--- |
@@ -323,18 +339,23 @@ ruff check .
 | **Windows SendInput & macOS Quartz** | Directly interface with OS event queues to ensure uncooperative games receive keystrokes without focus loss. |
 | **Reward from state grids, not pixels (M5)** | Comparing classified 8×8 cell grids prevents pixel-noise exploit loops. |
 
----\n\n## 11. Known risks and honest weak spots
+---
+
+## 11. Known risks and honest weak spots
 
 - **Vision computation sets the step rate ceiling.** `read_board` takes ~133 ms per frame on CPU across a maximized 1440p window (~7 steps/s). Future milestones should crop immediately to the board bounding box.
 - **LibreMines reset animation timing.** Qt reset fade takes ~0.25s; stepping too quickly before the animation completes produces transient mid-fade frames.
 - **Ambient desktop interaction.** Tests calling live factory auto-discovery should inject mock hands to prevent accidentally picking up active user windows.
 
----\n\n## 12. Where to go next
+---
+
+## 12. Where to go next
 
 | You want… | Read |
 | :--- | :--- |
 | The authoritative plan | `docs/PRD.md` |
 | The diagrams | [`docs/UML_FULL.md`](UML_FULL.md) |
+| The layered C4 architecture | [`docs/C4_ARCHITECTURE.md`](C4_ARCHITECTURE.md) |
 | Milestone 5 details & retrospective | `docs/m5/M5_Log.md` and `docs/m5/M5_Review.md` |
 | What has changed and when | `docs/CHANGELOG.md` |
 | Per-milestone snapshots | `docs/m0/`, `docs/m1/`, `docs/m2/`, `docs/m3/`, `docs/m4/`, `docs/m5/` |
