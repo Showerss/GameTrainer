@@ -23,7 +23,7 @@ from setuptools import Extension, setup
 # Per PRD v1 constraints: Python-only, CPU-first for early phases; no C++ on macOS.
 _ext_modules = []
 if sys.platform == "win32" and os.environ.get("GAMETRAINER_BUILD_CPP") == "1":
-    _ext_modules = [
+    _ext_modules = [\
         Extension(
             "src.gametrainer.clib",
             sources=[
@@ -43,17 +43,11 @@ _install_requires = [
     "pynput",         # Global keyboard/mouse input capture
     "rich",           # Terminal formatting for the TUI menu (main.py's default path)
     "typing-extensions>=4.7",  # Self type available on Python 3.9
+    # macOS's KeyboardInput/GameWindow (M5) use Quartz and AppKit directly for
+    # window finding, capture and CGEventPost key injection.
+    "pyobjc-framework-Quartz; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
 ]
-
-# macOS's KeyboardInput/GameWindow (M5) use Quartz and AppKit directly for
-# window finding, capture and CGEventPost key injection. pynput already pulls
-# these in transitively on macOS, but they're declared directly here too,
-# since this project imports them itself rather than only through pynput.
-if sys.platform == "darwin":
-    _install_requires += [
-        "pyobjc-framework-Quartz",
-        "pyobjc-framework-Cocoa",
-    ]
 
 
 setup(
