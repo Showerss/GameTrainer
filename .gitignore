@@ -4,11 +4,15 @@ __pycache__/
 *$py.class
 *.so
 .env
+.env.*
+*.egg
 
 # Python Virtual Environments
 .venv/
 .venv*/
 venv/
+ENV/
+env/
 
 # C++ / Build & Packaging
 build/
@@ -19,26 +23,46 @@ dist/
 *.exe
 *.obj
 *.lib
+*.exp
+*.ilk
+*.pdb
+.vs/
 CMakeCache.txt
 CMakeFiles/
 
 # Testing & Linting
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.hypothesis/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 
 # IDEs & OS
 .idea/
 .vscode/
 *.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# AI Assistants & Agent Tooling
+.claude/
+.agent/
+.agents/
+.gemini/
 
 # Models and Training Artifacts
 models/
 logs/
 runs/
 wandb/
+tensorboard/
 checkpoints/
 *.zip
 *.pt
