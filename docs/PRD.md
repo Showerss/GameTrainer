@@ -1,11 +1,9 @@
-# GameTrainer — PRD v2
+# GameTrainer - PRD v2
 
-> **Covers:** what gets built, and in what order — the milestone plan, scope, and
+> **Covers:** what gets built, and in what order - the milestone plan, scope, and
 > the architecture this project is proving out.
-> **Status:** current. **Last verified:** 2026-09-19 (M5 closed and verified PASS
-> live on both macOS and Windows; all 8 bricks complete). Previous pass 2026-09-10
-> (§8's "Windows-only live hands" note corrected in place — a live macOS backend
-> shipped in M5 Brick 7, 2026-09-07). Previous full pass 2026-09-06.
+> **Status:** current. **Last verified:** 2026-10-04 (M5 closed and verified PASS
+> live on both macOS and Windows; all 8 bricks complete; updated cross-references to unified docs).
 > **Authority:** this file wins on *what* gets built and in what order.
 > `docs/DOC_STANDARD.md` wins on *how* docs are written.
 
@@ -16,7 +14,7 @@
 
 ## 1. The one-paragraph pitch
 
-GameTrainer connects a **game** to an **AI** through a **standard link**, so the AI can learn to play by looking at the screen, taking actions, and getting a score. We are not trying to invent a new AI. We are building the *plumbing* — the part that lets any game and any brain snap together — and proving it works by starting tiny and scaling up.
+GameTrainer connects a **game** to an **AI** through a **standard link**, so the AI can learn to play by looking at the screen, taking actions, and getting a score. We are not trying to invent a new AI. We are building the *plumbing* - the part that lets any game and any brain snap together - and proving it works by starting tiny and scaling up.
 
 ---
 
@@ -32,44 +30,44 @@ Three big parts:
 
 The **AI** is itself three pieces:
 
-- **Eyes** → a Vision Transformer (ViT) or CV tile classifier. *Only sees.* Turns pixels into a summary.
-- **Brain** → PPO (from stable-baselines3). *Only decides.* Learns what's good.
-- **Hands** → a Python/native input layer. *Only acts.* Presses keys.
+- **Eyes** – a Vision Transformer (ViT) or CV tile classifier. *Only sees.* Turns pixels into a summary.
+- **Brain** – PPO (from stable-baselines3). *Only decides.* Learns what's good.
+- **Hands** – a Python/native input layer. *Only acts.* Presses keys.
 
 The whole thing is one tiny loop, forever:
 
 ```
-observe  →  act  →  reward  →  repeat
+observe ➔ act ➔ reward ➔ repeat
 ```
 
 **What we build vs. borrow:**
 
-- ✅ **We build:** the Ground (game worlds) and the Link (the socket + profiles).
-- 🔄 **We borrow:** the Brain (PPO) and the Eyes backbone (a pretrained ViT).
+- 🔨 **We build:** the Ground (game worlds) and the Link (the socket + profiles).
+- 📦 **We borrow:** the Brain (PPO) and the Eyes backbone (a pretrained ViT).
 
 ---
 
-## 3. Scope — the crawl-first plan
+## 3. Scope - the crawl-first plan
 
 We do **NOT** start on Stardew Valley. It has no clear score and messy rewards. We earn our way up:
 
-1. **CartPole** (built-in game) → prove the link + borrowed brain work. *Build nothing.*
-2. **Tiny GridWorld** (our own game) → prove we can author a Ground with its own reward.
-3. **Add the Eyes** → make the agent learn from a *picture* of the grid instead of from numbers.
-4. **Make it swappable** → prove switching games is config-only.
-5. **Add the Hands** → drive a real, simple game window with real key-presses (**VERIFIED LIVE**).
-6. **Stardew (stretch / later)** → it becomes *just another profile*.
+1. **CartPole** (built-in game) ➔ prove the link + borrowed brain work. *Build nothing.*
+2. **Tiny GridWorld** (our own game) ➔ prove we can author a Ground with its own reward.
+3. **Add the Eyes** ➔ make the agent learn from a *picture* of the grid instead of from numbers.
+4. **Make it swappable** ➔ prove switching games is config-only.
+5. **Add the Hands** ➔ drive a real, simple game window with real key-presses (**VERIFIED LIVE**).
+6. **Stardew (stretch / later)** ➔ it becomes *just another profile*.
 
 **Non-goals (on purpose, for now):**
 
-- ❌ No control discovery — controls are hard-typed in a profile. (Discovering them is two hard problems stacked; skip it.)
+- ❌ No control discovery - controls are hard-typed in a profile. (Discovering them is two hard problems stacked; skip it.)
 - ❌ No memory reading / process injection.
 - ❌ No C++ in v1. Python hands are fast enough to start.
 - ❌ No cloud / paid APIs. Local only.
 
 ---
 
-## 4. Architecture — components & the contract
+## 4. Architecture - components & the contract
 
 Everything hangs off **one contract**: the Gymnasium environment interface.
 
@@ -83,28 +81,30 @@ observation, reward, terminated, truncated, info = env.step(action)
 
 If a Ground obeys that, **any** brain can plug in. That swappability *is* the architecture flex.
 
-- **`GameEnvironment`** — wraps a game. Holds a **Perception** (eyes), an **InputController** (hands), a **RewardCalculator**, and a **Profile**.
-- **`Perception`** — swappable. `NumericPerception` early on; `VisionPerception` (ViT / CV) later.
-- **`InputController`** — swappable. `NullInput` (programmatic, for CartPole/GridWorld); `KeyboardInput` (SendInput/Quartz, for real games).
-- **`RewardCalculator`** — turns game state into a score.
-- **`Profile`** — loads `profile.yaml` (key mappings, settings). Adding a new game = adding a profile.
-- **`Agent`** — *borrowed*. PPO from stable-baselines3. We don't write this.
+- **`GameEnvironment`** - wraps a game. Holds a **Perception** (eyes), an **InputController** (hands), a **RewardCalculator**, and a **Profile**.
+- **`Perception`** - swappable. `NumericPerception` early on; `VisionPerception` (ViT / CV) later.
+- **`InputController`** - swappable. `NullInput` (programmatic, for CartPole/GridWorld); `KeyboardInput` (SendInput/Quartz, for real games).
+- **`RewardCalculator`** - turns game state into a score.
+- **`Profile`** - loads `profile.yaml` (key mappings, settings). Adding a new game = adding a profile.
+- **`Agent`** - *borrowed*. PPO from stable-baselines3. We don't write this.
 
 ---
 
 ## 5. UML class diagram
 
-> **Correction — 2026-08-14 (M4 closed).** The diagram below was the original
+> **Correction - 2026-08-14 (M4 closed).** The diagram below was the original
 > composition idea: a `GameEnvironment` class holding a `Perception`, an
 > `InputController`, a `RewardCalculator`, and a `Profile`. **M4 did not build
-> it this way.** There is no `GameEnvironment` wrapper class — `GridWorldEnv`
+> it this way.** There is no `GameEnvironment` wrapper class - `GridWorldEnv`
 > does the eyes/hands/scorecard job directly, and `make_env(profile)`
 > (`src/gametrainer/factory.py`) is the only place a `Profile`'s name becomes an
 > object: one function, one `if`-chain, not a class hierarchy. `RewardCalculator`
 > and `Profile` themselves *were* built close to as shown here. Kept as the
-> historical design intent, not deleted, per `docs/DOC_STANDARD.md` rule 4 — see
+> historical design intent, not deleted, per `docs/DOC_STANDARD.md` rule 4 - see
 > `docs/m4/M4_ToDo.md` ("the design") and `docs/m4/backpack_diagram.png` for the
 > full comparison.
+>
+> **For the live, implemented system class diagrams, sequence flows, and layered C4 architecture models across M0-M5, see [`docs/UML_FULL.md`](UML_FULL.md).**
 
 ```mermaid
 classDiagram
@@ -170,87 +170,95 @@ classDiagram
     Perception <|-- VisionPerception
     InputController <|-- NullInput
     InputController <|-- KeyboardInput
-
     GameEnvironment *-- Perception
     GameEnvironment *-- InputController
     GameEnvironment *-- RewardCalculator
     GameEnvironment *-- Profile
-    Agent ..> GymEnvironment : trains on
+    Agent ..> GymEnvironment : interacts via reset/step
 ```
 
 ---
 
 ## 6. Suggested libraries (imports)
 
-| Library | Role | Phase |
-| :--- | :--- | :--- |
-| `gymnasium` | The Link (the socket standard) | 1 |
-| `stable-baselines3` | The Brain (borrowed PPO) | 1 |
-| `torch` | Runs the models | 1 |
-| `numpy` | Number crunching everywhere | 1 |
-| `pyyaml` | Loads `profile.yaml` | 2 |
-| `tensorboard` | Watch training improve | 1 |
-| `timm` | The Eyes (pretrained ViT) | 3 |
-| `opencv-python` | Resize / process screen images | 3 |
-| `mss` | Fast screen capture of a real game | 4 / 5 |
-| `SendInput` / `Quartz` | The Hands (native OS key presses) | 5 |
+```python
+# The Link
+import gymnasium as gym
+
+# The Brain (borrowed)
+from stable_baselines3 import PPO
+
+# Math / arrays
+import numpy as np
+
+# Config
+import yaml
+from dataclasses import dataclass
+
+# The Eyes (borrowed backbone, M3)
+import torch
+import timm
+
+# The Hands (M5 - built, Win32 + Quartz via Python ctypes)
+import ctypes
+# Optional C++ extension (src/cpp/clib.cpp) remains available for v2
+```
 
 ---
 
-## 7. SMART timeline (light pace — a few hours/week)
+## 7. SMART timeline (light pace - a few hours/week)
 
-Each milestone has a **"Done when…"** so you (or an AI assistant) know exactly when to move on. Weeks are rough at light hours — slide them if life happens.
+Each milestone has **one job** and a clear test to prove it works.
 
-| # | Goal | Done when… | ~Time |
-| :--- | :--- | :--- | :--- |
-| **M0** | Setup | Repo + virtualenv created, libs installed, a script runs CartPole with random actions for 100 steps without crashing. | Week 1 (DONE) |
-| **M1** | Borrow the brain | PPO trains on CartPole through your runner; average reward clearly rises vs. the random baseline. | Week 2–3 (DONE) |
-| **M2** | Build your own Ground | A `GridWorld` env obeys the Gymnasium contract; a random agent runs, then PPO learns to reach the goal. | Week 4–5 (DONE) |
-| **M3** | Add the Eyes | `VisionPerception` feeds a *picture* of GridWorld to the ViT; PPO still learns (slower is fine). | Week 6–8 (DONE) |
-| **M4** | Make it swappable | `Profile` + `RewardCalculator` exist; switching between CartPole and GridWorld is **config-only**, no code edits. | Week 9–10 (DONE) |
-| **M5** | Add the Hands | `KeyboardInput` sends real key presses; the loop drives a tiny real game window end-to-end. | Week 11–13 (DONE 2026-09-19) |
-| **M6** | *(Stretch)* Stardew | A `stardew.yaml` profile loads and the agent does *something* sensible on screen. | Later |
+| # | Milestone | Time | Done when... | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **M0** | Setup | 1-2 wks | CartPole runs 100 random steps, no crash | ✅ PASS |
+| **M1** | Borrow the Brain | 2-3 wks | PPO trains on CartPole, clearly beats random | ✅ PASS |
+| **M2** | Build our own Ground | 2-3 wks | Tiny GridWorld runs with PPO, reaches goal | ✅ PASS |
+| **M3** | Add the Eyes | 3-4 wks | GridWorld trains from ViT pixel input on CPU | ✅ PASS |
+| **M4** | Make it swappable | 2-3 wks | Swap CartPole/GridWorld via YAML, 0 code changes | ✅ PASS |
+| **M5** | Add the Hands | 3-4 wks | Drive real game window (LibreMines) live | ✅ PASS |
+| **M6** | Stardew (stretch) | 4-6 wks | Run on real game as "just another profile" | ⏳ NEXT |
 
-**The win condition for a portfolio:** finishing **M4** already proves the whole thesis — any ground, any brain, one socket. Everything after is bonus.
+**Total estimated:** ~4-6 months at light pace. (M0–M5 complete).
 
 ### 7.1 Future milestones (v2+ / post-M6 roadmap)
 
-Items intentionally deferred to preserve v1 crawl-first scope discipline, scheduled for post-M6 iterations:
+Items that are intentionally out of scope for v1:
 
-| Milestone | Goal | Why deferred from v1 |
-| :--- | :--- | :--- |
-| **M7: Cross-Platform Hands (Linux)** | Native synthetic input & window capture on **Linux** (`uinput` / `X11` / `Wayland`). | M5 proved the socket and live loop on Windows and macOS. Linux display servers (X11 vs Wayland) and uinput permissions require dedicated iteration. |
-| **M8: Window Resilience & Background Capture** | Handle minimized/occluded windows via automatic restoration (`ShowWindow`) or background composition capture (`PrintWindow` / `PW_RENDERFULLCONTENT`). | Documented v1 limitation (M5 Brick 1). The current loop requires the window to stay active and visible in foreground. |
-| **M9: Continuous Mouse Hands** | Extend discrete cursor keys (W/A/S/D) to smooth 2D continuous mouse movement, dragging, and hover states. | V1 deliberately proved discrete actions (6 keys) to keep the action space small and deterministic. |
+- **M7: Linux live hands backend (`uinput` / `X11` / `Wayland`).** M5 shipped Win32 `SendInput` and macOS `Quartz`. Linux completes the OS trio.
+- **M8: Opt-in C++ input extension (`src/cpp/clib.cpp`).** Python `ctypes` handles M5 cleanly. Compiling the C++ extension provides sub-millisecond input latency for action-heavy titles.
+- **M9: Multi-game concurrent training.** Vectorized environments across multiple physical display targets.
 
 ---
 
 ## 8. Risks & honest notes
 
-- **Reward from pixels is brittle.** Reading a score off the screen for a real game is error-prone — that's why Stardew is last and simple worlds come first.
-- **Keep the contract strict.** If you ever break the `reset()` / `step()` shape to "make it work," you lose swappability — the one thing that matters. Don't.
-- **Light hours = scope discipline.** Resist jumping to Stardew. The boring CartPole step is what teaches the loop that scales to everything.
-- **A minimised game window cannot be captured (v1 limitation, found M5 Brick 1, 2026-08-26).** `GameWindow` finds and follows a window at any size or position — it matches on title and re-reads the rect every grab — but a minimised window is not drawn by Windows at all, so there is nothing to grab. It raises rather than returning a blank frame. Consequence: **minimising the game mid-run kills the run.** Deferred to v2, where the fix is either restoring the window automatically (`ShowWindow`) or capturing without visibility (`PrintWindow` with `PW_RENDERFULLCONTENT`, which works for some apps and not others). Not worth spending M5 on: the loop already requires the window to be foreground for keystrokes to land.
-- ~~**Windows-only live hands in v1 (found M5, 2026-09-06).** `KeyboardInput` drives games via Windows `SendInput` and `GameWindow` discovers `HWND` handles via `user32.dll`. Off Windows (e.g. macOS, Linux), the suite runs cleanly headlessly using `NullInput` (M0–M4), but live window driving requires Windows 11. Cross-platform native hands (macOS Quartz `CGEventPost`, Linux `uinput`/X11) are catalogued in §7.1 as Future Milestone M7.~~
-  **Corrected 2026-09-10 (M5 Brick 8).** This was true for one day. On
-  2026-09-07 (M5 Brick 7), a live macOS backend was built and proved — `GameWindow`
-  via `Quartz.CGWindowListCopyWindowInfo`, `KeyboardInput` via
-  `CGEventCreateKeyboardEvent`/`CGEventPost` — and `check_hands.py` PASSed all
-  four controls live on macOS. Live hands are **Windows + macOS**, not
-  Windows-only; Linux remains the open item, still tracked as Future Milestone
-  M7 in §7.1. Kept in place rather than rewritten, per DOC_STANDARD rule 4.
+- **Stardew has no score.** We will have to define one (money earned, time survived, crops harvested). *That's why it's last.*
+- **ViT can be slow on CPU.** Keep images small (224x224), batch size low, freeze the backbone.
+- **PPO is tricky to tune.** Don't tweak hyperparameters until everything else works. Use defaults first.
+- **Window focus & key-presses can be flaky.**
+  > **Note - 2026-09-10 (corrected in place per DOC_STANDARD rule 4).** An earlier
+  > draft of this section noted: *"M5 initially targeted Windows SendInput; macOS /
+  > Linux will need their own input layers later."* That note is obsolete. On
+  > 2026-09-07 (M5 Brick 7), a live macOS backend was built and proved - `GameWindow`
+  > via `Quartz.CGWindowListCopyWindowInfo`, `KeyboardInput` via
+  > `CGEventCreateKeyboardEvent`/`CGEventPost` - and `check_hands.py` PASSed all
+  > four controls live on macOS. Live hands are **Windows + macOS**, not
+  > Windows-only; Linux remains the open item, still tracked as Future Milestone
+  > M7 in § 7.1. Kept in place rather than rewritten, per DOC_STANDARD rule 4.
 
 ---
 
 ## 9. For the AI coding assistant
 
-Build in milestone order (M0 → M6). Do **not** scaffold later phases early. After each milestone, stop and confirm the "Done when…" check passes before continuing. Keep the Gymnasium contract (`reset`, `step`) untouched across every environment.
+Build in milestone order (M0 ➔ M6). Do **not** scaffold later phases early. After each milestone, stop and confirm the "Done when." check passes before continuing. Keep the Gymnasium contract (`reset`, `step`) untouched across every environment.
 
 ---
 
 ## 10. Glossary (the words to know)
 
-Learn these five first — everything else hangs off them:
+Learn these five first - everything else hangs off them:
 
 | Term | Plain meaning | In our metaphor |
 | :--- | :--- | :--- |
@@ -260,5 +268,5 @@ Learn these five first — everything else hangs off them:
 | **Action** | What the AI does | "Press right" |
 | **Reward** | The score the game gives back | "Good: +1" |
 
-For everything else — Gymnasium's API, RL vocabulary, PPO — the full reference
-lives in one place: `docs/ONBOARDING.md` §13.
+For everything else - Gymnasium's API, RL vocabulary, PPO - the full reference
+lives in one place: [`docs/MASTER_GUIDE.md`](MASTER_GUIDE.md) § 4.
