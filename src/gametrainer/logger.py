@@ -49,17 +49,9 @@ class Logger:
 
         self._logger.addHandler(self._handler)
 
-        self._gui_callback = None
-
-    def set_gui_logger(self, callback):
-        """Connects GUI window to logger output."""
-        self._gui_callback = callback
-
     def log(self, message: str):
-        """Log a message to file and optionally to GUI."""
+        """Log a message to file."""
         self._logger.info(message)
-        if self._gui_callback:
-            self._gui_callback(message)
 
     def close(self):
         """Release the log file. Safe to call twice."""

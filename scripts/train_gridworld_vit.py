@@ -53,6 +53,11 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from src.gametrainer.gridworld import make_vision_task
 from src.gametrainer.perception import PixelObservation
 from src.gametrainer.vit_extractor import ViTTinyFeaturesExtractor
+from scripts.train_from_profile import (
+    check_contract_shapes,
+    decide_verdict as _decide_verdict_profile,
+    measure_random_baseline as _measure_random_baseline_profile,
+)
 
 # ---------------------------------------------------------------------------
 # The bar (named so it is impossible to miss and easy to tune later).
@@ -142,62 +147,9 @@ def parse_args() -> argparse.Namespace:
 # ---------------------------------------------------------------------------
 
 def measure_random_baseline(episodes: int = BASELINE_EPISODES) -> float:
-    """Average reward per episode of a purely random agent on GridWorld.
+    """Average reward per episode of a purely random agent on GridWorld."""
+    return _measure_random_baseline_profile(make_task, episodes=episodes)
 
-    Teacher Note: a random agent ignores what it sees — it just calls
-    action_space.sample(). So the reward it earns is identical whether the
-    observation is (row, col) numbers or a picture, and we can skip the pixel
-    wrapper here.
-
-    What we can NOT skip is make_task(). The baseline has to be measured on the
-    very same Ground the agent plays, and the random start changed that Ground —
-    starting next to the goal is much easier than starting in the far corner, so
-    the bar moves with it. Measuring the bar on a different game than the one
-    being graded is exactly the M2 mistake this whole guardrail exists to avoid.
-    """
-    env = make_task()
-    total = 0.0
-    for _ in range(episodes):
-        env.reset()
-        terminated = truncated = False
-        while not (terminated or truncated):
-            action = env.action_space.sample()
-            _, reward, terminated, truncated, _ = env.step(action)
-            total += reward
-    env.close()
-    return total / episodes
-
-
-# ---------------------------------------------------------------------------
-# Referee piece 2 — the M2 contract shapes must be unchanged.
-# ---------------------------------------------------------------------------
-
-def check_contract_shapes(env) -> tuple[bool, str]:
-    """Confirm reset() -> 2-tuple and step() -> 5-tuple, obs inside the space.
-
-    Teacher Note: this is the one promise the whole project rests on. M3 swaps
-    the *observation* from numbers to a picture, but the tuple shapes of reset()
-    and step() must not move. We check the plain M2 env here; Brick 4 will run
-    the exact same check on the pixel-wrapped env to prove the swap kept faith.
-    """
-    reset_out = env.reset()
-    if not (isinstance(reset_out, tuple) and len(reset_out) == 2):
-        return False, "reset() did not return a 2-tuple (obs, info)"
-    obs, _info = reset_out
-    if not env.observation_space.contains(obs):
-        return False, "reset() obs is not inside observation_space"
-
-    step_out = env.step(env.action_space.sample())
-    if not (isinstance(step_out, tuple) and len(step_out) == 5):
-        return False, "step() did not return a 5-tuple"
-
-    return True, "reset() -> 2-tuple, step() -> 5-tuple, obs in space"
-
-
-# ---------------------------------------------------------------------------
-# Referee piece 3 — the verdict. Pure logic: numbers in, PASS/FAIL out.
-# Brick 4 calls this with the trained agent's numbers.
-# ---------------------------------------------------------------------------
 
 def decide_verdict(
     trained_mean_reward: float,
@@ -205,32 +157,15 @@ def decide_verdict(
     live_baseline: float,
     shapes_ok: bool,
 ) -> tuple[bool, list[str]]:
-    """Apply the three M3 conditions. Returns (passed, printable report lines).
-
-    goal_rate is a fraction in [0, 1] (e.g. 0.9 == reached the goal 90% of the
-    greedy evaluation episodes).
-    """
-    beats_baseline = trained_mean_reward >= live_baseline + MARGIN_OVER_BASELINE
-    reaches_goal = goal_rate >= GOAL_RATE_TO_PASS
-    passed = shapes_ok and beats_baseline and reaches_goal
-
-    def mark(ok: bool) -> str:
-        return "PASS" if ok else "FAIL"
-
-    lines = [
-        f"  Live random baseline:   {live_baseline:+.2f} reward/episode",
-        f"  Trained mean reward:    {trained_mean_reward:+.2f} reward/episode",
-        (
-            f"  [{mark(beats_baseline)}] beats baseline by >= {MARGIN_OVER_BASELINE:.2f}"
-            f"  (needs >= {live_baseline + MARGIN_OVER_BASELINE:+.2f})"
-        ),
-        (
-            f"  [{mark(reaches_goal)}] reaches goal in most episodes"
-            f"  ({goal_rate * 100:.0f}%, needs >= {GOAL_RATE_TO_PASS * 100:.0f}%)"
-        ),
-        f"  [{mark(shapes_ok)}] reset()/step() shapes unchanged from M2",
-    ]
-    return passed, lines
+    """Apply the three M3 conditions via train_from_profile's decide_verdict."""
+    return _decide_verdict_profile(
+        trained_mean_reward=trained_mean_reward,
+        live_baseline=live_baseline,
+        margin_over_baseline=MARGIN_OVER_BASELINE,
+        shapes_ok=shapes_ok,
+        goal_rate=goal_rate,
+        min_goal_rate=GOAL_RATE_TO_PASS,
+    )
 
 
 def evaluate_greedy(model, episodes: int = FINAL_EVAL_EPISODES):

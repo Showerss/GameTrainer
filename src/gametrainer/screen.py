@@ -26,7 +26,6 @@ from __future__ import annotations
 import ctypes
 import sys
 from ctypes import wintypes
-from typing_extensions import Self
 
 import mss
 import numpy as np
@@ -264,7 +263,7 @@ class GameWindow:
     def close(self) -> None:
         self._sct.close()
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> GameWindow:
         return self
 
     def __exit__(self, *_exc) -> None:

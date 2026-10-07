@@ -209,36 +209,6 @@ class ViTFeaturesExtractor(BaseFeaturesExtractor):
         return features
 
 
-class ViTSmallFeaturesExtractor(ViTFeaturesExtractor):
-    """
-    Smaller, faster ViT variant.
-
-    Use this if ViT-Base is too slow on your hardware.
-
-    Comparison:
-    - ViT-Base:  86M params, 768-dim output, ~12GB VRAM for training
-    - ViT-Small: 22M params, 384-dim output, ~6GB VRAM for training
-
-    Teacher Note: For most games, ViT-Small is probably sufficient.
-    The smaller model trains faster and may even generalize better
-    (less prone to overfitting on limited game data).
-    """
-
-    def __init__(
-        self,
-        observation_space: gym.Space,
-        pretrained: bool = True,
-        freeze_backbone: bool = False,
-    ):
-        super().__init__(
-            observation_space,
-            features_dim=384,  # ViT-Small outputs 384-dim
-            pretrained=pretrained,
-            freeze_backbone=freeze_backbone,
-            model_name="vit_small_patch16_224"
-        )
-
-
 class ViTTinyFeaturesExtractor(ViTFeaturesExtractor):
     """
     Tiny ViT - fastest option, good for experimentation.

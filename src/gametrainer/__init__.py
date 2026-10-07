@@ -12,7 +12,6 @@ Modules:
     - vit_extractor: ViT feature extractor for SB3
     - profile: Loads a Profile (ground + perception + reward + PPO numbers) from YAML
     - rewards: RewardCalculator
-    - hardware: CUDA/MPS/CPU device picker
     - tui: the retro menu
 """
 
