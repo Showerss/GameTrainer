@@ -30,7 +30,7 @@ class Logger:
         timestamp = datetime.now().astimezone().strftime("%Y-%m-%d_%H-%M-%S")
         self.log_file = os.path.join(log_dir, f"session_{timestamp}.log")
 
-        self._logger = logging.getLogger("GameTrainer")
+        self._logger = logging.getLogger(f"GameTrainer.{id(self)}")
         self._logger.setLevel(logging.DEBUG)
 
         # logging.getLogger() hands back one shared object for the whole process,

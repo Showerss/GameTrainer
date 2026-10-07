@@ -22,7 +22,7 @@ from gymnasium.utils.env_checker import check_env
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
 
-from src.gametrainer.minesweeper import MinesweeperEnv
+from src.gametrainer.minesweeper import MinesweeperAction, MinesweeperEnv
 from src.gametrainer.minesweeper_vision import FLAGGED, GRID, HIDDEN, MINE
 from src.gametrainer.rewards import MinesweeperRewardCalculator
 
@@ -37,6 +37,17 @@ def test_action_and_observation_spaces():
     assert env.observation_space.dtype == np.int8
     assert env.observation_space.low.min() == 0
     assert env.observation_space.high.max() == MINE
+
+
+def test_minesweeper_action_enum_and_constants():
+    """MinesweeperAction enum values match class constants and are int instances."""
+    assert int(MinesweeperAction.UP) == MinesweeperEnv.UP == 0
+    assert int(MinesweeperAction.DOWN) == MinesweeperEnv.DOWN == 1
+    assert int(MinesweeperAction.LEFT) == MinesweeperEnv.LEFT == 2
+    assert int(MinesweeperAction.RIGHT) == MinesweeperEnv.RIGHT == 3
+    assert int(MinesweeperAction.REVEAL) == MinesweeperEnv.REVEAL == 4
+    assert int(MinesweeperAction.FLAG) == MinesweeperEnv.FLAG == 5
+    assert isinstance(MinesweeperEnv.UP, int)
 
 
 def test_reset_returns_two_tuple():

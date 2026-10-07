@@ -40,6 +40,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 # Project root = parent of tests/  (so `from src.gametrainer...` works)
 _project_root = Path(__file__).resolve().parents[1]
@@ -165,10 +166,17 @@ def test_same_seed_gives_the_same_start():
 
 def test_check_env_passes():
     """The official Gymnasium contract checker runs clean on the full stack."""
-    import pytest
-
     sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
     sb3_checker.check_env(make_env())
+
+
+def test_random_start_infinite_loop_guard():
+    """If 100 attempts fail to find a starting cell different from the goal, raise ValueError."""
+    env = GridWorldEnv()
+    env.SIZE = 1  # 1x1 board where only (0, 0) exists
+    wrapped = RandomStart(env, goal=(0, 0))
+    with pytest.raises(ValueError, match="100 attempts"):
+        wrapped.reset()
 
 
 # ---------------------------------------------------------------------------
@@ -201,11 +209,7 @@ def _goal_rate(policy, episodes=200, seed=0):
 
 
 def test_a_blind_agent_cannot_pass_this_task():
-    """The exact blind policy that scored +0.905 on the old maze must fail here.
-
-    PPO converged to a fixed 53% DOWN / 47% RIGHT coin flip and never looked at
-    the picture. On the old corner-goal maze that won 100% of the time.
-    """
+    """The exact blind policy that scored +0.905 on the old maze must fail here."""
     def blind_coin_flip(env, rng):
         return GridWorldEnv.DOWN if rng.random() < 0.533 else GridWorldEnv.RIGHT
 
@@ -221,10 +225,7 @@ def test_a_random_agent_cannot_pass_this_task():
 
 
 def test_an_agent_that_can_see_does_pass_this_task():
-    """The other half: the task must be winnable, or the bar is impossible.
-
-    This oracle cheats -- it reads the true positions instead of looking at the
-    picture. That is the point: it measures what perfect eyes would be worth."""
+    """The other half: the task must be winnable, or the bar is impossible."""
     def walks_to_the_goal(env, rng):
         grid = env.unwrapped
         goal_row, goal_col = grid.GOAL

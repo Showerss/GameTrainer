@@ -129,3 +129,29 @@ def test_initial_board_with_none_prev(calculator, empty_board):
     curr = empty_board.copy()
     curr[0, 0] = 1
     assert calculator.reward(None, curr) == 1.0
+
+
+def test_consecutive_reveals_only_reward_new_cells(calculator, empty_board):
+    """Reveal (0,0), then reveal (0,1). Assert step 2 only awards reward for 1 cell, not 2."""
+    prev = empty_board.copy()
+    step1_board = prev.copy()
+    step1_board[0, 0] = 1
+    reward1 = calculator.reward(prev, step1_board)
+    assert reward1 == 1.0
+
+    step2_board = step1_board.copy()
+    step2_board[0, 1] = 1
+    reward2 = calculator.reward(step1_board, step2_board)
+    assert reward2 == 1.0
+
+
+def test_win_requires_no_exploded_mine(calculator, empty_board):
+    """Assert that a board with 54 safe cells AND a mine returns is_win() == False."""
+    board = empty_board.copy()
+    flat = board.ravel()
+    flat[:54] = 0
+    flat[54] = MINE
+
+    assert calculator.count_revealed_safe(board) >= 54
+    assert calculator.is_loss(board) is True
+    assert calculator.is_win(board) is False

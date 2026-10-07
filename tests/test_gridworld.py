@@ -12,6 +12,9 @@ Mirrors tests/test_logger.py: same path-insertion trick, same plain functions.
 import sys
 from pathlib import Path
 
+import numpy as np
+import pytest
+
 # Project root = parent of tests/  (so `from src.gametrainer...` works)
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
@@ -82,8 +85,6 @@ def test_check_env_passes():
     Skips automatically if stable_baselines3 isn't installed (it lives in the
     optional 'rl' extra and pulls in torch). Install with: pip install -e ".[rl]"
     """
-    import pytest
-
     sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
     sb3_checker.check_env(GridWorldEnv())
 
@@ -148,3 +149,66 @@ def test_reset_places_agent_at_start():
 
     obs, _ = env.reset()
     assert (int(obs[0]), int(obs[1])) == GridWorldEnv.START
+
+
+def test_goal_on_max_steps_is_terminated_not_truncated():
+    """Drive agent to reach goal at step 100. Assert terminated=True and truncated=False."""
+    env = GridWorldEnv()
+    env.reset()
+
+    # Waste 92 moves bumping against the top wall at (0, 0)
+    for _ in range(92):
+        env.step(GridWorldEnv.UP)
+
+    # 4 moves DOWN: (0, 0) -> (4, 0) (steps 93, 94, 95, 96)
+    for _ in range(4):
+        env.step(GridWorldEnv.DOWN)
+
+    # 3 moves RIGHT: (4, 0) -> (4, 3) (steps 97, 98, 99)
+    for _ in range(3):
+        env.step(GridWorldEnv.RIGHT)
+
+    # 100th move: step RIGHT onto the goal (4, 4)
+    obs, reward, terminated, truncated, info = env.step(GridWorldEnv.RIGHT)
+
+    assert info["steps"] == 100
+    assert terminated is True
+    assert truncated is False
+    assert (int(obs[0]), int(obs[1])) == GridWorldEnv.GOAL
+
+
+def test_cannot_step_down_past_grid_size():
+    """Step DOWN past row 4; assert row clamps at SIZE - 1."""
+    env = GridWorldEnv()
+    env.reset()
+
+    # Move down to row 4 (bottom wall)
+    for _ in range(GridWorldEnv.SIZE):
+        env.step(GridWorldEnv.DOWN)
+
+    # Step DOWN past row 4
+    obs, _, _, _, _ = env.step(GridWorldEnv.DOWN)
+    assert int(obs[0]) == GridWorldEnv.SIZE - 1
+    assert env.row == GridWorldEnv.SIZE - 1
+
+
+def test_step_after_termination_raises_runtime_error():
+    """Calling step() after reaching goal raises RuntimeError."""
+    env = GridWorldEnv()
+    env.reset()
+    for _ in range(4):
+        env.step(GridWorldEnv.DOWN)
+    for _ in range(4):
+        env.step(GridWorldEnv.RIGHT)
+
+    with pytest.raises(RuntimeError, match="step\\(\\) called after termination; call reset\\(\\)"):
+        env.step(GridWorldEnv.UP)
+
+
+@pytest.mark.parametrize("invalid_action", [-99, 4, float("nan"), [0, 1], np.array([0, 1])])
+def test_invalid_action_raises_value_error(invalid_action):
+    """GridWorldEnv raises ValueError on out-of-range, NaN, or non-scalar actions."""
+    env = GridWorldEnv()
+    env.reset()
+    with pytest.raises(ValueError, match="invalid action:"):
+        env.step(invalid_action)

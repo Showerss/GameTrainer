@@ -211,6 +211,61 @@ def test_minesweeper_reward_numbers_must_be_real_numbers(field, value):
     assert field in str(exc_info.value)
 
 
+@pytest.mark.parametrize("field, value", [("step_cost", None), ("goal_reward", "ten")])
+def test_gridworld_reward_numbers_must_be_real_numbers(field, value):
+    bad = {**GOOD_GRIDWORLD, field: value}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert field in str(exc_info.value)
+
+
+@pytest.mark.parametrize("bad_val", [0, -100, "fast"])
+def test_total_timesteps_must_be_positive(bad_val):
+    bad = {**GOOD_GRIDWORLD, "total_timesteps": bad_val}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert "total_timesteps" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("bad_val", [0, -0.01, "zero"])
+def test_learning_rate_must_be_positive(bad_val):
+    bad = {**GOOD_GRIDWORLD, "learning_rate": bad_val}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert "learning_rate" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("bad_val", [0.0, -0.5, 1.05, 2.0])
+def test_gamma_must_be_between_zero_and_one(bad_val):
+    bad = {**GOOD_GRIDWORLD, "gamma": bad_val}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert "gamma" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("bad_val", [-0.1, 1.2, "half"])
+def test_min_goal_rate_bounds_validation(bad_val):
+    bad = {**GOOD_GRIDWORLD, "min_goal_rate": bad_val}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError) as exc_info:
+            Profile.from_yaml(path)
+
+    assert "min_goal_rate" in str(exc_info.value)
+
+
 def test_unsupported_ground_reward_pair_raises():
     bad = {**GOOD_MINESWEEPER, "reward": "builtin"}
     with TemporaryDirectory() as tmpdir:

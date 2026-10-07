@@ -66,3 +66,19 @@ def test_second_logger_writes_to_its_own_file():
         assert "from the first" in first_text
         assert "from the second" not in first_text
         assert "from the second" in second_text
+
+
+def test_concurrent_loggers_do_not_interfere():
+    """Multiple active Logger instances do not clobber each other's handlers."""
+    with TemporaryDirectory() as dir1, TemporaryDirectory() as dir2:
+        with Logger(log_dir=dir1) as first, Logger(log_dir=dir2) as second:
+            first.log("msg from first")
+            second.log("msg from second")
+
+        first_text = Path(first.log_file).read_text()
+        second_text = Path(second.log_file).read_text()
+
+        assert "msg from first" in first_text
+        assert "msg from second" not in first_text
+        assert "msg from second" in second_text
+        assert "msg from first" not in second_text

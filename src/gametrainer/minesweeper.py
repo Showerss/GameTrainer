@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from enum import IntEnum
 from typing import ClassVar
 
 import gymnasium as gym
@@ -21,9 +22,27 @@ import numpy as np
 from gymnasium import spaces
 
 from src.gametrainer.input import InputController, NullInput
-from src.gametrainer.minesweeper_vision import FLAGGED, GRID, HIDDEN, MINE, read_board
+from src.gametrainer.minesweeper_vision import (
+    FLAGGED,
+    GRID,
+    HIDDEN,
+    MINE,
+    CellState,
+    read_board,
+)
 from src.gametrainer.rewards import MinesweeperRewardCalculator
 from src.gametrainer.screen import GameWindow
+
+
+class MinesweeperAction(IntEnum):
+    """Minesweeper discrete action IDs (0 to 5)."""
+
+    UP = 0
+    DOWN = 1
+    LEFT = 2
+    RIGHT = 3
+    REVEAL = 4
+    FLAG = 5
 
 
 class MinesweeperEnv(gym.Env):
@@ -34,12 +53,12 @@ class MinesweeperEnv(gym.Env):
     GRID_SIZE = GRID  # 8x8 Easy board
 
     # 6 Discrete actions (docs/m5/M5_ToDo.md)
-    UP = 0
-    DOWN = 1
-    LEFT = 2
-    RIGHT = 3
-    REVEAL = 4
-    FLAG = 5
+    UP = MinesweeperAction.UP
+    DOWN = MinesweeperAction.DOWN
+    LEFT = MinesweeperAction.LEFT
+    RIGHT = MinesweeperAction.RIGHT
+    REVEAL = MinesweeperAction.REVEAL
+    FLAG = MinesweeperAction.FLAG
 
     def __init__(
         self,
@@ -123,20 +142,23 @@ class MinesweeperEnv(gym.Env):
             action = action_arr.item()
         action_int = int(action)
 
-        if action_int == self.UP:
+        try:
+            action_enum = MinesweeperAction(action_int)
+        except ValueError:
+            raise ValueError(f"Invalid action {action_int}; must be in [0, 5]") from None
+
+        if action_enum == MinesweeperAction.UP:
             self.hands.move_up()
-        elif action_int == self.DOWN:
+        elif action_enum == MinesweeperAction.DOWN:
             self.hands.move_down()
-        elif action_int == self.LEFT:
+        elif action_enum == MinesweeperAction.LEFT:
             self.hands.move_left()
-        elif action_int == self.RIGHT:
+        elif action_enum == MinesweeperAction.RIGHT:
             self.hands.move_right()
-        elif action_int == self.REVEAL:
+        elif action_enum == MinesweeperAction.REVEAL:
             self.hands.reveal()
-        elif action_int == self.FLAG:
+        elif action_enum == MinesweeperAction.FLAG:
             self.hands.flag()
-        else:
-            raise ValueError(f"Invalid action {action_int}; must be in [0, 5]")
 
         if self.step_delay > 0:
             time.sleep(self.step_delay)
@@ -159,9 +181,9 @@ class MinesweeperEnv(gym.Env):
             if self.prev_grid is None:
                 return ""
             symbols = {
-                HIDDEN: ".",
-                FLAGGED: "F",
-                MINE: "*",
+                CellState.HIDDEN: ".",
+                CellState.FLAGGED: "F",
+                CellState.MINE: "*",
             }
             lines = []
             for row in self.prev_grid:
