@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pytest
 
 _project_root = Path(__file__).resolve().parents[1]
@@ -34,8 +35,11 @@ from src.gametrainer.minesweeper_vision import (
     FLAGGED,
     HIDDEN,
     MINE,
+    BoardNotFound,
     CellState,
+    UnreadableCell,
     classify_cell,
+    find_board,
     read_board,
 )
 
@@ -127,3 +131,19 @@ def test_revealed_single_cell_fixtures_cover_remaining_states(expected, fixture)
     frame = cv2.imread(str(fixture))
     assert frame is not None, f"fixture image not readable: {fixture}"
     assert classify_cell(frame) == expected
+
+
+def test_find_board_on_blank_frame_raises_board_not_found():
+    """find_board raises BoardNotFound if no valid board exists in the frame."""
+    white_window = np.full((500, 500, 3), 255, dtype=np.uint8)
+    with pytest.raises(BoardNotFound):
+        find_board(white_window)
+
+
+
+def test_classify_cell_on_invalid_cell_raises_unreadable_cell():
+    """classify_cell raises UnreadableCell when given an unrecognizable background."""
+    black_cell = np.zeros((20, 20, 3), dtype=np.uint8)
+    with pytest.raises(UnreadableCell):
+        classify_cell(black_cell)
+

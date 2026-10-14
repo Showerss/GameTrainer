@@ -165,6 +165,31 @@ def test_minesweeper_reward_numbers_come_from_the_profile():
     assert env.reward_calculator.win_reward == 100.0
 
 
+def test_minesweeper_missing_reward_number_raises_value_error():
+    """make_env raises ValueError if a required Minesweeper reward number is None."""
+    custom = Profile(
+        ground="minesweeper",
+        perception="numeric",
+        reward="minesweeper",
+        safe_reveal_reward=None,
+        mine_penalty=-10.0,
+        win_reward=10.0,
+        total_timesteps=1,
+        learning_rate=1,
+        n_steps=1,
+        batch_size=1,
+        n_epochs=1,
+        gamma=1,
+        gae_lambda=1,
+        clip_range=1,
+        ent_coef=1,
+        margin_over_baseline=1,
+    )
+    with pytest.raises(ValueError, match="safe_reveal_reward' must be set"):
+        make_env(custom, read_board_fn=_hidden_minesweeper_board)
+
+
+
 def test_make_env_loads_from_yaml_file():
     """Verify profiles/minesweeper.yaml builds clean without editing Python."""
     profile_path = _project_root / "profiles" / "minesweeper.yaml"

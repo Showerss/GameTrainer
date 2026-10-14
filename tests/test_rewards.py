@@ -12,6 +12,8 @@ Mirrors tests/test_profile.py: same path-insertion trick, plain functions.
 import sys
 from pathlib import Path
 
+import pytest
+
 _project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_project_root))
 from src.gametrainer.rewards import RewardCalculator
@@ -32,3 +34,12 @@ def test_numbers_come_from_the_caller_not_the_class():
     calculator = RewardCalculator(step_cost=-5.0, goal_reward=99.0)
     assert calculator.reward(reached_goal=False) == -5.0
     assert calculator.reward(reached_goal=True) == 99.0
+
+
+def test_reward_calculator_is_frozen():
+    """RewardCalculator should be immutable (frozen dataclass)."""
+    calculator = RewardCalculator(step_cost=-0.01, goal_reward=1.0)
+    with pytest.raises(Exception):
+        calculator.step_cost = -0.5
+
+

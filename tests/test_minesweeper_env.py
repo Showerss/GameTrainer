@@ -182,3 +182,21 @@ def test_sb3_check_env_clean():
     sb3_checker = pytest.importorskip("stable_baselines3.common.env_checker")
     env = MinesweeperEnv()
     sb3_checker.check_env(env)
+
+
+@pytest.mark.parametrize("invalid_action", [-1, 6, 99])
+def test_invalid_action_raises_value_error(invalid_action):
+    """MinesweeperEnv raises ValueError for action outside Discrete(6)."""
+    env = MinesweeperEnv()
+    env.reset()
+    with pytest.raises(ValueError, match="Invalid action"):
+        env.step(invalid_action)
+
+
+def test_step_accepts_one_element_array():
+    """MinesweeperEnv unwraps 1-element arrays from agent frameworks."""
+    env = MinesweeperEnv()
+    env.reset()
+    obs, reward, terminated, truncated, info = env.step(np.array(0))
+    assert env.observation_space.contains(obs)
+

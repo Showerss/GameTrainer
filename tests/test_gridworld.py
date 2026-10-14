@@ -205,10 +205,17 @@ def test_step_after_termination_raises_runtime_error():
         env.step(GridWorldEnv.UP)
 
 
-@pytest.mark.parametrize("invalid_action", [-99, 4, float("nan"), [0, 1], np.array([0, 1])])
+@pytest.mark.parametrize("invalid_action", [-99, 4, float("nan"), True, 1.5, [0, 1], np.array([0, 1])])
 def test_invalid_action_raises_value_error(invalid_action):
-    """GridWorldEnv raises ValueError on out-of-range, NaN, or non-scalar actions."""
+    """GridWorldEnv raises ValueError on out-of-range, NaN, boolean, non-int, or non-scalar actions."""
     env = GridWorldEnv()
     env.reset()
     with pytest.raises(ValueError, match="invalid action:"):
         env.step(invalid_action)
+
+
+def test_close_runs_cleanly():
+    """Calling close() on GridWorldEnv succeeds without error."""
+    env = GridWorldEnv()
+    env.close()
+

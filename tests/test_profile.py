@@ -276,3 +276,40 @@ def test_unsupported_ground_reward_pair_raises():
     message = str(exc_info.value)
     assert "minesweeper" in message
     assert "builtin" in message
+
+
+def test_non_mapping_yaml_raises():
+    """A YAML file that parses to a list instead of a dict raises ValueError."""
+    with TemporaryDirectory() as tmpdir:
+        path = Path(tmpdir) / "list.yaml"
+        path.write_text("- item1\n- item2\n")
+        with pytest.raises(ValueError, match="profile must be a YAML mapping"):
+            Profile.from_yaml(str(path))
+
+
+def test_unknown_field_raises():
+    """Unknown field in profile YAML raises ValueError."""
+    bad = {**GOOD_GRIDWORLD, "bogus_field": 123}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError, match="unknown field"):
+            Profile.from_yaml(path)
+
+
+def test_unknown_reward_name_raises():
+    """Unrecognized reward name raises ValueError."""
+    bad = {**GOOD_GRIDWORLD, "reward": "bad_reward"}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError, match="unknown reward"):
+            Profile.from_yaml(path)
+
+
+def test_min_goal_rate_on_minesweeper_raises():
+    """Setting min_goal_rate on Minesweeper raises ValueError."""
+    bad = {**GOOD_MINESWEEPER, "min_goal_rate": 0.5}
+    with TemporaryDirectory() as tmpdir:
+        path = _write(tmpdir, bad)
+        with pytest.raises(ValueError, match="not supported for ground 'minesweeper'"):
+            Profile.from_yaml(path)
+

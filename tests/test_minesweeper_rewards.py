@@ -155,3 +155,38 @@ def test_win_requires_no_exploded_mine(calculator, empty_board):
     assert calculator.count_revealed_safe(board) >= 54
     assert calculator.is_loss(board) is True
     assert calculator.is_win(board) is False
+
+
+def test_calculator_is_frozen(calculator):
+    """MinesweeperRewardCalculator should be immutable (frozen dataclass)."""
+    with pytest.raises(Exception):
+        calculator.safe_reveal_reward = 99.0
+
+
+def test_default_values():
+    """Default values must match the documented 8x8 Easy profile defaults."""
+    default_calc = MinesweeperRewardCalculator()
+    assert default_calc.safe_reveal_reward == 1.0
+    assert default_calc.mine_penalty == -10.0
+    assert default_calc.win_reward == 10.0
+    assert default_calc.total_safe_cells == 54
+
+
+def test_cell_with_eight_neighbor_mines_is_safe_reveal(calculator, empty_board):
+    """A cell with 8 neighbor mines is still a valid revealed safe cell."""
+    prev = empty_board.copy()
+    curr = empty_board.copy()
+    curr[3, 3] = 8
+    assert calculator.count_revealed_safe(curr) == 1
+    assert calculator.reward(prev, curr) == 1.0
+
+
+def test_already_revealed_zero_and_eight_not_re_rewarded(calculator, empty_board):
+    """Boundary safe cells (0 and 8) in prev_grid must not be re-rewarded."""
+    prev = empty_board.copy()
+    prev[0, 0] = 0
+    prev[0, 1] = 8
+    curr = prev.copy()
+    curr[0, 2] = 1  # only this one is newly revealed
+    assert calculator.reward(prev, curr) == 1.0
+
