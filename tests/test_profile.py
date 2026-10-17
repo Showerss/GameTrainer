@@ -98,6 +98,16 @@ def test_valid_gridworld_profile_loads_expected_fields():
     assert profile.min_goal_rate is None
 
 
+def test_ppo_settings_hands_over_every_ppo_number_from_the_yaml():
+    """A setting dropped here would not crash -- PPO would quietly use its own default."""
+    with TemporaryDirectory() as tmpdir:
+        profile = Profile.from_yaml(_write(tmpdir, GOOD_GRIDWORLD))
+
+    ppo_names = ("learning_rate", "n_steps", "batch_size", "n_epochs",
+                 "gamma", "gae_lambda", "clip_range", "ent_coef")
+    assert profile.ppo_settings() == {name: GOOD_GRIDWORLD[name] for name in ppo_names}
+
+
 def test_valid_cartpole_profile_loads_without_reward_numbers():
     """CartPole declares reward: builtin -- no step_cost/goal_reward needed."""
     with TemporaryDirectory() as tmpdir:

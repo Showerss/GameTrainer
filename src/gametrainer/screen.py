@@ -25,10 +25,18 @@ from __future__ import annotations
 
 import ctypes
 import sys
+from abc import ABC, abstractmethod
 from ctypes import wintypes
+from typing import TYPE_CHECKING
 
 import mss
 import numpy as np
+
+if TYPE_CHECKING:
+    # Only type checkers read this; at runtime the hint stays a string thanks to
+    # `from __future__ import annotations`, so Python 3.9 (no typing.Self) never
+    # actually imports it.
+    from typing import Self
 
 # use_last_error=True is what makes ctypes.get_last_error() below report the
 # real Windows error code instead of a stale one.
@@ -41,6 +49,34 @@ if sys.platform == "win32":
     _DPI_PER_MONITOR_AWARE_V2 = ctypes.c_void_p(-4)
     _ERROR_ACCESS_DENIED = 5
     _EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    # Declaring argument types is not decoration: a window handle is 64 bits,
+    # and without argtypes ctypes would pass it as a 32-bit int and quietly
+    # hand Windows a different window. (input.py declares its calls the same way.)
+    _user32.SetProcessDpiAwarenessContext.argtypes = (ctypes.c_void_p,)
+    _user32.SetProcessDpiAwarenessContext.restype = wintypes.BOOL
+    _user32.OpenDesktopW.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    _user32.OpenDesktopW.restype = wintypes.HANDLE
+    _user32.SetThreadDesktop.argtypes = (wintypes.HANDLE,)
+    _user32.SetThreadDesktop.restype = wintypes.BOOL
+    _user32.EnumWindows.argtypes = (_EnumWindowsProc, wintypes.LPARAM)
+    _user32.EnumWindows.restype = wintypes.BOOL
+    _user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    _user32.IsWindowVisible.restype = wintypes.BOOL
+    _user32.GetWindowTextLengthW.argtypes = (wintypes.HWND,)
+    _user32.GetWindowTextLengthW.restype = ctypes.c_int
+    _user32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+    _user32.GetWindowTextW.restype = ctypes.c_int
+
+    # DWM ("Desktop Window Manager") draws every window on screen, so it is the
+    # one that knows where a window's *visible* edges are - see
+    # WindowsGameWindow.rect for why that matters.
+    _dwmapi = ctypes.WinDLL("dwmapi")
+    _DWMWA_EXTENDED_FRAME_BOUNDS = 9
+    _dwmapi.DwmGetWindowAttribute.argtypes = (
+        wintypes.HWND, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD
+    )
+    _dwmapi.DwmGetWindowAttribute.restype = ctypes.c_long  # HRESULT: 0 means success
 else:
     _user32 = None
     _DPI_PER_MONITOR_AWARE_V2 = None
@@ -98,136 +134,13 @@ if sys.platform == "win32":
     set_dpi_awareness()
 
 
-def _window_title(hwnd: int) -> str:
-    """Read one window's title bar text."""
-    length = _user32.GetWindowTextLengthW(hwnd)
-    if length == 0:
-        return ""
-    buffer = ctypes.create_unicode_buffer(length + 1)
-    _user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return buffer.value
-
-
-def _find_window_macos(title_contains: str) -> int:
-    """The darwin half of find_window() - matched by owning app, not title.
-
-    CGWindowListCopyWindowInfo's kCGWindowName (the title bar text) comes back
-    None for LibreMines even with every permission granted - measured, not
-    assumed. kCGWindowOwnerName (the app's own name) is always there, so that
-    is what gets matched instead. The value returned is that app's PID, not a
-    window handle - there is no macOS equivalent of an HWND here. GameWindow
-    and KeyboardInput both just treat it as "the identifier find_window gave
-    us" and never need to know the difference.
-    """
-    matches: list[int] = []
-    for w in Quartz.CGWindowListCopyWindowInfo(_CG_WINDOW_LIST_OPTIONS, Quartz.kCGNullWindowID):
-        owner = w.get("kCGWindowOwnerName") or ""
-        if title_contains.lower() in owner.lower():
-            matches.append(int(w["kCGWindowOwnerPID"]))
-    if not matches:
-        raise WindowNotFound(
-            f"No visible window owned by an app matching {title_contains!r}. "
-            "Is the game running?"
-        )
-    return matches[0]
-
-
-def find_window(title_contains: str) -> int:
-    """Return the handle of the first visible window whose title contains this.
-
-    A substring match, not an exact one: a game is free to append its
-    difficulty or a filename to its own title bar, and we would rather still
-    find it. Raises WindowNotFound rather than returning a falsy handle, so a
-    missing game fails here instead of somewhere further downstream.
-
-    On macOS this matches by owning app name instead - see
-    _find_window_macos for why.
-    """
-    if sys.platform == "darwin":
-        return _find_window_macos(title_contains)
-
-    if sys.platform != "win32":
-        raise WindowNotFound(
-            f"No visible window with {title_contains!r} in its title. "
-            "Game window discovery requires Windows or macOS."
-        )
-
-    # Attach to the interactive Default desktop if currently running on a subdesktop
-    try:
-        h_desk = _user32.OpenDesktopW("Default", 0, False, 0x01FF)
-        if h_desk:
-            _user32.SetThreadDesktop(h_desk)
-    except Exception:
-        pass
-
-    matches: list[int] = []
-
-    def visit(hwnd, _lparam):
-        if _user32.IsWindowVisible(hwnd) and title_contains in _window_title(hwnd):
-            matches.append(hwnd)
-        return True
-
-    _user32.EnumWindows(_EnumWindowsProc(visit), 0)
-
-    if not matches:
-        raise WindowNotFound(
-            f"No visible window with {title_contains!r} in its title. "
-            "Is the game running?"
-        )
-    return matches[0]
-
-
-def _window_rect_macos(pid: int) -> dict[str, int]:
-    """The darwin half of window_rect() - looked up by PID, not HWND.
-
-    Re-queries CGWindowListCopyWindowInfo rather than caching, for the same
-    reason GameWindow re-reads the rect on every grab: geometry can move.
-    """
-    for w in Quartz.CGWindowListCopyWindowInfo(_CG_WINDOW_LIST_OPTIONS, Quartz.kCGNullWindowID):
-        if w.get("kCGWindowOwnerPID") == pid:
-            bounds = w["kCGWindowBounds"]
-            box = {
-                "left": int(bounds["X"]),
-                "top": int(bounds["Y"]),
-                "width": int(bounds["Width"]),
-                "height": int(bounds["Height"]),
-            }
-            if box["width"] <= 0 or box["height"] <= 0:
-                raise OSError(
-                    f"Window for pid {pid} has no area. It is probably minimised."
-                )
-            return box
-    raise OSError(f"No on-screen window found for pid {pid}.")
-
-
-def window_rect(hwnd: int) -> dict[str, int]:
-    """Where the window is on screen, as the box mss wants to grab."""
-    if sys.platform == "darwin":
-        return _window_rect_macos(hwnd)
-
-    if sys.platform != "win32":
-        raise OSError("window_rect requires Windows or macOS.")
-
-    rect = wintypes.RECT()
-    if not _user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-        raise OSError(f"GetWindowRect failed for window {hwnd}")
-
-    box = {
-        "left": rect.left,
-        "top": rect.top,
-        "width": rect.right - rect.left,
-        "height": rect.bottom - rect.top,
-    }
-    if box["width"] <= 0 or box["height"] <= 0:
-        raise OSError(
-            f"Window {hwnd} has no area ({box['width']}x{box['height']}). "
-            "It is probably minimised."
-        )
-    return box
-
-
-class GameWindow:
+class GameWindow(ABC):
     """A live view of one window's pixels.
+
+    Abstract: finding the window and asking where it is are per-OS, so they
+    live in WindowsGameWindow and MacGameWindow below, and
+    game_window_for_this_os() picks the right one. Taking the screenshot is
+    the same everywhere (mss grabs a box of screen), so it lives here, once.
 
     Teacher Note: the rect is re-read on every grab, not cached. The spike
     found window geometry is not stable - LibreMines reopened on a different
@@ -237,19 +150,25 @@ class GameWindow:
     """
 
     def __init__(self, title_contains: str = "LibreMines"):
-        if sys.platform not in ("win32", "darwin"):
-            raise RuntimeError(
-                "GameWindow requires Windows or macOS. On Linux/CI, pass "
-                "window=None or mock window to run headlessly."
-            )
         self.title_contains = title_contains
-        self.hwnd = find_window(title_contains)
+        self.hwnd = self._find(title_contains)
         self._sct = mss.mss()
 
+    @abstractmethod
+    def _find(self, title_contains: str) -> int:
+        """Return the id of the first visible matching window, or raise WindowNotFound.
+
+        A substring match, not an exact one: a game is free to append its
+        difficulty or a filename to its own title bar, and we would rather
+        still find it. Raises rather than returning a falsy id, so a missing
+        game fails here instead of somewhere further downstream.
+        """
+
     @property
+    @abstractmethod
     def rect(self) -> dict[str, int]:
-        """Current position and size of the window, in real screen pixels."""
-        return window_rect(self.hwnd)
+        """Current position and size of the window, in real screen pixels,
+        as the box mss wants to grab."""
 
     def grab(self) -> np.ndarray:
         """Capture the window right now.
@@ -263,8 +182,152 @@ class GameWindow:
     def close(self) -> None:
         self._sct.close()
 
-    def __enter__(self) -> GameWindow:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *_exc) -> None:
         self.close()
+
+
+def _require_area(box: dict[str, int], which: str) -> dict[str, int]:
+    """A window with no width or height cannot be captured - fail loudly."""
+    if box["width"] <= 0 or box["height"] <= 0:
+        raise OSError(
+            f"{which} has no area ({box['width']}x{box['height']}). "
+            "It is probably minimised."
+        )
+    return box
+
+
+class WindowsGameWindow(GameWindow):
+    """GameWindow for Windows: found by title bar text, measured by HWND."""
+
+    def _find(self, title_contains: str) -> int:
+        # Attach to the interactive Default desktop if currently running on a
+        # subdesktop. Both calls report failure by returning 0, never by
+        # raising, so there is nothing to catch: if they fail we simply stay
+        # on the desktop we were on.
+        h_desk = _user32.OpenDesktopW("Default", 0, False, 0x01FF)
+        if h_desk:
+            _user32.SetThreadDesktop(h_desk)
+
+        matches: list[int] = []
+
+        def visit(hwnd, _lparam):
+            if _user32.IsWindowVisible(hwnd) and title_contains in self._title(hwnd):
+                matches.append(hwnd)
+            return True
+
+        _user32.EnumWindows(_EnumWindowsProc(visit), 0)
+
+        if not matches:
+            raise WindowNotFound(
+                f"No visible window with {title_contains!r} in its title. "
+                "Is the game running?"
+            )
+        return matches[0]
+
+    @staticmethod
+    def _title(hwnd: int) -> str:
+        """Read one window's title bar text."""
+        length = _user32.GetWindowTextLengthW(hwnd)
+        if length == 0:
+            return ""
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        _user32.GetWindowTextW(hwnd, buffer, length + 1)
+        return buffer.value
+
+    @property
+    def rect(self) -> dict[str, int]:
+        """The window's VISIBLE frame, as DWM draws it.
+
+        Teacher Note: the invisible border (found 2026-10-17)
+        =====================================================
+        Since Windows 10, every window has an invisible ~8 px resize border on
+        its sides, which GetWindowRect includes. On a normal window that just
+        adds a thin strip of whatever is behind it. On a MAXIMISED window,
+        Windows pushes that border off the edge of the monitor (rect starts at
+        -8, -8), and off-screen pixels capture as pure black. The black strip
+        then merged with a board touching the left edge, the dark block was no
+        longer square, and find_board raised BoardNotFound on a perfectly good
+        board. DWMWA_EXTENDED_FRAME_BOUNDS is the frame without that border -
+        measured on the live game: exactly 8 px in from GetWindowRect on every
+        side, and exactly the monitor's area when maximised.
+        """
+        rect = wintypes.RECT()
+        result = _dwmapi.DwmGetWindowAttribute(
+            self.hwnd, _DWMWA_EXTENDED_FRAME_BOUNDS, ctypes.byref(rect), ctypes.sizeof(rect)
+        )
+        if result != 0:
+            raise OSError(
+                f"DwmGetWindowAttribute failed for window {self.hwnd} "
+                f"(HRESULT {result & 0xFFFFFFFF:#010x})"
+            )
+        return _require_area(
+            {
+                "left": rect.left,
+                "top": rect.top,
+                "width": rect.right - rect.left,
+                "height": rect.bottom - rect.top,
+            },
+            f"Window {self.hwnd}",
+        )
+
+
+class MacGameWindow(GameWindow):
+    """GameWindow for macOS: found by owning app name, measured by PID.
+
+    The id stored in self.hwnd is that app's PID, not a window handle - there
+    is no macOS equivalent of an HWND here. MacKeyboardInput takes the same
+    PID, so callers never need to know the difference.
+    """
+
+    def _find(self, title_contains: str) -> int:
+        """Teacher Note: matched by owning app, not title.
+        CGWindowListCopyWindowInfo's kCGWindowName (the title bar text) comes
+        back None for LibreMines even with every permission granted - measured,
+        not assumed. kCGWindowOwnerName (the app's own name) is always there,
+        so that is what gets matched instead.
+        """
+        for w in Quartz.CGWindowListCopyWindowInfo(_CG_WINDOW_LIST_OPTIONS, Quartz.kCGNullWindowID):
+            owner = w.get("kCGWindowOwnerName") or ""
+            if title_contains.lower() in owner.lower():
+                return int(w["kCGWindowOwnerPID"])
+        raise WindowNotFound(
+            f"No visible window owned by an app matching {title_contains!r}. "
+            "Is the game running?"
+        )
+
+    @property
+    def rect(self) -> dict[str, int]:
+        """Re-queries CGWindowListCopyWindowInfo each time rather than caching,
+        for the same reason the rect is re-read on every grab: geometry can move."""
+        for w in Quartz.CGWindowListCopyWindowInfo(_CG_WINDOW_LIST_OPTIONS, Quartz.kCGNullWindowID):
+            if w.get("kCGWindowOwnerPID") == self.hwnd:
+                bounds = w["kCGWindowBounds"]
+                return _require_area(
+                    {
+                        "left": int(bounds["X"]),
+                        "top": int(bounds["Y"]),
+                        "width": int(bounds["Width"]),
+                        "height": int(bounds["Height"]),
+                    },
+                    f"Window for pid {self.hwnd}",
+                )
+        raise OSError(f"No on-screen window found for pid {self.hwnd}.")
+
+
+def game_window_for_this_os(title_contains: str = "LibreMines") -> GameWindow:
+    """The window view for whichever OS we are running on.
+
+    The one place that asks "which OS?" - everything after this just calls
+    window.grab() and lets the subclass know how to find and measure it.
+    """
+    if sys.platform == "win32":
+        return WindowsGameWindow(title_contains)
+    if sys.platform == "darwin":
+        return MacGameWindow(title_contains)
+    raise RuntimeError(
+        "GameWindow requires Windows or macOS. On Linux/CI, pass "
+        "window=None or mock window to run headlessly."
+    )

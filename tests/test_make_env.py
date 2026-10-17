@@ -205,8 +205,8 @@ def test_live_minesweeper_auto_discovery_focuses_window_and_waits_for_capture():
     mock_hands = MagicMock()
 
     with (
-        patch("src.gametrainer.factory.GameWindow", return_value=mock_window) as game_window,
-        patch("src.gametrainer.factory.KeyboardInput", return_value=mock_hands) as keyboard,
+        patch("src.gametrainer.factory.game_window_for_this_os", return_value=mock_window) as game_window,
+        patch("src.gametrainer.factory.keyboard_for_this_os", return_value=mock_hands) as keyboard,
     ):
         env = make_env(MINESWEEPER)
 
@@ -220,9 +220,11 @@ def test_live_minesweeper_auto_discovery_focuses_window_and_waits_for_capture():
 
 
 def test_live_minesweeper_auto_discovery_failures_propagate():
-    with patch("src.gametrainer.factory.GameWindow", side_effect=RuntimeError("boom")):
-        with pytest.raises(RuntimeError, match="boom"):
-            make_env(MINESWEEPER)
+    with (
+        patch("src.gametrainer.factory.game_window_for_this_os", side_effect=RuntimeError("boom")),
+        pytest.raises(RuntimeError, match="boom"),
+    ):
+        make_env(MINESWEEPER)
 
 
 def test_gridworld_pixels_wrapper_order_is_task_inside_pixels_outside():

@@ -95,13 +95,13 @@ def test_goal_moves_off_the_corner():
 
     assert env.goal == (2, 2)
     assert env.goal != GridWorldEnv.GOAL  # the M2 corner, deliberately abandoned
-    assert env.unwrapped.GOAL == (2, 2)   # the env underneath agrees
+    assert env.unwrapped.goal == (2, 2)   # the env underneath agrees
 
 
 def test_env_actually_terminates_at_the_new_goal():
     """The promise the whole fix rests on: the Ground ACTS on the moved goal.
 
-    We move the goal by shadowing a class attribute. If that silently failed,
+    We move the goal through the env's goal attribute. If that silently failed,
     episodes would keep ending at the old corner, the maze would stay solvable
     blind, and every other test in this file would still pass.
     """
@@ -133,7 +133,7 @@ def test_picture_shows_the_agent_and_goal_where_they_really_are():
         row, col = env.unwrapped.row, env.unwrapped.col
 
         assert np.array_equal(pixel_at(obs, row, col), GridWorldEnv.AGENT_COLOR)
-        assert np.array_equal(pixel_at(obs, *env.unwrapped.GOAL), GridWorldEnv.GOAL_COLOR)
+        assert np.array_equal(pixel_at(obs, *env.unwrapped.goal), GridWorldEnv.GOAL_COLOR)
 
 
 def test_contract_shapes_survive_the_extra_wrapper():
@@ -228,7 +228,7 @@ def test_an_agent_that_can_see_does_pass_this_task():
     """The other half: the task must be winnable, or the bar is impossible."""
     def walks_to_the_goal(env, rng):
         grid = env.unwrapped
-        goal_row, goal_col = grid.GOAL
+        goal_row, goal_col = grid.goal
         if grid.row < goal_row:
             return GridWorldEnv.DOWN
         if grid.row > goal_row:

@@ -13,11 +13,9 @@ run a milestone script directly (see below).
 """
 
 import importlib.util
-from pathlib import Path
 import subprocess
 import sys
-
-VALID_MODES = ("train", "play")
+from pathlib import Path
 
 
 def _check_missing_dependencies() -> list[tuple[str, str]]:
@@ -25,16 +23,15 @@ def _check_missing_dependencies() -> list[tuple[str, str]]:
     Check for core dependencies using standard library only.
 
     Returns a list of (module_name, package_name) pairs that are missing.
+    Must match install_requires in setup.py: anything listed here that pip
+    does not install would be reported missing forever.
     """
     checks = [
         ("rich", "rich"),
         ("cv2", "opencv-python"),
         ("mss", "mss"),
         ("numpy", "numpy"),
-        ("pydantic", "pydantic"),
         ("yaml", "pyyaml"),
-        ("pynput", "pynput"),
-        ("typing_extensions", "typing-extensions>=4.7"),
     ]
     if sys.platform == "darwin":
         checks.extend([
@@ -106,16 +103,9 @@ def main():
     if len(sys.argv) < 2:
         return _launch_tui()
 
-    mode = sys.argv[1].lower().strip()
-
-    if mode not in VALID_MODES:
-        print(f"Error: Unknown mode '{mode}'.")
-        _print_usage()
-        sys.exit(1)
-
-    print(f"'{mode}' isn't available yet — Track B (its old implementation) was retired.")
+    print(f"Error: Unknown mode '{sys.argv[1]}'.")
     _print_usage()
-    sys.exit(1)
+    return 1
 
 
 def _print_usage():

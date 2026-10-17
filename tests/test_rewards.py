@@ -10,6 +10,7 @@ Mirrors tests/test_profile.py: same path-insertion trick, plain functions.
 """
 
 import sys
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -39,7 +40,7 @@ def test_numbers_come_from_the_caller_not_the_class():
 def test_reward_calculator_is_frozen():
     """RewardCalculator should be immutable (frozen dataclass)."""
     calculator = RewardCalculator(step_cost=-0.01, goal_reward=1.0)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         calculator.step_cost = -0.5
 
 

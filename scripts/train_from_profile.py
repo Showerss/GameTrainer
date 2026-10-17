@@ -59,6 +59,7 @@ import os
 import subprocess
 import sys
 import time
+from dataclasses import fields
 from pathlib import Path
 
 # Print UTF-8 so status glyphs don't crash on Windows consoles (cp1252).
@@ -75,6 +76,13 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 from src.gametrainer.factory import make_env
 from src.gametrainer.profile import Profile
+from src.gametrainer.referee import (
+    check_contract_shapes,
+    decide_verdict,
+    evaluate_greedy,
+    measure_random_baseline,
+    pass_or_fail,
+)
 from src.gametrainer.vit_extractor import ViTTinyFeaturesExtractor
 
 # ---------------------------------------------------------------------------
@@ -102,7 +110,8 @@ SMOKE_EPISODES = 3
 
 
 # ---------------------------------------------------------------------------
-# Referee piece 1 — the swap proof (the genuinely new one).
+# Referee piece 1 — the swap proof (the genuinely new one). It is M4-only, so
+# it stays here; pieces 2-4 are shared and live in src/gametrainer/referee.py.
 # ---------------------------------------------------------------------------
 
 def source_fingerprint() -> str:
@@ -141,108 +150,6 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-# ---------------------------------------------------------------------------
-# Referee piece 2 — the contract shapes must be unchanged.
-# ---------------------------------------------------------------------------
-
-def check_contract_shapes(env) -> tuple[bool, str]:
-    """Confirm reset() -> 2-tuple and step() -> 5-tuple, obs inside the space.
-
-    Teacher Note: this is the one promise the whole project rests on, and M4
-    multiplies the ways to break it — every profile is a new chance to build an
-    env that is subtly not a Gymnasium env. So this runs for whichever profile
-    was loaded, every run, before any training time is spent.
-    """
-    reset_out = env.reset()
-    if not (isinstance(reset_out, tuple) and len(reset_out) == 2):
-        return False, "reset() did not return a 2-tuple (obs, info)"
-    obs, _info = reset_out
-    if not env.observation_space.contains(obs):
-        return False, "reset() obs is not inside observation_space"
-
-    step_out = env.step(env.action_space.sample())
-    if not (isinstance(step_out, tuple) and len(step_out) == 5):
-        return False, "step() did not return a 5-tuple"
-
-    return True, "reset() -> 2-tuple, step() -> 5-tuple, obs in space"
-
-
-# ---------------------------------------------------------------------------
-# Referee piece 3 — measure the random baseline LIVE, never from memory.
-# ---------------------------------------------------------------------------
-
-def measure_random_baseline(make_env, episodes: int = BASELINE_EPISODES) -> float:
-    """Average reward per episode of a purely random agent on THIS profile's env.
-
-    Teacher Note: takes a factory (something that builds an env) rather than an
-    env, because a baseline has to be measured on the very same Ground the agent
-    plays. M2 hardcoded -0.3 and the true figure was +0.13; M3 measured live and
-    got +0.48 on a Ground that had changed underneath it. Every profile brings
-    its own Ground, so every profile brings its own baseline.
-    """
-    env = make_env()
-    total = 0.0
-    for _ in range(episodes):
-        env.reset()
-        terminated = truncated = False
-        while not (terminated or truncated):
-            _, reward, terminated, truncated, _ = env.step(env.action_space.sample())
-            total += reward
-    env.close()
-    return total / episodes
-
-
-# ---------------------------------------------------------------------------
-# Referee piece 4 — the verdict. Pure logic: numbers in, PASS/FAIL out.
-# Brick 5 calls this with the trained agent's numbers.
-# ---------------------------------------------------------------------------
-
-def decide_verdict(
-    trained_mean_reward: float,
-    live_baseline: float,
-    margin_over_baseline: float,
-    shapes_ok: bool,
-    goal_rate: float | None = None,
-    min_goal_rate: float | None = None,
-) -> tuple[bool, list[str]]:
-    """Apply M4's conditions. Returns (passed, printable report lines).
-
-    goal_rate and min_goal_rate are fractions in [0, 1], and both are optional:
-    CartPole has no "goal" to reach, so that check simply does not apply there.
-    Not applicable must mean not applicable — never a silent pass.
-    """
-    if min_goal_rate is not None and goal_rate is None:
-        raise ValueError(
-            "profile demands a goal rate (min_goal_rate="
-            f"{min_goal_rate}) but this Ground cannot measure one"
-        )
-
-    beats_baseline = trained_mean_reward >= live_baseline + margin_over_baseline
-    reaches_goal = min_goal_rate is None or goal_rate >= min_goal_rate
-    passed = shapes_ok and beats_baseline and reaches_goal
-
-    def mark(ok: bool) -> str:
-        return "PASS" if ok else "FAIL"
-
-    lines = [
-        f"  Live random baseline:   {live_baseline:+.2f} reward/episode",
-        f"  Trained mean reward:    {trained_mean_reward:+.2f} reward/episode",
-        (
-            f"  [{mark(beats_baseline)}] beats baseline by >= {margin_over_baseline:.2f}"
-            f"  (needs >= {live_baseline + margin_over_baseline:+.2f})"
-        ),
-    ]
-    if min_goal_rate is None:
-        lines.append("  [ -- ] goal rate: not applicable to this Ground")
-    else:
-        lines.append(
-            f"  [{mark(reaches_goal)}] reaches goal in most episodes"
-            f"  ({goal_rate * 100:.0f}%, needs >= {min_goal_rate * 100:.0f}%)"
-        )
-    lines.append(f"  [{mark(shapes_ok)}] reset()/step() shapes unchanged")
-    return passed, lines
-
-
 def print_finish_line(live_baseline: float | None = None) -> None:
     """Show the bar this run must clear. Called before training, not after."""
     print("The M4 finish line (all three required to PASS):")
@@ -266,57 +173,12 @@ def print_resolved_profile(profile: Profile, path: str) -> None:
     Teacher Note: DOC_STANDARD rule 3 — a run whose settings can't be
     reconstructed from its own printed output is not a result. This is what
     makes that true here: nothing below is guessed or looked up later, it's
-    read straight off the Profile the run actually built.
+    read straight off the Profile the run actually built. Looping over the
+    dataclass's own fields means a field added later can never be left out.
     """
-    print(f"Profile file:          {path}")
-    print(f"  ground:              {profile.ground}")
-    print(f"  perception:          {profile.perception}")
-    print(f"  reward:              {profile.reward}")
-    print(f"  total_timesteps:     {profile.total_timesteps:,}")
-    print(f"  learning_rate:       {profile.learning_rate}")
-    print(f"  n_steps:             {profile.n_steps}")
-    print(f"  batch_size:          {profile.batch_size}")
-    print(f"  n_epochs:            {profile.n_epochs}")
-    print(f"  gamma:               {profile.gamma}")
-    print(f"  gae_lambda:          {profile.gae_lambda}")
-    print(f"  clip_range:          {profile.clip_range}")
-    print(f"  ent_coef:            {profile.ent_coef}")
-    print(f"  step_cost:           {profile.step_cost}")
-    print(f"  goal_reward:         {profile.goal_reward}")
-    print(f"  margin_over_baseline: {profile.margin_over_baseline}")
-    print(f"  min_goal_rate:       {profile.min_goal_rate}")
-
-
-def evaluate_greedy(model, make_env_fn, episodes: int):
-    """Play greedy episodes; return (mean_reward, goal_rate, mean_steps).
-
-    Teacher Note: "greedy" (deterministic=True) means the agent always takes
-    the move it currently thinks is best — no random exploration mixed in,
-    same as M2/M3. goal_rate counts episodes that ended via terminated=True.
-    For GridWorld that only ever means "reached the goal" (its one way to
-    terminate); for CartPole it would mean "the pole fell," but no CartPole
-    profile sets min_goal_rate, so decide_verdict never looks at this number
-    for it — computing it unconditionally here is harmless, not wrong.
-    """
-    env = make_env_fn()
-    rewards, steps_list, goals = [], [], 0
-
-    for _ in range(episodes):
-        obs, _ = env.reset()
-        terminated = truncated = False
-        ep_reward = 0.0
-        ep_steps = 0
-        while not (terminated or truncated):
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, _info = env.step(action)
-            ep_reward += reward
-            ep_steps += 1
-        goals += int(terminated)
-        rewards.append(ep_reward)
-        steps_list.append(ep_steps)
-
-    env.close()
-    return sum(rewards) / episodes, goals / episodes, sum(steps_list) / episodes
+    print(f"Profile file:           {path}")
+    for field in fields(profile):
+        print(f"  {field.name + ':':<22}{getattr(profile, field.name)}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -366,7 +228,7 @@ def main() -> int:
 
     # Referee piece 1: the live baseline, measured now — never remembered.
     print(f"Measuring live random baseline over {baseline_episodes} episodes...")
-    live_baseline = measure_random_baseline(env_factory, episodes=baseline_episodes)
+    live_baseline = measure_random_baseline(env_factory, baseline_episodes)
     print(f"  Live random baseline: {live_baseline:+.2f} reward/episode")
     print()
 
@@ -392,14 +254,7 @@ def main() -> int:
         policy,
         train_env,
         verbose=1,
-        learning_rate=profile.learning_rate,
-        n_steps=profile.n_steps,
-        batch_size=profile.batch_size,
-        n_epochs=profile.n_epochs,
-        gamma=profile.gamma,
-        gae_lambda=profile.gae_lambda,
-        clip_range=profile.clip_range,
-        ent_coef=profile.ent_coef,
+        **profile.ppo_settings(),
         policy_kwargs=policy_kwargs,
     )
 
@@ -426,7 +281,7 @@ def main() -> int:
 
     print()
     print("=" * 60)
-    print(f"M4 VERDICT ({args.profile}): {'PASS' if passed else 'FAIL'}")
+    print(f"M4 VERDICT ({args.profile}): {pass_or_fail(passed)}")
     print("=" * 60)
     for line in lines:
         print(line)

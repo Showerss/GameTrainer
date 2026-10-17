@@ -107,6 +107,12 @@ _REVEALED_BODY = np.array([26, 26, 26])
 # measured there - the original fixture never captured a cell with the
 # cursor on it.
 _CURSOR_BODY = np.array([185, 185, 185])
+# The three flat greys a cell can sit on. "cursor" still means hidden.
+_BACKGROUNDS = {
+    "hidden": _HIDDEN_BODY,
+    "cursor": _CURSOR_BODY,
+    "revealed": _REVEALED_BODY,
+}
 _DIGIT_COLOURS = {
     1: (255, 104, 0),
     2: (0, 130, 0),
@@ -203,6 +209,14 @@ def _cell_patch(frame: np.ndarray, board: tuple[int, int, int], row: int, col: i
     ]
 
 
+def _colour_distance(a, b):
+    """How different two colours are: the biggest gap on any one channel.
+
+    Works on one colour or on a whole (N, 3) array of pixels at once.
+    """
+    return np.abs(np.asarray(a, dtype=int) - np.asarray(b, dtype=int)).max(axis=-1)
+
+
 def _dominant_colour(pixels: np.ndarray) -> tuple[int, int, int]:
     """The most common colour among these pixels."""
     colours, counts = np.unique(pixels, axis=0, return_counts=True)
@@ -214,7 +228,7 @@ def _nearest_digit(colour: tuple[int, int, int]) -> int | None:
     best_digit = None
     best_distance = _COLOUR_TOLERANCE + 1
     for digit, known in _DIGIT_COLOURS.items():
-        distance = max(abs(a - b) for a, b in zip(colour, known))
+        distance = _colour_distance(colour, known)
         if distance <= _COLOUR_TOLERANCE and distance < best_distance:
             best_digit = digit
             best_distance = distance
@@ -224,7 +238,7 @@ def _nearest_digit(colour: tuple[int, int, int]) -> int | None:
 def _classify_monochrome_glyph(pixels: np.ndarray) -> int | None:
     """Classify the revealed states that are drawn without a colourful ink."""
     dominant = _dominant_colour(pixels)
-    if max(abs(a - b) for a, b in zip(dominant, _EIGHT_COLOUR)) <= _COLOUR_TOLERANCE:
+    if _colour_distance(dominant, _EIGHT_COLOUR) <= _COLOUR_TOLERANCE:
         return CellState.EIGHT
 
     # The mine sprite mixes a dark body with a bright white highlight; the 8
@@ -236,7 +250,7 @@ def _classify_monochrome_glyph(pixels: np.ndarray) -> int | None:
 
 
 def classify_cell(patch: np.ndarray) -> int:
-    """Read one cell: 0-8, HIDDEN or FLAGGED.
+    """Read one cell: 0-8, HIDDEN, FLAGGED or MINE.
 
     Raises UnreadableCell rather than returning a plausible-looking guess.
     """
@@ -249,11 +263,7 @@ def classify_cell(patch: np.ndarray) -> int:
     # the same cell, just highlighted - but the ink check below needs the
     # right one of the three as "background" or the highlight itself would
     # be mistaken for a glyph.
-    shares = {
-        "hidden": _share_matching(pixels, _HIDDEN_BODY),
-        "cursor": _share_matching(pixels, _CURSOR_BODY),
-        "revealed": _share_matching(pixels, _REVEALED_BODY),
-    }
+    shares = {name: _share_matching(pixels, body) for name, body in _BACKGROUNDS.items()}
     best = max(shares, key=shares.get)
     if shares[best] < _BODY_FRACTION:
         raise UnreadableCell(
@@ -263,14 +273,10 @@ def classify_cell(patch: np.ndarray) -> int:
             f"{tuple(_REVEALED_BODY)})"
         )
     is_hidden = best != "revealed"
-    background = {
-        "hidden": _HIDDEN_BODY,
-        "cursor": _CURSOR_BODY,
-        "revealed": _REVEALED_BODY,
-    }[best]
+    background = _BACKGROUNDS[best]
 
     # Step 2: is anything drawn on top of it, and can we name it?
-    ink = np.abs(pixels - background).max(axis=1) > _INK_DISTANCE
+    ink = _colour_distance(pixels, background) > _INK_DISTANCE
     coloured_ink = (ink & colourful).mean()
     grey_ink = (ink & ~colourful).mean()
 
@@ -309,7 +315,7 @@ def classify_cell(patch: np.ndarray) -> int:
 
 def _share_matching(pixels: np.ndarray, colour: np.ndarray) -> float:
     """What fraction of these pixels are this colour, give or take."""
-    return float((np.abs(pixels - colour).max(axis=1) <= _BODY_TOLERANCE).mean())
+    return float((_colour_distance(pixels, colour) <= _BODY_TOLERANCE).mean())
 
 
 def read_board(frame: np.ndarray) -> np.ndarray:
@@ -317,7 +323,7 @@ def read_board(frame: np.ndarray) -> np.ndarray:
 
     The frame is the whole window as Brick 1's GameWindow.grab() returns it:
     a (height, width, 3) BGR array. Returns an (8, 8) array where each cell is
-    0-8 (a revealed neighbour count), HIDDEN or FLAGGED.
+    0-8 (a revealed neighbour count), HIDDEN, FLAGGED or MINE.
     """
     board = find_board(frame)
     grid = np.empty((GRID, GRID), dtype=np.int8)

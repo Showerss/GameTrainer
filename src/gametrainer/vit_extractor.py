@@ -119,12 +119,12 @@ class ViTFeaturesExtractor(BaseFeaturesExtractor):
         # Import timm here to give clear error if not installed
         try:
             import timm
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "timm library required for ViT. Install with:\n"
                 "  pip install timm\n"
                 "Or: pip install -e .[rl]  (if timm is in extras)"
-            )
+            ) from err
 
         # Create the Vision Transformer
         # Teacher Note: timm.create_model handles all the complexity
@@ -156,7 +156,6 @@ class ViTFeaturesExtractor(BaseFeaturesExtractor):
             # The ViT acts as a fixed feature extractor
             for param in self.vit.parameters():
                 param.requires_grad = False
-            trainable = 0
             print("  Trainable parameters: 0 (backbone frozen)")
         else:
             trainable = sum(p.numel() for p in self.vit.parameters() if p.requires_grad)
@@ -164,9 +163,22 @@ class ViTFeaturesExtractor(BaseFeaturesExtractor):
 
         print('='*60 + "\n")
 
-        # Store config for later reference
-        self._features_dim = features_dim
+        # Store config for later reference (features_dim is already stored by
+        # BaseFeaturesExtractor, as self.features_dim).
         self.freeze_backbone = freeze_backbone
+
+        # ImageNet normalization (what the pretrained ViT expects), shaped
+        # (1, 3, 1, 1) so it broadcasts over a (batch, 3, H, W) batch.
+        # Teacher Note: a "buffer" is a tensor the model owns but never learns.
+        # Registering it means it is built once (not on every frame) and moves
+        # to the GPU along with the model. persistent=False keeps it out of
+        # saved files, so models saved before this change still load.
+        self.register_buffer(
+            "imagenet_mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1), persistent=False
+        )
+        self.register_buffer(
+            "imagenet_std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1), persistent=False
+        )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         """
@@ -189,18 +201,10 @@ class ViTFeaturesExtractor(BaseFeaturesExtractor):
         if observations.dtype == torch.uint8:
             observations = observations.float() / 255.0
 
-        # ImageNet normalization (what the pretrained ViT expects)
+        # ImageNet normalization: (x - mean) / std
         # Teacher Note: The ViT was trained on ImageNet with specific mean/std.
         # We normalize our game images the same way so the learned features apply.
-        mean = torch.tensor([0.485, 0.456, 0.406], device=observations.device)
-        std = torch.tensor([0.229, 0.224, 0.225], device=observations.device)
-
-        # Reshape for broadcasting: (3,) -> (1, 3, 1, 1)
-        mean = mean.view(1, 3, 1, 1)
-        std = std.view(1, 3, 1, 1)
-
-        # Apply normalization: (x - mean) / std
-        observations = (observations - mean) / std
+        observations = (observations - self.imagenet_mean) / self.imagenet_std
 
         # Forward through ViT
         # Output shape: (batch, features_dim) = (batch, 768) for ViT-Base

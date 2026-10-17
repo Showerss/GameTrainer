@@ -34,6 +34,7 @@ CMakeFiles/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.mutmut-cache
 .hypothesis/
 .coverage
 .coverage.*

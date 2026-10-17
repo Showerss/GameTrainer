@@ -57,6 +57,24 @@ _OPTIONAL_FIELDS = {
     "win_reward",
 }
 
+# The reward numbers each reward kind needs. "builtin" (CartPole) needs none.
+_FIELDS_FOR_REWARD = {
+    "gridworld": ("step_cost", "goal_reward"),
+    "minesweeper": ("safe_reveal_reward", "mine_penalty", "win_reward"),
+}
+
+# The Profile fields that are handed straight to SB3's PPO, under the same names.
+_PPO_FIELDS = (
+    "learning_rate",
+    "n_steps",
+    "batch_size",
+    "n_epochs",
+    "gamma",
+    "gae_lambda",
+    "clip_range",
+    "ent_coef",
+)
+
 
 def _require_real(path: str, raw: dict, field: str) -> float:
     """Return one numeric field, or fail loudly if YAML gave us junk."""
@@ -64,6 +82,14 @@ def _require_real(path: str, raw: dict, field: str) -> float:
     if value is None or isinstance(value, bool) or not isinstance(value, Real):
         raise ValueError(f"{path}: '{field}' must be a number, got {value!r}")
     return float(value)
+
+
+def _require_positive(path: str, raw: dict, field: str):
+    """Return one field unchanged if it is a number above 0, else fail loudly."""
+    value = raw[field]
+    if isinstance(value, bool) or not isinstance(value, Real) or value <= 0:
+        raise ValueError(f"{path}: '{field}' must be > 0, got {value!r}")
+    return value
 
 
 @dataclass(frozen=True)
@@ -146,55 +172,18 @@ class Profile:
                 f"got '{reward}'"
             )
 
-        step_cost = None
-        goal_reward = None
-        if reward == "gridworld":
-            reward_missing = [k for k in ("step_cost", "goal_reward") if k not in raw]
-            if reward_missing:
-                raise ValueError(
-                    f"{path}: reward 'gridworld' requires field(s): "
-                    f"{', '.join(reward_missing)}"
-                )
-            step_cost = _require_real(path, raw, "step_cost")
-            goal_reward = _require_real(path, raw, "goal_reward")
-
-        safe_reveal_reward = None
-        mine_penalty = None
-        win_reward = None
-        if reward == "minesweeper":
-            reward_missing = [
-                k
-                for k in ("safe_reveal_reward", "mine_penalty", "win_reward")
-                if k not in raw
-            ]
-            if reward_missing:
-                raise ValueError(
-                    f"{path}: reward 'minesweeper' requires field(s): "
-                    f"{', '.join(reward_missing)}"
-                )
-            safe_reveal_reward = _require_real(path, raw, "safe_reveal_reward")
-            mine_penalty = _require_real(path, raw, "mine_penalty")
-            win_reward = _require_real(path, raw, "win_reward")
-
-        total_timesteps = raw["total_timesteps"]
-        if (
-            isinstance(total_timesteps, bool)
-            or not isinstance(total_timesteps, Real)
-            or total_timesteps <= 0
-        ):
+        # The reward numbers this reward kind needs; any it doesn't stay None.
+        needed = _FIELDS_FOR_REWARD.get(reward, ())
+        reward_missing = [k for k in needed if k not in raw]
+        if reward_missing:
             raise ValueError(
-                f"{path}: 'total_timesteps' must be > 0, got {total_timesteps!r}"
+                f"{path}: reward '{reward}' requires field(s): "
+                f"{', '.join(reward_missing)}"
             )
+        reward_numbers = {k: _require_real(path, raw, k) for k in needed}
 
-        learning_rate = raw["learning_rate"]
-        if (
-            isinstance(learning_rate, bool)
-            or not isinstance(learning_rate, Real)
-            or learning_rate <= 0
-        ):
-            raise ValueError(
-                f"{path}: 'learning_rate' must be > 0, got {learning_rate!r}"
-            )
+        total_timesteps = _require_positive(path, raw, "total_timesteps")
+        learning_rate = _require_positive(path, raw, "learning_rate")
 
         gamma = raw["gamma"]
         if (
@@ -233,10 +222,10 @@ class Profile:
             clip_range=raw["clip_range"],
             ent_coef=raw["ent_coef"],
             margin_over_baseline=raw["margin_over_baseline"],
-            step_cost=step_cost,
-            goal_reward=goal_reward,
             min_goal_rate=min_goal_rate,
-            safe_reveal_reward=safe_reveal_reward,
-            mine_penalty=mine_penalty,
-            win_reward=win_reward,
+            **reward_numbers,
         )
+
+    def ppo_settings(self) -> dict:
+        """The PPO numbers from this profile, ready for PPO(..., **settings)."""
+        return {name: getattr(self, name) for name in _PPO_FIELDS}

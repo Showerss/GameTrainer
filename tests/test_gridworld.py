@@ -169,7 +169,7 @@ def test_goal_on_max_steps_is_terminated_not_truncated():
         env.step(GridWorldEnv.RIGHT)
 
     # 100th move: step RIGHT onto the goal (4, 4)
-    obs, reward, terminated, truncated, info = env.step(GridWorldEnv.RIGHT)
+    obs, _reward, terminated, truncated, info = env.step(GridWorldEnv.RIGHT)
 
     assert info["steps"] == 100
     assert terminated is True

@@ -2,14 +2,13 @@
 M5 Brick 0 - the guardrail. Written FIRST, before any of the hands exist.
 
 This file plays two roles in the M5 to-do list (docs/m5/M5_ToDo.md):
-  * Brick 0 (now): write the bar down while the work still looks easy - the
-    four controls, and the exact numbers that decide each one.
-  * Brick 7 (later): fill in collect_measurements() against a live LibreMines
-    window, so this file can actually run and print PASS.
+  * Brick 0 (written first): the bar, written down while the work still
+    looked easy - the four controls, and the exact numbers that decide each.
+  * Brick 7: collect_measurements(), which drives a live LibreMines window so
+    this file can actually run and print PASS.
 
-Running it today prints NOT RUN and exits 1. That is correct and deliberate:
-the machinery it measures (Bricks 1-6) does not exist yet, and a guardrail
-that passes before the work is done is not a guardrail.
+Both are built. Without a LibreMines window open it prints NOT RUN and exits
+1 - nothing was measured, so nothing passed.
 
 The M5 finish line - ALL FOUR must hold:
 
@@ -68,9 +67,10 @@ _project_root = Path(__file__).resolve().parents[1]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from src.gametrainer.input import KeyboardInput, NullInput
+from src.gametrainer.input import NullInput, keyboard_for_this_os
 from src.gametrainer.minesweeper_vision import HIDDEN, read_board
-from src.gametrainer.screen import GameWindow, WindowNotFound
+from src.gametrainer.referee import pass_or_fail
+from src.gametrainer.screen import WindowNotFound, game_window_for_this_os
 
 # Print UTF-8 so status glyphs don't crash on Windows consoles (cp1252).
 if hasattr(sys.stdout, "reconfigure"):
@@ -109,6 +109,23 @@ MIN_LIVE_CELLS_CHANGED = 1
 
 # Control 4: how many unattended resets prove episodes can actually repeat.
 RESET_TRIALS = 20
+
+# Controls 1 and 2: the key sequence, written ONCE. Control 1 sends it with the
+# real hands and Control 2 sends this same tuple to NullInput, so the two can
+# never drift apart - which is the only way Control 2 means anything.
+#
+# Teacher Note: the first W/A/S/D press only ACTIVATES keyboard-cursor mode -
+# measured live 2026-09-07: one move_down() alone after a restart left the
+# cursor at (0, 0), not (1, 0). It does not count as a move in any direction.
+# So reaching (1, 2) takes one activation press plus three real moves.
+TARGET_CELL = (1, 2)
+TARGET_SEQUENCE = (
+    "move_down",   # activates keyboard mode; lands at (0, 0)
+    "move_down",   # down 1:  (0, 0) -> (1, 0)
+    "move_right",  # right 1: (1, 0) -> (1, 1)
+    "move_right",  # right 2: (1, 1) -> (1, 2)
+    "flag",        # toggle exactly one cell
+)
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +174,7 @@ class ControlResult:
     evidence: list[str] = field(default_factory=list)
 
 
-def _mark(ok: bool) -> str:
-    return "PASS" if ok else "FAIL"
+_mark = pass_or_fail  # short name; keeps the evidence lines below readable
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +307,18 @@ def print_finish_line() -> None:
 # Measurement - Brick 7's job.
 # ---------------------------------------------------------------------------
 
+def _press(hands, sequence, delay: float) -> None:
+    """Send each named action (e.g. "move_down") to these hands, pausing after each."""
+    for action_name in sequence:
+        getattr(hands, action_name)()  # e.g. hands.move_down()
+        time.sleep(delay)
+
+
+def _cells_changed(before: np.ndarray, after: np.ndarray) -> int:
+    """How many of the 64 cells differ between two board readings."""
+    return int(np.sum(before != after))
+
+
 def collect_measurements(
     title: str = "LibreMines",
     step_delay: float = 0.25,
@@ -298,13 +326,13 @@ def collect_measurements(
     """Drive a live LibreMines window and return what the referee needs.
 
     Uses:
-      - GameWindow(title) to find and capture the window
-      - KeyboardInput(hwnd) to focus and send real SendInput keystrokes
+      - game_window_for_this_os(title) to find and capture the window
+      - keyboard_for_this_os(hwnd) to focus and send real keystrokes
       - NullInput() for the negative control
       - read_board(frame) to parse cell states from pixels
     """
-    with GameWindow(title) as window:
-        hands = KeyboardInput(window.hwnd)
+    with game_window_for_this_os(title) as window:
+        hands = keyboard_for_this_os(window.hwnd)
         hands.focus()
 
         # ------------------------------------------------------------------
@@ -317,32 +345,14 @@ def collect_measurements(
         initial_frame = window.grab()
         initial_grid = read_board(initial_frame)
 
-        # Move to target cell (1, 2): down 1, right 2, from top-left (0, 0).
-        #
-        # Teacher Note: the first W/A/S/D press only ACTIVATES keyboard-cursor
-        # mode - measured live 2026-09-07: one move_down() alone after a
-        # restart left the cursor at (0, 0), not (1, 0). It does not count as
-        # a move in any direction. So reaching (1, 2) needs one extra
-        # activation press before the two real moves below - four keys sent
-        # for a two-step walk, not three.
-        target_cell = (1, 2)
-        hands.move_down()  # activates keyboard mode; lands at (0, 0)
-        time.sleep(step_delay)
-        hands.move_down()  # down 1: (0, 0) -> (1, 0)
-        time.sleep(step_delay)
-        hands.move_right()  # right 1: (1, 0) -> (1, 1)
-        time.sleep(step_delay)
-        hands.move_right()  # right 2: (1, 1) -> (1, 2)
-        time.sleep(step_delay)
-        hands.flag()
-        time.sleep(step_delay)
+        # Walk to TARGET_CELL and flag it (see TARGET_SEQUENCE above).
+        _press(hands, TARGET_SEQUENCE, step_delay)
 
         frame_after_flag = window.grab()
         grid_after_flag = read_board(frame_after_flag)
 
-        diff_mask = initial_grid != grid_after_flag
-        live_cells_changed = int(np.sum(diff_mask))
-        changed_coords = np.argwhere(diff_mask)
+        live_cells_changed = _cells_changed(initial_grid, grid_after_flag)
+        changed_coords = np.argwhere(initial_grid != grid_after_flag)
         live_changed_cell = (
             (int(changed_coords[0][0]), int(changed_coords[0][1]))
             if len(changed_coords) == 1
@@ -352,7 +362,7 @@ def collect_measurements(
 
         # ------------------------------------------------------------------
         # Control 2: NullInput swapped in (Negative control)
-        # Same sequence of moves + flag, but dispatched to NullInput.
+        # The very same TARGET_SEQUENCE, but dispatched to NullInput.
         # ------------------------------------------------------------------
         hands.restart()
         time.sleep(step_delay * 2)
@@ -360,22 +370,12 @@ def collect_measurements(
         null_initial_frame = window.grab()
         null_initial_grid = read_board(null_initial_frame)
 
-        null_hands = NullInput()
-        null_hands.move_down()
-        time.sleep(step_delay)
-        null_hands.move_down()
-        time.sleep(step_delay)
-        null_hands.move_right()
-        time.sleep(step_delay)
-        null_hands.move_right()
-        time.sleep(step_delay)
-        null_hands.flag()
-        time.sleep(step_delay)
+        _press(NullInput(), TARGET_SEQUENCE, step_delay)
 
         null_after_frame = window.grab()
         null_after_grid = read_board(null_after_frame)
 
-        null_cells_changed = int(np.sum(null_initial_grid != null_after_grid))
+        null_cells_changed = _cells_changed(null_initial_grid, null_after_grid)
         null_pixels_changed = int(np.sum(null_initial_frame != null_after_frame))
 
         # ------------------------------------------------------------------
@@ -386,17 +386,14 @@ def collect_measurements(
         frozen_obs_before = read_board(frozen_frame)
 
         # Act with real hands to mutate the board on screen
-        hands.move_down()
-        time.sleep(step_delay)
-        hands.flag()
-        time.sleep(step_delay)
+        _press(hands, ("move_down", "flag"), step_delay)
 
         live_frame = window.grab()
         live_obs = read_board(live_frame)
         frozen_obs_after = read_board(frozen_frame)
 
-        live_obs_cells_changed = int(np.sum(live_obs != frozen_obs_before))
-        frozen_obs_cells_changed = int(np.sum(frozen_obs_after != frozen_obs_before))
+        live_obs_cells_changed = _cells_changed(frozen_obs_before, live_obs)
+        frozen_obs_cells_changed = _cells_changed(frozen_obs_before, frozen_obs_after)
 
         # ------------------------------------------------------------------
         # Control 4: Reset (20 unattended Ctrl+R trials)
@@ -407,10 +404,7 @@ def collect_measurements(
 
         for _ in range(RESET_TRIALS):
             # Dirty the board by flagging a cell so it's not all unrevealed
-            hands.move_right()
-            time.sleep(step_delay)
-            hands.flag()
-            time.sleep(step_delay)
+            _press(hands, ("move_right", "flag"), step_delay)
 
             # Send reset chord (Ctrl+R)
             hands.restart()
@@ -424,7 +418,7 @@ def collect_measurements(
                 resets_clean += 1
 
         return Measurements(
-            target_cell=target_cell,
+            target_cell=TARGET_CELL,
             live_cells_changed=live_cells_changed,
             live_changed_cell=live_changed_cell,
             live_pixels_changed=live_pixels_changed,
@@ -447,14 +441,6 @@ def main() -> int:
 
     try:
         measurements = collect_measurements()
-    except NotImplementedError as not_built:
-        print("=" * 68)
-        print("M5 VERDICT: NOT RUN")
-        print("=" * 68)
-        print(f"  {not_built}")
-        print("  Nothing was measured, so nothing passed.")
-        print("=" * 68)
-        return 1
     except (WindowNotFound, RuntimeError, OSError) as err:
         print("=" * 68)
         print("M5 VERDICT: NOT RUN (Game window or environment unavailable)")
@@ -467,7 +453,7 @@ def main() -> int:
     passed, results = decide_verdict(measurements)
 
     print("=" * 68)
-    print(f"M5 VERDICT: {'PASS' if passed else 'FAIL'}")
+    print(f"M5 VERDICT: {pass_or_fail(passed)}")
     print("=" * 68)
     for result in results:
         print(f"[{_mark(result.passed)}] Control {result.number} - {result.name}")

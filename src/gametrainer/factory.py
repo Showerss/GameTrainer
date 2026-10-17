@@ -15,12 +15,12 @@ import gymnasium as gym
 import numpy as np
 
 from src.gametrainer.gridworld import GridWorldEnv, make_vision_task
-from src.gametrainer.input import InputController, KeyboardInput, NullInput
+from src.gametrainer.input import InputController, NullInput, keyboard_for_this_os
 from src.gametrainer.minesweeper import MinesweeperEnv
 from src.gametrainer.perception import PixelObservation
 from src.gametrainer.profile import Profile
 from src.gametrainer.rewards import MinesweeperRewardCalculator
-from src.gametrainer.screen import GameWindow
+from src.gametrainer.screen import GameWindow, game_window_for_this_os
 
 _LIVE_CAPTURE_DELAY = 0.5
 
@@ -65,8 +65,8 @@ def make_env(
 
         # If live components were not injected, attempt auto-discovery of LibreMines
         if resolved_hands is None and resolved_window is None and read_board_fn is None:
-            resolved_window = GameWindow("LibreMines")
-            resolved_hands = KeyboardInput(resolved_window.hwnd)
+            resolved_window = game_window_for_this_os("LibreMines")
+            resolved_hands = keyboard_for_this_os(resolved_window.hwnd)
             resolved_hands.focus()
             owns_window = True
         elif resolved_hands is None:

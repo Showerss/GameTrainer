@@ -18,6 +18,12 @@ import numpy as np
 from src.gametrainer.minesweeper_vision import MINE
 
 
+def _revealed_safe(grid) -> np.ndarray:
+    """True where a cell is revealed and safe (shows a neighbour count 0-8)."""
+    arr = np.asarray(grid)
+    return (arr >= 0) & (arr <= 8)
+
+
 @dataclass(frozen=True)
 class RewardCalculator:
     """Reward for one GridWorld step: goal_reward on the goal, step_cost otherwise."""
@@ -44,8 +50,7 @@ class MinesweeperRewardCalculator:
 
     def count_revealed_safe(self, grid: np.ndarray) -> int:
         """Count cells revealed with neighbor count 0-8."""
-        arr = np.asarray(grid)
-        return int(((arr >= 0) & (arr <= 8)).sum())
+        return int(_revealed_safe(grid).sum())
 
     def is_loss(self, grid: np.ndarray) -> bool:
         """Did the agent hit a mine?"""
@@ -78,9 +83,6 @@ class MinesweeperRewardCalculator:
         if prev_grid is None:
             newly_revealed = self.count_revealed_safe(curr)
         else:
-            prev = np.asarray(prev_grid)
-            prev_safe = (prev >= 0) & (prev <= 8)
-            curr_safe = (curr >= 0) & (curr <= 8)
-            newly_revealed = int((curr_safe & ~prev_safe).sum())
+            newly_revealed = int((_revealed_safe(curr) & ~_revealed_safe(prev_grid)).sum())
 
         return float(newly_revealed * self.safe_reveal_reward)

@@ -36,8 +36,6 @@ import argparse
 import os
 import sys
 
-import numpy as np
-
 # Print UTF-8 so status glyphs (>=, x, checkmarks) don't crash on Windows consoles (cp1252).
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -47,13 +45,18 @@ _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _project_root)
 
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 # GridWorld is ours (M2). NullInput keeps the eyes -> brain -> hands shape visible
 # even though GridWorld is programmatic — consistent with run_gridworld.py.
 from src.gametrainer.gridworld import GridWorldEnv
 from src.gametrainer.input import NullInput
+from src.gametrainer.referee import evaluate_greedy
+from src.gametrainer.training import (
+    CLASSIC_PPO_SETTINGS,
+    best_eval_reward,
+    make_training_callbacks,
+)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -77,8 +80,6 @@ MODEL_DIR = os.path.join(_project_root, "models", "ppo_gridworld")
 LOG_DIR = os.path.join(_project_root, "logs", "gridworld")
 
 DEFAULT_TIMESTEPS = 25_000
-CHECKPOINT_FREQ = 5_000
-EVAL_FREQ = 2_000
 
 # Episodes for the final deterministic check that reports the goal-reach rate.
 FINAL_EVAL_EPISODES = 20
@@ -120,36 +121,6 @@ Examples:
 def make_env() -> GridWorldEnv:
     """Create a fresh GridWorld environment."""
     return GridWorldEnv()
-
-
-# ---------------------------------------------------------------------------
-# Final deterministic evaluation
-# Teacher Note: EvalCallback already tracks the best mean reward during training.
-# This extra pass answers M2's other half — "reaches the goal consistently" — by
-# playing greedy (no exploration) episodes and counting how many end in a win.
-# ---------------------------------------------------------------------------
-
-def evaluate_goal_rate(model, episodes: int):
-    """Play greedy episodes; return (mean_reward, goals_reached, mean_steps)."""
-    env = make_env()
-    rewards, steps_list, goals = [], [], 0
-
-    for _ in range(episodes):
-        obs, _ = env.reset()
-        terminated = truncated = False
-        ep_reward = 0.0
-        while not (terminated or truncated):
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            ep_reward += reward
-        goals += int(terminated)  # GridWorld only terminates by reaching the goal
-        rewards.append(ep_reward)
-        steps_list.append(info["steps"])
-
-    env.close()
-    mean_reward = sum(rewards) / len(rewards)
-    mean_steps = sum(steps_list) / len(steps_list)
-    return mean_reward, goals, mean_steps
 
 
 def render_one_episode(model) -> None:
@@ -205,7 +176,7 @@ def main() -> int:
     # Build the PPO agent
     # Teacher Note: "MlpPolicy" = Multi-Layer Perceptron policy.
     # GridWorld observations are 2 numbers, so a small MLP network is ideal.
-    # These are the same sensible defaults we used for CartPole.
+    # Same shared settings as CartPole (src/gametrainer/training.py).
     # ------------------------------------------------------------------
     print("Creating PPO agent (MlpPolicy)...")
     model = PPO(
@@ -213,39 +184,11 @@ def main() -> int:
         train_env,
         verbose=0,                  # 0 = quiet; set to 1 for SB3's own logging
         tensorboard_log=LOG_DIR,
-        learning_rate=3e-4,         # How big each learning step is
-        n_steps=2048,               # Steps collected before each update
-        batch_size=64,              # Mini-batch size for the update
-        n_epochs=10,                # How many passes over each batch
-        gamma=0.99,                 # Discount factor (value of future rewards)
-        gae_lambda=0.95,            # Bias-variance trade-off in advantage estimation
-        clip_range=0.2,             # PPO's "proximal" clipping — keeps updates conservative
-        ent_coef=0.0,               # Entropy bonus (0 = no extra exploration push needed)
+        **CLASSIC_PPO_SETTINGS,
     )
     print("[OK] PPO agent created.\n")
 
-    # ------------------------------------------------------------------
-    # Callbacks
-    # ------------------------------------------------------------------
-
-    # Save a checkpoint every CHECKPOINT_FREQ steps
-    checkpoint_cb = CheckpointCallback(
-        save_freq=CHECKPOINT_FREQ,
-        save_path=MODEL_DIR,
-        name_prefix="gridworld_ppo",
-        verbose=0,
-    )
-
-    # Evaluate on a separate env every EVAL_FREQ steps and print mean reward
-    eval_cb = EvalCallback(
-        eval_env,
-        n_eval_episodes=10,
-        eval_freq=EVAL_FREQ,
-        log_path=LOG_DIR,
-        best_model_save_path=MODEL_DIR,
-        verbose=1,                  # Print eval results to console
-        warn=False,
-    )
+    callbacks = make_training_callbacks(eval_env, MODEL_DIR, LOG_DIR, "gridworld_ppo")
 
     # ------------------------------------------------------------------
     # Train
@@ -257,7 +200,7 @@ def main() -> int:
 
     model.learn(
         total_timesteps=args.steps,
-        callback=[checkpoint_cb, eval_cb],
+        callback=callbacks,
         progress_bar=False,         # Keep output clean; eval_cb shows per-eval progress
     )
 
@@ -273,18 +216,15 @@ def main() -> int:
     # M2 Verdict
     # Best mean reward from EvalCallback + a final greedy goal-rate check.
     # ------------------------------------------------------------------
-    results_path = os.path.join(LOG_DIR, "evaluations.npz")
-    if os.path.exists(results_path):
-        data = np.load(results_path)
-        # EvalCallback stores mean rewards in 'results' (shape: [n_evals, n_episodes])
-        best_mean_reward = float(data["results"].mean(axis=1).max())
-    else:
-        # Fall back to the final greedy evaluation below if no log was written.
-        best_mean_reward = None
+    # Teacher Note: EvalCallback already tracked the best mean reward during
+    # training. The greedy pass answers M2's other half — "reaches the goal
+    # consistently" — by counting how many no-exploration episodes end in a win.
+    best_mean_reward = best_eval_reward(LOG_DIR)
 
     print("Running final evaluation (greedy, 20 episodes)...")
-    final_reward, goals_reached, mean_steps = evaluate_goal_rate(model, FINAL_EVAL_EPISODES)
-    if best_mean_reward is None:
+    final_reward, goal_rate, mean_steps = evaluate_greedy(model, make_env, FINAL_EVAL_EPISODES)
+    goals_reached = round(goal_rate * FINAL_EVAL_EPISODES)
+    if best_mean_reward is None:  # no eval log was written; use the greedy pass
         best_mean_reward = final_reward
 
     verdict_passed = best_mean_reward >= PASS_THRESHOLD

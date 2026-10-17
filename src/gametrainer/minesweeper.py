@@ -23,7 +23,6 @@ from gymnasium import spaces
 
 from src.gametrainer.input import InputController, NullInput
 from src.gametrainer.minesweeper_vision import (
-    FLAGGED,
     GRID,
     HIDDEN,
     MINE,
@@ -114,6 +113,11 @@ class MinesweeperEnv(gym.Env):
             )
         return np.asarray(grid, dtype=np.int8)
 
+    def _pause(self) -> None:
+        """Give the real game time to redraw before we look at it again."""
+        if self.step_delay > 0:
+            time.sleep(self.step_delay)
+
     def reset(
         self,
         *,
@@ -125,8 +129,7 @@ class MinesweeperEnv(gym.Env):
         self._steps = 0
 
         self.hands.restart()
-        if self.step_delay > 0:
-            time.sleep(self.step_delay)
+        self._pause()
         self.hands.move_down()
 
         obs = self._read_obs()
@@ -147,21 +150,17 @@ class MinesweeperEnv(gym.Env):
         except ValueError:
             raise ValueError(f"Invalid action {action_int}; must be in [0, 5]") from None
 
-        if action_enum == MinesweeperAction.UP:
-            self.hands.move_up()
-        elif action_enum == MinesweeperAction.DOWN:
-            self.hands.move_down()
-        elif action_enum == MinesweeperAction.LEFT:
-            self.hands.move_left()
-        elif action_enum == MinesweeperAction.RIGHT:
-            self.hands.move_right()
-        elif action_enum == MinesweeperAction.REVEAL:
-            self.hands.reveal()
-        elif action_enum == MinesweeperAction.FLAG:
-            self.hands.flag()
-
-        if self.step_delay > 0:
-            time.sleep(self.step_delay)
+        # Look up which hands method this action means, then call it.
+        hand_for_action = {
+            MinesweeperAction.UP: self.hands.move_up,
+            MinesweeperAction.DOWN: self.hands.move_down,
+            MinesweeperAction.LEFT: self.hands.move_left,
+            MinesweeperAction.RIGHT: self.hands.move_right,
+            MinesweeperAction.REVEAL: self.hands.reveal,
+            MinesweeperAction.FLAG: self.hands.flag,
+        }
+        hand_for_action[action_enum]()
+        self._pause()
 
         self._steps += 1
         curr_grid = self._read_obs()

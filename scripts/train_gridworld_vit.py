@@ -52,12 +52,16 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 from src.gametrainer.gridworld import make_vision_task
 from src.gametrainer.perception import PixelObservation
-from src.gametrainer.vit_extractor import ViTTinyFeaturesExtractor
-from scripts.train_from_profile import (
+from src.gametrainer.referee import (
     check_contract_shapes,
-    decide_verdict as _decide_verdict_profile,
-    measure_random_baseline as _measure_random_baseline_profile,
+    evaluate_greedy,
+    measure_random_baseline,
+    pass_or_fail,
 )
+from src.gametrainer.referee import (
+    decide_verdict as _decide_verdict_shared,
+)
+from src.gametrainer.vit_extractor import ViTTinyFeaturesExtractor
 
 # ---------------------------------------------------------------------------
 # The bar (named so it is impossible to miss and easy to tune later).
@@ -143,13 +147,8 @@ def parse_args() -> argparse.Namespace:
 
 
 # ---------------------------------------------------------------------------
-# Referee piece 1 — measure the random baseline LIVE (the M2 hardcode, fixed).
+# The M3 verdict: the shared referee, with M3's own bar plugged in.
 # ---------------------------------------------------------------------------
-
-def measure_random_baseline(episodes: int = BASELINE_EPISODES) -> float:
-    """Average reward per episode of a purely random agent on GridWorld."""
-    return _measure_random_baseline_profile(make_task, episodes=episodes)
-
 
 def decide_verdict(
     trained_mean_reward: float,
@@ -157,8 +156,8 @@ def decide_verdict(
     live_baseline: float,
     shapes_ok: bool,
 ) -> tuple[bool, list[str]]:
-    """Apply the three M3 conditions via train_from_profile's decide_verdict."""
-    return _decide_verdict_profile(
+    """Apply the three M3 conditions via the shared referee."""
+    return _decide_verdict_shared(
         trained_mean_reward=trained_mean_reward,
         live_baseline=live_baseline,
         margin_over_baseline=MARGIN_OVER_BASELINE,
@@ -166,33 +165,6 @@ def decide_verdict(
         goal_rate=goal_rate,
         min_goal_rate=GOAL_RATE_TO_PASS,
     )
-
-
-def evaluate_greedy(model, episodes: int = FINAL_EVAL_EPISODES):
-    """Play greedy episodes on pixels; return (mean_reward, goal_rate, mean_steps).
-
-    Teacher Note: "greedy" (deterministic=True) means the agent always takes the
-    move it currently thinks is best, with no random exploration mixed in. That
-    is the fair way to ask "what did it actually learn?" — exploration is a
-    training aid, not part of the skill we are grading.
-    """
-    env = make_pixel_env()
-    rewards, steps_list, goals = [], [], 0
-
-    for _ in range(episodes):
-        obs, _ = env.reset()
-        terminated = truncated = False
-        ep_reward = 0.0
-        while not (terminated or truncated):
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            ep_reward += reward
-        goals += int(terminated)  # GridWorld only terminates by reaching the goal
-        rewards.append(ep_reward)
-        steps_list.append(info["steps"])
-
-    env.close()
-    return sum(rewards) / episodes, goals / episodes, sum(steps_list) / episodes
 
 
 def print_finish_line(live_baseline: float) -> None:
@@ -229,7 +201,7 @@ def main() -> int:
 
     # Referee piece 1: the live baseline (never hardcoded).
     print(f"Measuring live random baseline over {BASELINE_EPISODES} episodes...")
-    live_baseline = measure_random_baseline()
+    live_baseline = measure_random_baseline(make_task, BASELINE_EPISODES)
     print(f"  Live random baseline: {live_baseline:+.2f} reward/episode")
     print()
 
@@ -278,12 +250,14 @@ def main() -> int:
     # The verdict, judged by the rules Brick 0 fixed before any of this existed.
     # -------------------------------------------------------------------
     print(f"Running final greedy evaluation ({FINAL_EVAL_EPISODES} episodes)...")
-    mean_reward, goal_rate, mean_steps = evaluate_greedy(model)
+    mean_reward, goal_rate, mean_steps = evaluate_greedy(
+        model, make_pixel_env, FINAL_EVAL_EPISODES
+    )
     passed, lines = decide_verdict(mean_reward, goal_rate, live_baseline, shapes_ok)
 
     print()
     print("=" * 60)
-    print(f"M3 VERDICT: {'PASS' if passed else 'FAIL'}")
+    print(f"M3 VERDICT: {pass_or_fail(passed)}")
     print("=" * 60)
     for line in lines:
         print(line)

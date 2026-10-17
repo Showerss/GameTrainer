@@ -55,6 +55,11 @@ class GridWorldEnv(gym.Env):
     # Action ids (this is the meaning of Discrete(4)).
     UP, DOWN, LEFT, RIGHT = 0, 1, 2, 3
 
+    # How each action changes (row, col). Up is row - 1 because row 0 is the top.
+    MOVES: ClassVar[dict[int, tuple[int, int]]] = {
+        UP: (-1, 0), DOWN: (1, 0), LEFT: (0, -1), RIGHT: (0, 1),
+    }
+
     def __init__(self, render_mode=None, step_cost=None, goal_reward=None):
         super().__init__()
         self.render_mode = render_mode
@@ -74,6 +79,7 @@ class GridWorldEnv(gym.Env):
 
         # Live state — actually set in reset(); seeded here so the object is valid.
         self.row, self.col = self.START
+        self.goal = self.GOAL    # wrappers like RandomStart may move it
         self._steps = 0
         self._terminated = False
 
@@ -89,52 +95,55 @@ class GridWorldEnv(gym.Env):
         """Current position as the float32 observation the contract promises."""
         return np.array([self.row, self.col], dtype=np.float32)
 
+    def place_agent(self, row, col):
+        """Put the agent on (row, col) and return the matching observation."""
+        self.row, self.col = row, col
+        return self._get_obs()
+
     def reset(self, seed=None, options=None):
         """New game: put the agent at the start. Returns (observation, info)."""
         super().reset(seed=seed)
-        self.row, self.col = self.START
         self._steps = 0
         self._terminated = False
-        return self._get_obs(), {}
+        return self.place_agent(*self.START), {}
+
+    def _to_action_int(self, action):
+        """Turn an action into a checked int 0-3, or raise ValueError.
+
+        SB3 may hand us a 1-element array instead of a plain int, so both are
+        accepted. Bools, NaN, fractions like 1.5 and out-of-range numbers are not.
+        """
+        invalid = ValueError(f"invalid action: {action!r}")
+        action_arr = np.asarray(action)
+        if action_arr.shape not in ((), (1,)):
+            raise invalid
+        try:
+            value = action_arr.item()
+            action_int = int(value)  # int(NaN) and int(None) raise here
+        except (TypeError, ValueError):
+            raise invalid from None
+        if (
+            isinstance(value, (bool, np.bool_))
+            or float(value) != action_int
+            or action_int not in self.action_space
+        ):
+            raise invalid
+        return action_int
 
     def step(self, action):
         """One move. Returns (obs, reward, terminated, truncated, info)."""
         if self._terminated:
             raise RuntimeError("step() called after termination; call reset()")
 
-        # Normalize action (SB3 may return a 1-element array) and validate Discrete range.
-        action_arr = np.asarray(action)
-        if action_arr.shape not in ((), (1,)):
-            raise ValueError(f"invalid action: {action!r}")
-        try:
-            val = action_arr.item()
-            if isinstance(val, (bool, np.bool_)):
-                raise ValueError(f"invalid action: {action!r}")
-            if isinstance(val, (float, np.floating)) and np.isnan(val):
-                raise ValueError(f"invalid action: {action!r}")
-            action_int = int(val)
-            if float(val) != float(action_int):
-                raise ValueError(f"invalid action: {action!r}")
-            if action_int not in self.action_space:
-                raise ValueError(f"invalid action: {action!r}")
-        except (TypeError, ValueError):
-            raise ValueError(f"invalid action: {action!r}") from None
-        action = action_int
-
-        # Propose the move, clamped to the grid so walls simply stop us.
-        if action == self.UP:
-            self.row = max(0, self.row - 1)
-        elif action == self.DOWN:
-            self.row = min(self.SIZE - 1, self.row + 1)
-        elif action == self.LEFT:
-            self.col = max(0, self.col - 1)
-        elif action == self.RIGHT:
-            self.col = min(self.SIZE - 1, self.col + 1)
+        # Move, then clamp to the grid so walls simply stop us.
+        d_row, d_col = self.MOVES[self._to_action_int(action)]
+        self.row = min(max(self.row + d_row, 0), self.SIZE - 1)
+        self.col = min(max(self.col + d_col, 0), self.SIZE - 1)
 
         self._steps += 1
 
         # Score the move and decide whether the game is over.
-        reached_goal = (self.row, self.col) == self.GOAL
+        reached_goal = (self.row, self.col) == self.goal
         reward = self._reward_calculator.reward(reached_goal)
         terminated = reached_goal  # won the game
         truncated = (self._steps >= self.MAX_STEPS) and not reached_goal  # ran out of moves
@@ -156,7 +165,7 @@ class GridWorldEnv(gym.Env):
         )
         # Goal first, agent second: when the agent lands ON the goal, it paints
         # over the green and stays visible.
-        squares = ((self.GOAL, self.GOAL_COLOR), ((self.row, self.col), self.AGENT_COLOR))
+        squares = ((self.goal, self.GOAL_COLOR), ((self.row, self.col), self.AGENT_COLOR))
         for (r, c), color in squares:
             r0, r1 = r * self.IMAGE_SIZE // self.SIZE, (r + 1) * self.IMAGE_SIZE // self.SIZE
             c0, c1 = c * self.IMAGE_SIZE // self.SIZE, (c + 1) * self.IMAGE_SIZE // self.SIZE
@@ -169,21 +178,14 @@ class GridWorldEnv(gym.Env):
             return self._render_rgb()
 
         # Text mode (the M2 default): A = agent, G = goal, . = empty.
-        for r in range(self.SIZE):
-            cells = []
-            for c in range(self.SIZE):
-                if (r, c) == (self.row, self.col):
-                    cells.append("A")
-                elif (r, c) == self.GOAL:
-                    cells.append("G")
-                else:
-                    cells.append(".")
-            print(" ".join(cells))
+        # Same painting order as the picture: agent last, so it shows on the goal.
+        board = [["."] * self.SIZE for _ in range(self.SIZE)]
+        board[self.goal[0]][self.goal[1]] = "G"
+        board[self.row][self.col] = "A"
+        for line in board:
+            print(" ".join(line))
         print()
         return None
-
-    def close(self):
-        pass
 
 
 class RandomStart(gym.Wrapper):
@@ -210,10 +212,11 @@ class RandomStart(gym.Wrapper):
     rate while an agent that can see its own square gets 100%. That gap is the
     room in which the eyes can prove they work.
 
-    GridWorldEnv is not edited -- this wrapper sits around it. Setting GOAL on
-    the instance shadows the class attribute, so both step() and the drawing
-    pick it up. Put PixelObservation on the OUTSIDE of this one: this wrapper
-    places everything first, then the picture is drawn from where things landed.
+    GridWorldEnv is not edited -- this wrapper sits around it and only uses the
+    env's public handles: it sets `goal` (which step() and the drawing both read)
+    and calls `place_agent()`. Put PixelObservation on the OUTSIDE of this one:
+    this wrapper places everything first, then the picture is drawn from where
+    things landed.
     """
 
     def __init__(self, env, goal=None):
@@ -225,7 +228,7 @@ class RandomStart(gym.Wrapper):
         """Start a normal episode, then place the goal and the agent."""
         _obs, info = self.env.reset(**kwargs)
         grid = self.unwrapped
-        grid.GOAL = self.goal
+        grid.goal = self.goal
 
         # Any square except the goal -- starting on it means the episode is won
         # before it begins, which teaches nothing and inflates mean reward.
@@ -238,8 +241,7 @@ class RandomStart(gym.Wrapper):
             col = int(self.np_random.integers(grid.SIZE))
             attempts += 1
 
-        grid.row, grid.col = row, col
-        return grid._get_obs(), info
+        return grid.place_agent(row, col), info
 
 
 # How many moves an episode gets in the M3 vision task.

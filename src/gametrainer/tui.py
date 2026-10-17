@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,18 +29,6 @@ console = Console()
 class TuiConfig:
     project_name: str = "GameTrainer"
     changelog_relpath: str = "docs/CHANGELOG.md"
-    # M0/M1 surface: the CartPole scripts are where the project actually is today.
-    verify_script_relpath: str = "scripts/run_cartpole.py"
-    train_cartpole_script_relpath: str = "scripts/train_cartpole.py"
-    # M2 surface: our own home-built Ground (GridWorld) — random baseline + PPO.
-    run_gridworld_script_relpath: str = "scripts/run_gridworld.py"
-    train_gridworld_script_relpath: str = "scripts/train_gridworld.py"
-    # M3 surface: the same Ground, but the agent sees only pixels through a ViT.
-    train_gridworld_vit_script_relpath: str = "scripts/train_gridworld_vit.py"
-    # M4 surface: profile-driven training for any shipped profile.
-    train_from_profile_script_relpath: str = "scripts/train_from_profile.py"
-    # M5 surface: verify live desktop hands against LibreMines.
-    check_hands_script_relpath: str = "scripts/check_hands.py"
 
 
 def _project_root() -> Path:
@@ -85,22 +74,6 @@ def _header(cfg: TuiConfig) -> Panel:
     return Panel(art, border_style="cyan", padding=(1, 2))
 
 
-def _menu() -> Panel:
-    menu = Text()
-    menu.append("Choose an option:\n\n", style="bold")
-    menu.append("  [1] Verify setup - CartPole, random actions (M0)\n")
-    menu.append("  [2] Train CartPole - borrowed PPO brain (M1)\n")
-    menu.append("  [3] Run GridWorld - random actions, baseline (M2)\n")
-    menu.append("  [4] Train GridWorld - borrowed PPO brain (M2)\n")
-    menu.append("  [5] Train GridWorld with ViT eyes - pixels only (M3)\n")
-    menu.append("  [6] Train from profile - CartPole / GridWorld / GridWorld-pixels (M4)\n")
-    menu.append("  [7] Verify live desktop hands - LibreMines (M5)\n")
-    menu.append("  [8] View changelog\n")
-    menu.append("  [9] Update / install deps (pip)\n")
-    menu.append("  [10] Quit\n")
-    return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
-
-
 def _run_script(relpath: str, extra_args: list[str] | None = None) -> int:
     root = _project_root()
     script_path = (root / relpath).resolve()
@@ -123,101 +96,138 @@ def _pip_install_editable(with_rl: bool) -> int:
     return subprocess.call([sys.executable, "-m", "pip", "install", "-e", pkg], cwd=str(root))
 
 
+# ---------------------------------------------------------------------------
+# Screens: menu options that open something instead of launching a script.
+# Each returns an exit code to leave the TUI, or None to go back to the menu.
+# ---------------------------------------------------------------------------
+
+# M4: the shipped profiles, as (label, path). The submenu is built from this.
+PROFILES = [
+    ("CartPole (cartpole.yaml)", "profiles/cartpole.yaml"),
+    ("GridWorld flat (gridworld.yaml)", "profiles/gridworld.yaml"),
+    ("GridWorld pixels (gridworld_pixels.yaml)", "profiles/gridworld_pixels.yaml"),
+    ("Minesweeper (minesweeper.yaml)", "profiles/minesweeper.yaml"),
+]
+
+
+def _numbered(labels: list[str]) -> str:
+    """One '  [N] label' line per label. N is the position, so it can't drift."""
+    return "\n".join(f"  [{number}] {label}" for number, label in enumerate(labels, start=1))
+
+
+def _profile_screen(cfg: TuiConfig) -> int | None:
+    # M4: pick a shipped profile, then hand off to train_from_profile.py --profile <path>.
+    console.clear()
+    console.print(_header(cfg))
+    labels = [label for label, _path in PROFILES] + ["Back"]
+    console.print(Panel(
+        "Choose a profile:\n\n" + _numbered(labels),
+        title="Train from Profile",
+        border_style="magenta",
+    ))
+    choices = [str(n) for n in range(1, len(labels) + 1)]
+    sub = IntPrompt.ask("Selection", choices=choices, default=choices[-1])
+    if sub > len(PROFILES):
+        return None
+    path = PROFILES[sub - 1][1]
+    console.print(f"\nLaunching train_from_profile.py --profile {path} …\n")
+    return _run_script("scripts/train_from_profile.py", ["--profile", path])
+
+
+def _changelog_screen(cfg: TuiConfig) -> None:
+    root = _project_root()
+    path = (root / cfg.changelog_relpath).resolve()
+    console.clear()
+    console.print(_header(cfg))
+    console.print(Panel(_safe_read_text(path), title=str(path.relative_to(root)), border_style="yellow"))
+    Prompt.ask("\nPress Enter to return", default="")
+
+
+def _pip_screen(cfg: TuiConfig) -> None:
+    console.clear()
+    console.print(_header(cfg))
+    console.print(Panel("Choose what to install:\n\n  [1] Core (.)\n  [2] Core + RL (.[rl])\n  [3] Back", border_style="green"))
+    sub = IntPrompt.ask("Selection", choices=["1", "2", "3"], default="3")
+    if sub in (1, 2):
+        code = _pip_install_editable(with_rl=(sub == 2))
+        Prompt.ask(f"\nDone (exit code {code}). Press Enter to return", default="")
+
+
+def _quit_screen(_cfg: TuiConfig) -> int:
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# The main menu: one row per option, in the order shown.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class MenuItem:
+    """One main-menu option. Set `script` to launch a script, or `screen` to open one."""
+
+    label: str
+    script: str | None = None   # launch this script (relative to the project root)
+    message: str = ""           # printed just before the script starts
+    note: str | None = None     # optional dim line under the message
+    screen: Callable[[TuiConfig], int | None] | None = None
+
+
+MENU_ITEMS = [
+    # M0: prove the Gymnasium link with random actions. No training, no ViT.
+    MenuItem("Verify setup - CartPole, random actions (M0)", "scripts/run_cartpole.py",
+             "Launching CartPole setup check (random actions)..."),
+    # M1: train the borrowed PPO brain on CartPole.
+    MenuItem("Train CartPole - borrowed PPO brain (M1)", "scripts/train_cartpole.py",
+             "Launching CartPole training (PPO)..."),
+    # M2: the random baseline on our own home-built Ground (GridWorld).
+    MenuItem("Run GridWorld - random actions, baseline (M2)", "scripts/run_gridworld.py",
+             "Launching GridWorld baseline (random actions)..."),
+    # M2: train the borrowed PPO brain on GridWorld — must beat the baseline.
+    MenuItem("Train GridWorld - borrowed PPO brain (M2)", "scripts/train_gridworld.py",
+             "Launching GridWorld training (PPO)..."),
+    # M3: the same GridWorld, but the agent sees only a picture of it, read
+    # through a frozen ViT. Slow on CPU — say so before it starts.
+    MenuItem("Train GridWorld with ViT eyes - pixels only (M3)", "scripts/train_gridworld_vit.py",
+             "Launching GridWorld pixel training (PPO + frozen ViT-Tiny)...",
+             note="This takes ~20 min on CPU. It prints a PASS/FAIL verdict at the end."),
+    # M4: profile-driven training for any shipped profile.
+    MenuItem("Train from profile - CartPole / GridWorld / GridWorld-pixels (M4)",
+             screen=_profile_screen),
+    # M5: check live desktop hands on LibreMines (Windows/macOS).
+    MenuItem("Verify live desktop hands - LibreMines (M5)", "scripts/check_hands.py",
+             "Launching live desktop hands check (LibreMines)...",
+             note="Requires LibreMines running on your desktop."),
+    MenuItem("View changelog", screen=_changelog_screen),
+    MenuItem("Update / install deps (pip)", screen=_pip_screen),
+    MenuItem("Quit", screen=_quit_screen),
+]
+
+
+def _menu() -> Panel:
+    menu = Text()
+    menu.append("Choose an option:\n\n", style="bold")
+    menu.append(_numbered([item.label for item in MENU_ITEMS]) + "\n")
+    return Panel(menu, title="Main Menu", border_style="magenta", padding=(1, 2))
+
+
 def run_tui(cfg: TuiConfig | None = None) -> int:
     cfg = cfg or TuiConfig()
+    choices = [str(n) for n in range(1, len(MENU_ITEMS) + 1)]
 
     while True:
         console.clear()
         console.print(_header(cfg))
         console.print(_menu())
 
-        choice = IntPrompt.ask(
-            "Selection",
-            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-            default="10",
-        )
+        choice = IntPrompt.ask("Selection", choices=choices, default=choices[-1])
+        item = MENU_ITEMS[choice - 1]
 
-        if choice == 1:
-            # M0: prove the Gymnasium link with random actions. No training, no ViT.
-            console.print("\nLaunching CartPole setup check (random actions)...\n")
-            return _run_script(cfg.verify_script_relpath)
+        if item.script is not None:
+            console.print(f"\n{item.message}\n")
+            if item.note:
+                console.print(f"[dim]{item.note}[/dim]\n")
+            return _run_script(item.script)
 
-        if choice == 2:
-            # M1: train the borrowed PPO brain on CartPole (the current milestone).
-            console.print("\nLaunching CartPole training (PPO)...\n")
-            return _run_script(cfg.train_cartpole_script_relpath)
-
-        if choice == 3:
-            # M2: the random baseline on our own home-built Ground (GridWorld).
-            console.print("\nLaunching GridWorld baseline (random actions)...\n")
-            return _run_script(cfg.run_gridworld_script_relpath)
-
-        if choice == 4:
-            # M2: train the borrowed PPO brain on GridWorld — must beat the baseline.
-            console.print("\nLaunching GridWorld training (PPO)...\n")
-            return _run_script(cfg.train_gridworld_script_relpath)
-
-        if choice == 5:
-            # M3: the same GridWorld, but the agent sees only a picture of it,
-            # read through a frozen ViT. Slow on CPU — say so before it starts.
-            console.print("\nLaunching GridWorld pixel training (PPO + frozen ViT-Tiny)...")
-            console.print("[dim]This takes ~20 min on CPU. It prints a PASS/FAIL verdict at the end.[/dim]\n")
-            return _run_script(cfg.train_gridworld_vit_script_relpath)
-
-        if choice == 6:
-            # M4: profile-driven training.  Show a submenu so the user can pick
-            # which shipped profile to run, then hand off to
-            # scripts/train_from_profile.py --profile <path>.
-            console.clear()
-            console.print(_header(cfg))
-            console.print(Panel(
-                "Choose a profile:\n\n"
-                "  [1] CartPole (cartpole.yaml)\n"
-                "  [2] GridWorld flat (gridworld.yaml)\n"
-                "  [3] GridWorld pixels (gridworld_pixels.yaml)\n"
-                "  [4] Minesweeper (minesweeper.yaml)\n"
-                "  [5] Back",
-                title="Train from Profile",
-                border_style="magenta",
-            ))
-            sub = IntPrompt.ask("Selection", choices=["1", "2", "3", "4", "5"], default="5")
-            profile_map = {
-                1: "profiles/cartpole.yaml",
-                2: "profiles/gridworld.yaml",
-                3: "profiles/gridworld_pixels.yaml",
-                4: "profiles/minesweeper.yaml",
-            }
-            if sub in profile_map:
-                console.print(f"\nLaunching train_from_profile.py --profile {profile_map[sub]} …\n")
-                return _run_script(cfg.train_from_profile_script_relpath, ["--profile", profile_map[sub]])
-            continue
-
-        if choice == 7:
-            # M5: check live desktop hands on LibreMines (Windows/macOS).
-            console.print("\nLaunching live desktop hands check (LibreMines)...\n")
-            console.print("[dim]Requires LibreMines running on your desktop.[/dim]\n")
-            return _run_script(cfg.check_hands_script_relpath)
-
-        if choice == 8:
-            root = _project_root()
-            path = (root / cfg.changelog_relpath).resolve()
-            console.clear()
-            console.print(_header(cfg))
-            console.print(Panel(_safe_read_text(path), title=str(path.relative_to(root)), border_style="yellow"))
-            Prompt.ask("\nPress Enter to return", default="")
-            continue
-
-        if choice == 9:
-            console.clear()
-            console.print(_header(cfg))
-            console.print(Panel("Choose what to install:\n\n  [1] Core (.)\n  [2] Core + RL (.[rl])\n  [3] Back", border_style="green"))
-            sub = IntPrompt.ask("Selection", choices=["1", "2", "3"], default="3")
-            if sub == 1:
-                code = _pip_install_editable(with_rl=False)
-                Prompt.ask(f"\nDone (exit code {code}). Press Enter to return", default="")
-            elif sub == 2:
-                code = _pip_install_editable(with_rl=True)
-                Prompt.ask(f"\nDone (exit code {code}). Press Enter to return", default="")
-            continue
-
-        return 0
+        exit_code = item.screen(cfg)
+        if exit_code is not None:
+            return exit_code

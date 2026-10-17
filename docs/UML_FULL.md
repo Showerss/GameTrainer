@@ -4,7 +4,8 @@
 > hierarchical C4 layers (Context, Containers, Components, Code workflows),
 > class hierarchy, execution sequences, and milestone roadmap.
 > **Status:** current.
-> **Last verified:** 2026-10-04 (unified C4 layered models and UML diagrams into a single architectural authority).
+> **Last verified:** 2026-10-17 (R1 cleanup & OOP pass: per-OS hands and screen classes, shared `referee`/`training` modules; every class below checked against the code).
+> Earlier: 2026-10-04 (unified C4 layered models and UML diagrams into a single architectural authority).
 > **Authority:** this file owns all *diagrams* and architectural relationships across
 > all milestones. For textual explanations, traps, and developer onboarding, see [`docs/MASTER_GUIDE.md`](MASTER_GUIDE.md);
 > for project requirements and milestone scopes, see [`docs/PRD.md`](PRD.md).
@@ -223,8 +224,8 @@ flowchart TB
     FACT --> MS["minesweeper.py<br/>MinesweeperEnv"]
 
     S7 --> MS
-    MS --> GWIN["screen.py<br/>GameWindow (mss)"]
-    MS --> KBD["input.py<br/>KeyboardInput (SendInput/Quartz)"]
+    MS --> GWIN["screen.py<br/>game_window_for_this_os()<br/><i>Windows / Mac GameWindow (mss)</i>"]
+    MS --> KBD["input.py<br/>keyboard_for_this_os()<br/><i>Windows / Mac KeyboardInput</i>"]
     MS --> VIS["minesweeper_vision.py<br/>read_board()"]
 
     S2 --> PPO["SB3 PPO"]
@@ -232,10 +233,21 @@ flowchart TB
     S5 --> PPO
     S6 --> PPO
 
+    S2 --> TRAIN["training.py<br/><i>shared M1/M2 PPO settings & callbacks</i>"]
+    S4 --> TRAIN
+    S2 --> REF["referee.py<br/><i>shared baseline, greedy eval, verdict</i>"]
+    S4 --> REF
+    S5 --> REF
+    S6 --> REF
+    S7 --> REF
+
     style S6 fill:#e7f1ff,stroke:#4a90d9,stroke-width:2px
     style S7 fill:#cff4fc,stroke:#0dcaf0,stroke-width:2px
     style FACT fill:#d4edda,stroke:#3d9970,stroke-width:2px
+    style REF fill:#fff3cd,stroke:#d39e00,stroke-width:2px
 ```
+
+The TUI's menu numbers come from the position of each row in `MENU_ITEMS` (`tui.py`), so the `[1]`-`[7]` labels above are simply the first seven rows.
 
 ---
 
@@ -258,7 +270,7 @@ flowchart TB
     end
 
     subgraph EYES_LAYER["👁️ The Eyes (Perception & Vision)"]
-        SCREEN["screen.py<br/><b>GameWindow</b><br/><i>Window discovery & mss frame grabber</i>"]
+        SCREEN["screen.py<br/><b>GameWindow</b> (abstract)<br/><i>mss frame grabber; Windows/Mac subclasses find & measure the window</i>"]
         VISION["minesweeper_vision.py<br/><b>read_board()</b><br/><i>Connected components & tile classification</i>"]
         PERCEPTION["perception.py<br/><b>PixelObservation</b><br/><i>Gymnasium observation wrapper for pixel array</i>"]
     end
@@ -268,8 +280,8 @@ flowchart TB
     end
 
     subgraph HANDS_LAYER["✋ The Hands (Input Controller)"]
-        INPUT_BASE["input.py<br/><b>InputController</b><br/><i>Base interface for key & chord dispatch</i>"]
-        KEYBOARD_INPUT["input.py<br/><b>KeyboardInput</b><br/><i>Platform SendInput/Quartz injector with focus guard</i>"]
+        INPUT_BASE["input.py<br/><b>InputController</b> (abstract)<br/><i>Base interface for key & chord dispatch</i>"]
+        KEYBOARD_INPUT["input.py<br/><b>KeyboardInput</b> (abstract)<br/><i>Shared focus guard; Windows/Mac subclasses send the keys</i>"]
         NULL_INPUT["input.py<br/><b>NullInput</b><br/><i>No-op negative control & headless stub</i>"]
     end
 
@@ -278,20 +290,30 @@ flowchart TB
         REWARDS_MS["rewards.py<br/><b>MinesweeperRewardCalculator</b><br/><i>Calculates reveal reward, penalty, win/loss</i>"]
     end
 
+    subgraph REFEREE_LAYER["⚖️ Referee & Training Setup (shared by the scripts)"]
+        REFEREE["referee.py<br/><b>decide_verdict() · evaluate_greedy()</b><br/><i>Live baseline, greedy eval, contract check, PASS/FAIL</i>"]
+        TRAINING["training.py<br/><b>CLASSIC_PPO_SETTINGS · make_training_callbacks()</b><br/><i>M1/M2's shared PPO numbers & callbacks</i>"]
+    end
+
     %% Wiring
     PROFILE -->|"validated by"| FACTORY
     FACTORY -->|"instantiates"| GRIDWORLD
     FACTORY -->|"instantiates"| MINESWEEPER
     FACTORY -->|"wraps"| PERCEPTION
 
-    GRIDWORLD *-- REWARDS_GW
-    MINESWEEPER *-- REWARDS_MS
-    MINESWEEPER *-- SCREEN
-    MINESWEEPER *-- KEYBOARD_INPUT
-    MINESWEEPER ..> VISION
+    %% Flowcharts have no UML arrow heads, so the relationship is the label:
+    %% "owns" = composition (*-- in the class diagram), "is a" = inheritance (<|--).
+    GRIDWORLD -->|"owns"| REWARDS_GW
+    MINESWEEPER -->|"owns"| REWARDS_MS
+    MINESWEEPER -->|"owns"| SCREEN
+    MINESWEEPER -->|"owns"| INPUT_BASE
+    MINESWEEPER -.->|"uses"| VISION
 
-    INPUT_BASE <|-- KEYBOARD_INPUT
-    INPUT_BASE <|-- NULL_INPUT
+    KEYBOARD_INPUT -.->|"is a"| INPUT_BASE
+    NULL_INPUT -.->|"is a"| INPUT_BASE
+
+    REFEREE -.->|"judges any"| GROUND_LAYER
+    TRAINING -.->|"feeds settings to SB3 PPO"| BRAIN_LAYER
 
     style LINK_LAYER fill:#fff3cd,stroke:#d39e00
     style GROUND_LAYER fill:#e9f7ef,stroke:#3d9970
@@ -299,6 +321,7 @@ flowchart TB
     style BRAIN_LAYER fill:#f8d7da,stroke:#dc3545
     style HANDS_LAYER fill:#f3e8fd,stroke:#6f42c1
     style REWARD_LAYER fill:#d1ecf1,stroke:#17a2b8
+    style REFEREE_LAYER fill:#fdfdfe,stroke:#6c757d
 ```
 
 ### 4.2 Component Snapshot Summary
@@ -315,12 +338,14 @@ flowchart TB
 | **GridWorld Reward Calculator** | [`rewards.py`](../src/gametrainer/rewards.py) (`RewardCalculator`) | ✅ Live | M4 |
 | **Universal Profile Runner** | [`train_from_profile.py`](../scripts/train_from_profile.py) | ✅ Live | M4 |
 | **Swappability Referee & Proof** | [`test_m4_verdict.py`](../tests/test_m4_verdict.py) | ✅ Live | M4 |
-| **Live Screen Capture** | [`screen.py`](../src/gametrainer/screen.py) (`GameWindow`) | ✅ Live | M5 |
-| **Live Native Hands** | [`input.py`](../src/gametrainer/input.py) (`KeyboardInput`) | ✅ Live | M5 |
+| **Live Screen Capture** | [`screen.py`](../src/gametrainer/screen.py) (`GameWindow` → `WindowsGameWindow` / `MacGameWindow`) | ✅ Live | M5, split per OS in R1 |
+| **Live Native Hands** | [`input.py`](../src/gametrainer/input.py) (`KeyboardInput` → `WindowsKeyboardInput` / `MacKeyboardInput`) | ✅ Live | M5, split per OS in R1 |
 | **Connected Components CV** | [`minesweeper_vision.py`](../src/gametrainer/minesweeper_vision.py) | ✅ Live | M5 |
 | **Minesweeper Reward Calculator** | [`rewards.py`](../src/gametrainer/rewards.py) (`MinesweeperRewardCalculator`) | ✅ Live | M5 |
 | **Minesweeper Gymnasium Adapter** | [`minesweeper.py`](../src/gametrainer/minesweeper.py) | ✅ Live | M5 |
 | **Live Behavioral Proof** | [`check_hands.py`](../scripts/check_hands.py) | ✅ Live | M5 |
+| **Shared Referee** | [`referee.py`](../src/gametrainer/referee.py) | ✅ Live | R1 |
+| **Shared M1/M2 Training Setup** | [`training.py`](../src/gametrainer/training.py) | ✅ Live | R1 |
 | **Stardew Valley Ground** | `profiles/stardew.yaml` | ⏳ Planned | M6 |
 
 ---
@@ -361,13 +386,17 @@ classDiagram
         +MAX_STEPS : int = 100
         +STEP_COST : float = -0.01
         +GOAL_REWARD : float = 1.0
+        +MOVES : dict = action to (d_row, d_col)
         +row : int
         +col : int
+        +goal : tuple
         -_steps : int
         -_reward_calculator : RewardCalculator
         +reset(seed, options)
         +step(action)
         +render()
+        +place_agent(row, col) ndarray
+        -_to_action_int(action) int
         -_get_obs() ndarray
     }
 
@@ -384,6 +413,16 @@ classDiagram
         +step(action)
         +render()
         +close()
+        -_pause()
+    }
+    class MinesweeperAction {
+        <<enumeration - IntEnum>>
+        UP = 0
+        DOWN = 1
+        LEFT = 2
+        RIGHT = 3
+        REVEAL = 4
+        FLAG = 5
     }
 
     %% ============ GYMNASIUM WRAPPERS ============
@@ -397,7 +436,7 @@ classDiagram
         +observation(observation) ndarray
     }
     class RandomStart {
-        <<live - M3>>
+        <<live - M3, gymnasium.Wrapper>>
         +goal : tuple
         +reset(seed, options)
     }
@@ -437,15 +476,22 @@ classDiagram
     class MinesweeperVision {
         <<module - M5>>
         +find_board(frame) tuple[x, y, side]
-        +classify_cell(patch) int
+        +classify_cell(patch) CellState
         +read_board(frame) ndarray
+    }
+    class CellState {
+        <<enumeration - IntEnum>>
+        BLANK..EIGHT = 0..8
+        HIDDEN = 9
+        FLAGGED = 10
+        MINE = 11
     }
 
     %% ============ THE HANDS ============
     class InputController {
-        <<base - input.py>>
-        +tap_key(key_code, duration)
-        +tap_chord(modifier_code, key_code)
+        <<abstract - input.py>>
+        +tap_key(key_code, duration)*
+        +tap_chord(modifier_code, key_code)*
         +move_up()
         +move_down()
         +move_left()
@@ -453,7 +499,6 @@ classDiagram
         +reveal()
         +flag()
         +restart()
-        +escape()
     }
     class NullInput {
         <<live - stub & negative control>>
@@ -461,26 +506,73 @@ classDiagram
         +tap_chord(modifier_code, key_code)
     }
     class KeyboardInput {
-        <<live - M5 real input>>
+        <<abstract - M5 real input, shared parts>>
         +hwnd : int
-        +has_focus() bool
         +focus()
+        +has_focus()* bool
+        -_bring_to_front()*
+        -_require_focus()
+    }
+    class WindowsKeyboardInput {
+        <<live - SendInput>>
+        +has_focus() bool
         +tap_key(key_code, duration)
         +tap_chord(modifier_code, key_code)
-        +escape()
+        -_bring_to_front()
+        -_key_event(key_code, up) _INPUT
         -_send(*events)
-        -_send_darwin(*events)
+    }
+    class MacKeyboardInput {
+        <<live - Quartz CGEventPost>>
+        +has_focus() bool
+        +tap_key(key_code, duration)
+        +tap_chord(modifier_code, key_code)
+        -_bring_to_front()
+        -_send(*events)
+    }
+    class InputModule {
+        <<module - input.py>>
+        +keyboard_for_this_os(hwnd) KeyboardInput
     }
 
     %% ============ SCREEN & WINDOW ============
     class GameWindow {
-        <<live - M5 screen.py>>
+        <<abstract - M5 screen.py>>
         +title_contains : str
         +hwnd : int
-        +rect : dict
+        +rect* : dict
         -_sct : mss.mss
+        -_find(title_contains)* int
         +grab() ndarray
         +close()
+    }
+    class WindowsGameWindow {
+        <<live - EnumWindows, by title>>
+        +rect : dict
+        -_find(title_contains) int
+    }
+    class MacGameWindow {
+        <<live - CGWindowList, by app PID>>
+        +rect : dict
+        -_find(title_contains) int
+    }
+    class ScreenModule {
+        <<module - screen.py>>
+        +game_window_for_this_os(title_contains) GameWindow
+    }
+
+    %% ============ LOUD FAILURES ============
+    class WindowNotFound {
+        <<exception - screen.py>>
+    }
+    class WindowNotFocused {
+        <<exception - input.py>>
+    }
+    class BoardNotFound {
+        <<exception - minesweeper_vision.py>>
+    }
+    class UnreadableCell {
+        <<exception - minesweeper_vision.py>>
     }
 
     %% ============ FACTORY & REWARDS ============
@@ -498,7 +590,9 @@ classDiagram
         +mine_penalty : float
         +win_reward : float
         +min_goal_rate : float
+        +n_steps, batch_size, n_epochs, gamma, gae_lambda, clip_range, ent_coef
         +from_yaml(path) Profile
+        +ppo_settings() dict
     }
     class RewardCalculator {
         <<live - M4>>
@@ -516,10 +610,47 @@ classDiagram
         +is_terminated(curr_grid) bool
         +is_win(curr_grid) bool
         +is_loss(curr_grid) bool
+        +count_revealed_safe(grid) int
     }
     class Factory {
         <<module - factory.py>>
         +make_env(profile, hands, window, read_board_fn) GymEnv
+    }
+
+    %% ============ REFEREE, TRAINING SETUP & LOGGING ============
+    class Referee {
+        <<module - referee.py, R1>>
+        +check_contract_shapes(env) tuple[bool, str]
+        +measure_random_baseline(make_env_fn, episodes) float
+        +evaluate_greedy(model, make_env_fn, episodes) tuple
+        +decide_verdict(trained, baseline, margin, shapes_ok, goal_rate, min_goal_rate) tuple
+        +pass_or_fail(ok) str
+    }
+    class Training {
+        <<module - training.py, R1>>
+        +CLASSIC_PPO_SETTINGS : dict
+        +make_training_callbacks(eval_env, model_dir, log_dir, name_prefix) list
+        +best_eval_reward(log_dir) float
+    }
+    class Measurements {
+        <<frozen dataclass - check_hands.py>>
+        +target_cell : tuple
+        +live_cells_changed : int
+        +null_cells_changed : int
+        +frozen_obs_cells_changed : int
+        +resets_clean : int
+    }
+    class ControlResult {
+        <<dataclass - check_hands.py>>
+        +number : int
+        +name : str
+        +passed : bool
+        +evidence : list[str]
+    }
+    class Logger {
+        <<utility - logger.py>>
+        +log(message)
+        +close()
     }
 
     %% ============ RELATIONSHIPS ============
@@ -531,6 +662,15 @@ classDiagram
 
     InputController <|-- NullInput
     InputController <|-- KeyboardInput
+    KeyboardInput <|-- WindowsKeyboardInput
+    KeyboardInput <|-- MacKeyboardInput
+    InputModule ..> KeyboardInput : picks the subclass for this OS
+    KeyboardInput ..> WindowNotFocused : raises
+
+    GameWindow <|-- WindowsGameWindow
+    GameWindow <|-- MacGameWindow
+    ScreenModule ..> GameWindow : picks the subclass for this OS
+    GameWindow ..> WindowNotFound : raises
 
     BaseFeaturesExtractor <|-- ViTFeaturesExtractor
     ViTFeaturesExtractor <|-- ViTTinyFeaturesExtractor
@@ -544,14 +684,30 @@ classDiagram
     MinesweeperEnv *-- InputController : injects keys
     MinesweeperEnv ..> MinesweeperVision : extracts 8x8 grid
     MinesweeperEnv *-- MinesweeperRewardCalculator : calculates move reward
+    MinesweeperEnv ..> MinesweeperAction : action ids
+    MinesweeperVision ..> CellState : cell values
+    MinesweeperVision ..> BoardNotFound : raises
+    MinesweeperVision ..> UnreadableCell : raises
 
     GridWorldEnv *-- RewardCalculator : calculates step reward
+    RandomStart ..> GridWorldEnv : sets goal, calls place_agent()
 
     Factory ..> Profile : validates
     Factory ..> GymEnv : instantiates (CartPole, GridWorld, Minesweeper)
     Factory ..> PixelObservation : wraps when perception == "pixels"
-    Factory ..> RandomStart : wraps for robust training
+    Factory ..> RandomStart : wraps on the pixels path only (vision task)
+    Factory ..> InputModule : live Minesweeper hands
+    Factory ..> ScreenModule : live Minesweeper window
+
+    Referee ..> GymEnv : checks contract, measures baseline
+    Referee ..> Agent : greedy evaluation
+    Training ..> EvalCallback : builds
+    Training ..> CheckpointCallback : builds
+    Agent ..> Profile : PPO(**ppo_settings())
+    ControlResult ..> Measurements : decided from
 ```
+
+Methods marked `*` are abstract: the subclass must provide them, or Python refuses to build it. `Measurements` is a plain data carrier; the modules shown as classes (`Referee`, `Training`, `Factory`, `InputModule`, `ScreenModule`, `MinesweeperVision`) are plain functions, drawn as boxes so their arrows have somewhere to land.
 
 ### 5.2 Code Workflow: The Live Desktop Step (`MinesweeperEnv.step`)
 
@@ -562,15 +718,15 @@ sequenceDiagram
     autonumber
     actor Caller as SB3 PPO / Script Runner
     participant Env as MinesweeperEnv (minesweeper.py)
-    participant Hands as KeyboardInput (input.py)
-    participant Win as GameWindow (screen.py)
+    participant Hands as Windows/MacKeyboardInput (input.py)
+    participant Win as Windows/MacGameWindow (screen.py)
     participant CV as read_board (minesweeper_vision.py)
     participant Calc as MinesweeperRewardCalculator (rewards.py)
     participant OS as Host OS (Win32 / macOS)
     participant App as External LibreMines
 
     Caller->>Env: step(action = 4 / REVEAL)
-    Note over Env: Map action ID to semantic verb
+    Note over Env: Look up hand_for_action[action]
     Env->>Hands: reveal()
     Hands->>Hands: _require_focus()
     Hands->>OS: SendInput(VK_O) / CGEventPost(kVK_O)
@@ -623,7 +779,7 @@ flowchart TD
         C3 -->|Yes| R_GWP["PixelObservation(<br/>TimeLimit(RandomStart(GridWorldEnv)))<br/>)"]
 
         C2 -->|No| C4{"ground == 'minesweeper'?"}
-        C4 -->|Yes| DISCOVER["Resolve Hands & Window<br/><i>GameWindow('LibreMines')<br/>KeyboardInput(window.hwnd)</i>"]
+        C4 -->|Yes| DISCOVER["Resolve Hands & Window<br/><i>game_window_for_this_os('LibreMines')<br/>keyboard_for_this_os(window.hwnd)</i>"]
         DISCOVER --> R_MS["MinesweeperEnv(<br/>hands, window, reward_calculator<br/>)"]
         C4 -->|No| ERR["raise ValueError"]
     end
@@ -650,9 +806,10 @@ flowchart LR
     M3["M3 • Add the Eyes<br/>✅ DONE<br/><i>ViT-Tiny pixels: +0.99<br/>100% goals</i>"]
     M4["M4 • Make it Swappable<br/>✅ DONE<br/><i>Profile + factory<br/>4/4 verdict checks PASS</i>"]
     M5["M5 • Add the Hands<br/>✅ DONE<br/><i>Live LibreMines<br/>4/4 check_hands PASS</i>"]
+    R1["R1 • Cleanup & OOP pass<br/>✅ CODE DONE<br/><i>Same behaviour, less copy-paste<br/>per-OS hands & screen</i>"]
     M6["M6 • Stardew Valley<br/>⏳ NEXT / STRETCH<br/><i>Complex real game<br/>just another profile</i>"]
 
-    M0 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
+    M0 --> M1 --> M2 --> M3 --> M4 --> M5 --> R1 --> M6
 
     style M0 fill:#d4edda,stroke:#3d9970
     style M1 fill:#d4edda,stroke:#3d9970
@@ -660,6 +817,7 @@ flowchart LR
     style M3 fill:#d4edda,stroke:#3d9970
     style M4 fill:#d4edda,stroke:#3d9970
     style M5 fill:#d4edda,stroke:#3d9970
+    style R1 fill:#e2e3e5,stroke:#6c757d
     style M6 fill:#fff3cd,stroke:#d39e00,stroke-width:3px
 ```
 
@@ -672,4 +830,5 @@ flowchart LR
 | **M2 ➔ M3** | Observation is numbers ➔ observation is a picture | **+0.99** mean reward, **100%** goals via frozen ViT-Tiny on CPU. |
 | **M3 ➔ M4** | Hard-coded wiring ➔ config-driven wiring | 3 profiles trained via **1 unedited runner**; 4/4 swap checks PASS in `test_m4_verdict.py`. |
 | **M4 ➔ M5** | Simulated in-memory env ➔ live external desktop window | **4/4 live controls PASS** on macOS (16.8s) & Windows (22.4s); 20/20 unattended resets. |
-| **M5 ➔ M6** | Single-screen logic game ➔ complex commercial game (Stardew) | Planned post-M5: complex multi-region visual perception profile. |
+| **M5 ➔ R1** | Nothing the agent sees - the code's shape only | Shared `referee`/`training`, per-OS hands & screen classes; M1 & M2 still PASS (500.0, +0.93), 163 tests green. |
+| **R1 ➔ M6** | Single-screen logic game ➔ complex commercial game (Stardew) | Planned post-M5: complex multi-region visual perception profile. |

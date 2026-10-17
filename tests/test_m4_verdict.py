@@ -31,7 +31,8 @@ sys.path.insert(0, _project_root)
 
 import pytest
 
-from scripts.train_from_profile import decide_verdict, source_fingerprint
+from scripts.train_from_profile import source_fingerprint
+from src.gametrainer.referee import decide_verdict
 
 # ---------------------------------------------------------------------------
 # decide_verdict -- the three M4 conditions

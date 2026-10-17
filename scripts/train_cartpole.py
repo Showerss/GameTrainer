@@ -37,8 +37,6 @@ import argparse
 import os
 import sys
 
-import numpy as np
-
 # Print UTF-8 so status glyphs (≥, ×, ✅) don't crash on Windows consoles (cp1252).
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -49,12 +47,17 @@ sys.path.insert(0, _project_root)
 
 import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 # We import NullInput to keep the architecture in view even though CartPole
 # is programmatic and doesn't need real key presses. Consistent with run_cartpole.py.
 from src.gametrainer.input import NullInput
+from src.gametrainer.referee import evaluate_greedy
+from src.gametrainer.training import (
+    CLASSIC_PPO_SETTINGS,
+    best_eval_reward,
+    make_training_callbacks,
+)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -73,8 +76,6 @@ MODEL_DIR = os.path.join(_project_root, "models", "ppo_cartpole")
 LOG_DIR = os.path.join(_project_root, "logs", "cartpole")
 
 DEFAULT_TIMESTEPS = 25_000
-CHECKPOINT_FREQ = 5_000
-EVAL_FREQ = 2_000
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ def main() -> int:
     # Build the PPO agent
     # Teacher Note: "MlpPolicy" = Multi-Layer Perceptron policy.
     # CartPole observations are 4 numbers, so a small MLP network is ideal.
-    # The hyperparameters below are sensible defaults for CartPole.
+    # The settings are shared with M2 (src/gametrainer/training.py).
     # ------------------------------------------------------------------
     print("Creating PPO agent (MlpPolicy)...")
     model = PPO(
@@ -170,39 +171,11 @@ def main() -> int:
         train_env,
         verbose=0,                  # 0 = quiet; set to 1 for SB3's own logging
         tensorboard_log=LOG_DIR,
-        learning_rate=3e-4,         # How big each learning step is
-        n_steps=2048,               # Steps collected before each update
-        batch_size=64,              # Mini-batch size for the update
-        n_epochs=10,                # How many passes over each batch
-        gamma=0.99,                 # Discount factor (value of future rewards)
-        gae_lambda=0.95,            # Bias-variance trade-off in advantage estimation
-        clip_range=0.2,             # PPO's "proximal" clipping — keeps updates conservative
-        ent_coef=0.0,               # Entropy bonus (0 = no extra exploration push needed)
+        **CLASSIC_PPO_SETTINGS,
     )
     print("[OK] PPO agent created.\n")
 
-    # ------------------------------------------------------------------
-    # Callbacks
-    # ------------------------------------------------------------------
-
-    # Save a checkpoint every CHECKPOINT_FREQ steps
-    checkpoint_cb = CheckpointCallback(
-        save_freq=CHECKPOINT_FREQ,
-        save_path=MODEL_DIR,
-        name_prefix="cartpole_ppo",
-        verbose=0,
-    )
-
-    # Evaluate on a separate env every EVAL_FREQ steps and print mean reward
-    eval_cb = EvalCallback(
-        eval_env,
-        n_eval_episodes=10,
-        eval_freq=EVAL_FREQ,
-        log_path=LOG_DIR,
-        best_model_save_path=MODEL_DIR,
-        verbose=1,                  # Print eval results to console
-        warn=False,
-    )
+    callbacks = make_training_callbacks(eval_env, MODEL_DIR, LOG_DIR, "cartpole_ppo")
 
     # ------------------------------------------------------------------
     # Train
@@ -214,7 +187,7 @@ def main() -> int:
 
     model.learn(
         total_timesteps=args.steps,
-        callback=[checkpoint_cb, eval_cb],
+        callback=callbacks,
         progress_bar=False,         # Keep output clean; eval_cb shows per-eval progress
     )
 
@@ -230,30 +203,13 @@ def main() -> int:
     # M1 Verdict
     # Read the best mean reward recorded by EvalCallback
     # ------------------------------------------------------------------
-    results_path = os.path.join(LOG_DIR, "evaluations.npz")
-    verdict_passed = False
-    best_mean_reward = 0.0
-
-    if os.path.exists(results_path):
-        data = np.load(results_path)
-        # EvalCallback stores mean rewards in 'results' (shape: [n_evals, n_episodes])
-        mean_rewards = data["results"].mean(axis=1)
-        best_mean_reward = float(mean_rewards.max())
-    else:
+    best_mean_reward = best_eval_reward(LOG_DIR)
+    if best_mean_reward is None:
         # Fall back: run a quick manual evaluation
         print("Running final evaluation (10 episodes)...")
-        episode_rewards = []
-        for _ in range(10):
-            obs = eval_env.reset()
-            done = False
-            ep_reward = 0.0
-            while not done:
-                action, _ = model.predict(obs, deterministic=True)
-                obs, reward, done, _ = eval_env.step(action)
-                ep_reward += float(reward[0])
-                done = bool(done[0])
-            episode_rewards.append(ep_reward)
-        best_mean_reward = float(np.mean(episode_rewards))
+        best_mean_reward, _goal_rate, _mean_steps = evaluate_greedy(
+            model, lambda: make_eval_env(args.render), 10
+        )
 
     verdict_passed = best_mean_reward >= PASS_THRESHOLD
 

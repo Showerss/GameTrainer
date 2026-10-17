@@ -197,6 +197,6 @@ def test_step_accepts_one_element_array():
     """MinesweeperEnv unwraps 1-element arrays from agent frameworks."""
     env = MinesweeperEnv()
     env.reset()
-    obs, reward, terminated, truncated, info = env.step(np.array(0))
+    obs, _reward, _terminated, _truncated, _info = env.step(np.array(0))
     assert env.observation_space.contains(obs)
 

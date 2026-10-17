@@ -10,6 +10,7 @@ Per docs/m5/M5_ToDo.md (Brick 4):
 """
 
 import sys
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import numpy as np
@@ -159,7 +160,7 @@ def test_win_requires_no_exploded_mine(calculator, empty_board):
 
 def test_calculator_is_frozen(calculator):
     """MinesweeperRewardCalculator should be immutable (frozen dataclass)."""
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         calculator.safe_reveal_reward = 99.0
 
 
