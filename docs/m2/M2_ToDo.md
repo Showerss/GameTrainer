@@ -55,7 +55,7 @@ for when M3 swaps in a picture + ViT).
 that **red**), then write just enough code to make it *pass* (**green**). The test
 is the spec; the code chases the test.
 
-M2 follows the project testing policy (see **CLAUDE.md §5**), which comes down to
+M2 follows the project testing policy, which comes down to
 three rules:
 
 1. **The finish line is written down first (Brick 0).** One whole-slice check for
@@ -183,13 +183,12 @@ Builds on Brick 1's narrow test — adds the rest of the contract:
 
 ---
 
-## Rules we're keeping (from CLAUDE.md)
+## Rules we're keeping
 
 - **One brick at a time.** Smallest next step only; stop at each checkpoint.
 - **Teach before coding.** Plain-English what & why first, then the code.
 - **Red before green — where it fits.** Bricks with a right answer (env rules,
-  rewards, contract shapes) start with a small failing test. Glue bricks don't;
-  see CLAUDE.md §5.
+  rewards, contract shapes) start with a small failing test. Glue bricks don't.
 - **Test the promises, not the plumbing.** The Gymnasium contract is the promise.
 - **Don't move the finish line mid-milestone.** A better standard applies to the
   *next* milestone, not backwards onto finished work.

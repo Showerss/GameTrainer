@@ -73,3 +73,6 @@ checkpoints/
 
 # Game binaries (M5) — downloaded, not committed. See docs/m5/M5_ToDo.md
 games/
+
+# AI assistant rules (IDE settings, kept private)
+.aiassistant/

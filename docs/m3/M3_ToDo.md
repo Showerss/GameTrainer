@@ -55,7 +55,7 @@ and it means M2's tests keep passing untouched.
 
 ## How we build M3: testing policy
 
-Follows **CLAUDE.md §5**. In short:
+Follows the project testing policy. In short:
 
 1. **Brick 0 writes the finish line down first** — the bar M3 must clear, as a
    script that prints PASS/FAIL. Training is slow and random, so it's an
@@ -165,7 +165,7 @@ start editing PPO. Note in `M3_Review` what actually happened.
 
 ---
 
-## Rules we're keeping (from CLAUDE.md)
+## Rules we're keeping
 
 - **One brick at a time.** Smallest next step only; stop at each checkpoint.
 - **Teach before coding.** Plain-English what & why first, then the code.

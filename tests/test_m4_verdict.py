@@ -13,7 +13,7 @@ claim checkable, and it has exactly two pieces of logic worth pinning down:
     would print different fingerprints and the swap proof would be worthless.
     If it returned a constant, it would prove nothing at all and never say so.
 
-Deliberately NOT tested here (a skip is a decision, per CLAUDE.md §5):
+Deliberately NOT tested here (a skip is a decision, per the testing policy):
 
   - print_finish_line() and the report lines -- print statements that fail
     loudly the first time a human reads them.

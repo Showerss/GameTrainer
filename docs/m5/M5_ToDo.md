@@ -26,7 +26,7 @@ operating system delivers to a window we do not own.
 ## The bar is plumbing, not learning
 
 **M5 does not require PPO to learn Minesweeper.** Say it out loud, because the
-temptation to move this bar mid-milestone will be real (CLAUDE.md §5 forbids it).
+temptation to move this bar mid-milestone will be real (the testing policy forbids it).
 
 Minesweeper from pixels is a partially-observable logic problem whose first move is
 pure luck. It is a genuine research problem, not three weeks of evenings. What M5
@@ -139,7 +139,7 @@ with its parent when the parent's process tree is killed.
 
 ---\n\n## How we build M5: testing policy
 
-Follows **CLAUDE.md §5**. What earns a test here:
+Follows the project testing policy. What earns a test here:
 
 1. **The Gymnasium contract.** `MinesweeperEnv` must pass `check_env`, and
    `reset()`/`step()` shapes must be indistinguishable from CartPole's and

@@ -112,7 +112,7 @@ See `docs/m4/M4_Log.md` decisions log for the full record.
 
 ## How we build M4: testing policy
 
-Follows **CLAUDE.md §5**. What earns a test here:
+Follows the project testing policy. What earns a test here:
 
 1. **The Gymnasium contract, three times over.** Every profile must produce an env
    that `check_env` accepts and whose `reset()`/`step()` shapes are unchanged. This
@@ -280,8 +280,7 @@ just a happy path:
 
 **Over-abstraction.** M4 is the milestone where "make it swappable" invites a plugin
 architecture: a registry, dynamic imports, a base class per component, a schema
-validator library. That would be more code than the thing it configures, and
-CLAUDE.md §2 says no.
+validator library. That would be more code than the thing it configures, so no.
 
 The honest size of M4: one dataclass, one small calculator, one factory function,
 one runner, three YAML files. Roughly 250–350 lines total, most of it comments.
@@ -294,10 +293,10 @@ a different hat, and Brick 6's negative control is aimed straight at it.
 
 ---
 
-## How CLAUDE.md's working agreement applies here
+## How the working agreement applies here
 
 The standing rules (one brick at a time, teach before coding, don't move the
-finish line mid-milestone, etc.) live in `CLAUDE.md` — not repeated here. What's
+finish line mid-milestone, etc.) aren't repeated here. What's
 M4-specific about applying them:
 
 - **Test the promises, not the plumbing** → here: the contract per profile, profile

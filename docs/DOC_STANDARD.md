@@ -1,7 +1,7 @@
 # Documentation Standard
 
 > **Covers:** every `.md` file in this repository.
-> **Status:** current. **Last verified:** 2026-10-04 (updated Rule 2 authority table to reflect consolidation of C4 diagrams into `UML_FULL.md` and onboarding into `MASTER_GUIDE.md`).
+> **Status:** current. **Last verified:** 2026-10-17 (R1 docs pass: rule 2 table updated for the split of `MASTER_GUIDE.md`; rule 1 README exception and rule 8 plain writing added).
 > **Authority:** this file wins on *how* docs are written. `docs/PRD.md` wins on
 > *what* gets built.
 
@@ -20,11 +20,11 @@ once a reader catches one stale claim they stop trusting all the others.
 
 ---
 
-## The seven rules
+## The eight rules
 
 ### 1. Every doc opens with a status header
 
-No exceptions, including this file.
+No exceptions, including this file, with one: the root `README.md` is a public front page, so it skips the header. It's checked whenever `RESULTS.md` changes.
 
 ```markdown
 > **Covers:** what this document is responsible for.
@@ -42,14 +42,20 @@ links to the other instead of repeating it.
 
 | Question | The one file that answers it |
 | :--- | :--- |
+| Where do I start? | `docs/README.md` |
 | What are we building, and in what order? | `docs/PRD.md` |
-| How is a doc written? | `docs/DOC_STANDARD.md` (this file) |
+| How does it work? | `docs/concepts.md` |
+| How is the code organised? | `docs/architecture.md` |
+| What are the diagrams? | `docs/UML_FULL.md` |
+| Why was it built this way? | `docs/adr/` (one file per decision) |
+| What has been proven, with numbers? | `docs/RESULTS.md` |
+| What went wrong along the way? | `docs/lessons-learned.md` |
+| What does a word mean? | `docs/glossary.md` |
 | What happened, and when? | `docs/CHANGELOG.md` |
-| How do I understand the architecture & get oriented? | `docs/MASTER_GUIDE.md` |
-| What are the visual architecture, C4 & UML diagrams? | `docs/UML_FULL.md` |
+| How is a doc written? | `docs/DOC_STANDARD.md` (this file) |
 | What does the current milestone require? | `docs/m<N>/M<N>_ToDo.md` |
-| How do I work with Phillip? | `CLAUDE.md` |
-| What does an RL/project term mean? | `docs/MASTER_GUIDE.md` § 4 (Plain English Tech) |
+
+**Results live in one place.** Other docs may show a short summary, but they link to `RESULTS.md` for the full numbers and conditions.
 
 When two files disagree, that is a **bug**, and it gets fixed at the same
 priority as a broken test.
@@ -85,7 +91,7 @@ it was caught, what it actually meant, what changed.
 ### 5. Current and historical code are labelled, always
 
 This repo's history and archived documentation describe two generations of code
-(see `docs/MASTER_GUIDE.md` § 7), although Track B's implementation was deleted on
+(see `docs/architecture.md` § 6), although Track B's implementation was deleted on
 2026-08-04. Any historical reference to a file states which generation it belongs to:
 
 - **Track A** - the current milestone path. Live, tested, trustworthy.
@@ -125,20 +131,21 @@ record of doing it*, the Review owns *what it meant*.
 > say how many and what they cover. Don't repeat a decision here if it's
 > already a row in the Decisions log table - that table is its one authority
 > (rule 2). CS terms are fine; define a new one in one plain clause the first
-> time it appears (CLAUDE.md's "no jargon dumps" rule, restated here because
-> logs get skimmed, not studied).
+> time it appears (logs get skimmed, not studied).
 >
 > Applied retroactively to `M4_Log.md`/`M4_Review.md` themselves by explicit
 > request - normally a new standard applies to the next milestone only, per
 > the scope note below, but the files you're reading now are already in the
 > new style rather than the one that produced them.
 
+**File names:** M0–M3 closed before this standard, so their reviews are PDFs (`GameTrainer_N_M<N>_Review.pdf`). From M4 on they're markdown. Cleanup passes use the same shape, in `docs/r<N>/`.
+
 **Reviews are markdown in the repo.** PDFs are kept alongside as generated
 artefacts - markdown is what diffs, greps, and renders on GitHub.
 
 ### 7. A milestone is not closed until its docs are
 
-Extending `CLAUDE.md` § 5 "Closing a milestone". Contract tests green and the
+Extending the testing policy's "closing a milestone" rule. Contract tests green and the
 experiment script printing PASS are necessary but no longer sufficient. Also
 required:
 
@@ -147,15 +154,25 @@ required:
 - [ ] every doc whose claims the milestone changed has a bumped **Last verified**
 - [ ] no two docs contradict each other (rule 2)
 
+### 8. Write so anyone can follow
+
+- Short sentences. One idea each.
+- Name the real concept, then say it in plain words: *"a **contract**, a promise about how code behaves"*.
+- Give the *why* in one sentence.
+- Prefer a table or a tiny diagram over a paragraph.
+- No hype words ("skyrocketed", "holy", "stunned") and no emoji in headings. Measured facts are what impress.
+
+> **Added 2026-10-17 (R1).** Applies to new and rewritten docs. Old milestone Logs keep their original wording (rule 4).
+
 ---
 
 ## Scope note
 
 This standard governs **how the record is kept**. It does not change the build
-order, the milestone plan, or the testing policy - `docs/PRD.md` and `CLAUDE.md`
-§ 5 still own those.
+order, the milestone plan, or the testing policy - `docs/PRD.md` and the
+testing policy still own those.
 
-Per `CLAUDE.md` § 5, a new standard applies to the **next** milestone and is not
+Per the testing policy, a new standard applies to the **next** milestone and is not
 applied retroactively to finished work. M0-M3 are closed under the rules that
 existed at the time; where they are factually stale, they get a dated correction
 (rule 4), not a rewrite.

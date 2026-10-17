@@ -80,7 +80,7 @@ if hasattr(sys.stdout, "reconfigure"):
 # ---------------------------------------------------------------------------
 # The bar.
 #
-# These numbers ARE the milestone. CLAUDE.md section 5 forbids moving them
+# These numbers ARE the milestone. The testing policy forbids moving them
 # once the work has started, so they live here, in one place, where changing
 # one would be an obvious edit rather than a quiet drift.
 # ---------------------------------------------------------------------------

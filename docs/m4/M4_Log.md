@@ -216,6 +216,8 @@ Results go in the table below, one row per full run — including failed ones.
 ## Brick 6 — Behavioural test (before closeout)
 
 **Status:** ✅ done 2026-08-14 (TUI walk-through deferred to Brick 7 — see below)
+> **Correction - 2026-10-17 (R1 docs audit).** `scripts/check_swap.py`, cited below as the M4 swap proof, was never committed to git on any branch (`git log --all -- scripts/check_swap.py` is empty). The run and its 4/4 PASS were recorded at the time, but the script can't be re-run from the repo. The re-runnable M4 evidence is the profile runs (`scripts/train_from_profile.py`) and `tests/test_m4_verdict.py`. If the script turns up, commit it and update this note.
+
 **File(s):** `scripts/check_swap.py`
 
 The point: prove the config layer is really wired, not just that training

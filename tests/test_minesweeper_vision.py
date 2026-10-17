@@ -7,7 +7,7 @@ game opened maximized), so the function has to *find* the board before it can
 read it: the board is a small patch of a large picture, and its geometry is not
 stable across launches. See docs/m5/M5_Log.md, Brick 1 "Surprise".
 
-Why this brick gets a test when Brick 1 did not (CLAUDE.md 5): a misread tile
+Why this brick gets a test when Brick 1 did not (testing policy): a misread tile
 does not crash. It quietly poisons the observation and the reward, exactly the
 way M3's blind-solvable GridWorld quietly flattered a reward curve. So the
 answer key below was read off the fixture by eye and confirmed by hand

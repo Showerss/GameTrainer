@@ -1,5 +1,10 @@
 # GameTrainer — Milestone 1 (UML)
 
+> **Covers:** the class diagram as it stood at the end of M1.
+> **Status:** archived - historical reference. Some classes here (e.g. `HardwareManager`, `send(action)`) no longer exist.
+> **Last verified:** 2026-10-17 (marked archived; content unchanged).
+> **Today's diagrams:** [`docs/UML_FULL.md`](../UML_FULL.md).
+
 Progress so far. One real thing changed since M0: the **`Agent` (SB3 PPO)** got connected, replacing random actions. It trains on the same CartPole contract, with two SB3 callbacks for eval and checkpoints. `NullInput` is still wired (still a no-op). Eyes, `GameEnvironment`, reward, profiles — still planned.
 
 > **Greyed, dashed boxes = planned but not yet built.**

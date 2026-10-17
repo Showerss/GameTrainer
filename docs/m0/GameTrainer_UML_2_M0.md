@@ -1,5 +1,10 @@
 # GameTrainer — Milestone 0 (UML)
 
+> **Covers:** the class diagram as it stood at the end of M0.
+> **Status:** archived - historical reference. Some classes here (e.g. `HardwareManager`, `send(action)`) no longer exist.
+> **Last verified:** 2026-10-17 (marked archived; content unchanged).
+> **Today's diagrams:** [`docs/UML_FULL.md`](../UML_FULL.md).
+
 Progress so far. Only three live pieces: the **borrowed CartPole** env, a **random-action runner**, and the **`NullInput` stub** wired in early to prove the input seam exists. No brain, no eyes, no `GameEnvironment` yet.
 
 > **Greyed, dashed boxes = planned but not yet built.**

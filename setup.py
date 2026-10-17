@@ -27,6 +27,7 @@ setup(
     name="gametrainer",
     version="2.0",
     description="Vision-based game automation with Reinforcement Learning",
+    license="MIT",  # Full text in LICENSE; lets pip/PyPI tools see it
     packages=[
         "src.gametrainer",
     ],

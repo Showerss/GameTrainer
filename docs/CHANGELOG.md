@@ -2,8 +2,8 @@
 
 
 > **Covers:** every change to this project, newest first.
-> **Status:** current. **Last verified:** 2026-09-19 (M5 milestone entry added;
-> all earlier entries reconfirmed accurate).
+> **Status:** current. **Last verified:** 2026-10-17 (R1 entry added; three
+> earlier errors corrected with dated notes, per DOC_STANDARD rule 4).
 > **Authority:** this file owns *what happened and when*. `docs/PRD.md` owns *what
 > gets built next*. Written to `docs/DOC_STANDARD.md`.
 
@@ -18,6 +18,35 @@ preserved at the **bottom** of this file under *Pre-milestone*.
 
 ---
 
+## [R1] — Cleanup & OOP pass (post-M5)
+
+No new features, and no PASS bar moved. Less copy-paste, clearer classes, same behaviour. M1, M2 and M3 were re-run and still PASS, and so did M5 on Windows (numbers: `docs/RESULTS.md`). Brick-by-brick diary: `docs/r1/R1_Log.md`.
+
+### Changed
+
+- **Hands and screen split into one class per OS:** `WindowsKeyboardInput` / `MacKeyboardInput`, `WindowsGameWindow` / `MacGameWindow`, chosen by `keyboard_for_this_os()` and `game_window_for_this_os()` (`docs/adr/0005-one-class-per-os.md`).
+- **`InputController` is a real abstract class.** Python now refuses to build hands that are missing a method.
+- **Shared code moved into the package:** `referee.py` (baseline, greedy eval, PASS/FAIL) and `training.py` (M1/M2 PPO settings).
+- **Copy-paste removed** from GridWorld (move table), MinesweeperEnv (dispatch table), rewards, vision, Profile (`ppo_settings()`), the TUI (one `MENU_ITEMS` table) and `check_hands.py` (one key sequence).
+- **Windows capture** uses the window's *visible* frame (DWM), not its outer box with the invisible border.
+
+### Fixed
+
+- `main.py` checked for packages nothing uses, so it reported them "missing" forever.
+- `train_from_profile.py`'s printout skipped the three Minesweeper reward numbers.
+- `ruff check .` now passes with 0 findings (was 16).
+
+### Documentation
+
+- **Docs rewritten to be simpler, with one source per fact.** New: `docs/README.md` (start here), `concepts.md`, `architecture.md`, `glossary.md`, `lessons-learned.md`, `RESULTS.md` (the only results table), and `docs/adr/` (5 decision records).
+- **Removed:** `MASTER_GUIDE.md`, now split into the files above. Four of its "traps" were wrong; fixed versions are in `lessons-learned.md`. `ONBOARDING.md` was only a redirect.
+- **PRD** shortened to a plan; the brick diary moved to `docs/r1/R1_Log.md`.
+- **`UML_FULL.md`** checked line by line against the code, and the class diagram split into five.
+- **Reviews:** `docs/r1/R1_Review.md` (OOP design critique) and `docs/r1/R1_Docs_Audit.md`.
+- **M2 baseline settled:** −0.09 over 6,000 episodes. The older −0.3 / −0.14 / +0.13 were small samples.
+
+---
+
 ## [M5] — Add the Hands (LibreMines + Real Input)
 
 M1–M4 operated entirely within synthetic or simulated environments (CartPole, GridWorld). M5 bridges the gap to a **real, external desktop game process** (`LibreMines`), proving real screen capture and real keyboard keystroke injection with zero human intervention and 100% unattended reset reliability. Verified live across four negative controls on both macOS and Windows 11. Full brick-by-brick record: `docs/m5/M5_Log.md`. Retrospective: `docs/m5/M5_Review.md`.
@@ -28,6 +57,7 @@ M1–M4 operated entirely within synthetic or simulated environments (CartPole, 
   `GameWindow` discovers the target window by title or owning process name and grabs BGR frames using `mss`. Includes `set_dpi_awareness()` at import time (`SetProcessDpiAwarenessContext(-4)`) on Windows to eliminate logical-to-physical coordinate scaling artifacts. Dynamically re-queries window geometry on every grab. On Windows, connects to `OpenDesktopW("Default")` to allow automated agent subshells to see the interactive desktop. On macOS, discovers windows via `Quartz.CGWindowListCopyWindowInfo` and activates via `NSRunningApplication`.
 - **Real keyboard hands (`src/gametrainer/input.py`):**
   `KeyboardInput` implements `InputController` via Win32 `SendInput` on Windows and `Quartz.CGEventPost` on macOS. Injects W/A/S/D directional navigation, `O` (reveal), `P` (flag), and `Ctrl+R` / `Cmd+R` (reset chord). Asserts `sizeof(_INPUT) == 40` at import on Windows x64 to prevent silent parameter errors; uses `AttachThreadInput` + `SetForegroundWindow` to bypass Windows foreground locks; guards against mode exit by making `escape()` raise `RuntimeError`.
+  > **Correction - 2026-10-17.** `escape()` never existed in the code. That clause was wrong when written.
 - **Computer vision & tile classification (`src/gametrainer/minesweeper_vision.py`):**
   `read_board(frame)` locates the minefield dynamically using connected component analysis (`find_board`), finding the largest solid square dark blob (handling arbitrary window sizes and maximized states). `classify_cell` extracts the 8×8 grid of cell states (`0`–`8`, `HIDDEN`, `FLAGGED`, `MINE`), distinguishing hidden grey, revealed dark, and keyboard cursor grey `(185, 185, 185)`. Raises `UnreadableCell` loudly on unknown glyphs rather than guessing.
 - **Minesweeper reward calculator (`src/gametrainer/rewards.py`):**
@@ -53,6 +83,7 @@ M1–M4 operated entirely within synthetic or simulated environments (CartPole, 
 - `docs/m5/M5_Log.md` — complete lab notebook for Bricks 0–8, including synthesis tables (Results, Decisions, Surprises, Open questions).
 - `docs/m5/M5_Review.md` — milestone sprint retrospective and Rule 3 results table.
 - `docs/ONBOARDING.md`, `docs/PRD.md`, `docs/README.md` — status headers and references updated to reflect M5 closed.
+  > **Correction - 2026-10-17.** `docs/README.md` had already been deleted (commit ef94dd9), so it can't have been updated. A new `docs/README.md` was created in R1.
 
 ---
 
@@ -99,6 +130,7 @@ socket. Full brick-by-brick record: `docs/m4/M4_Log.md`. Retrospective:
   every shipped profile; the full test suite stays green. Exists to catch a
   config layer that *looks* wired but secretly still uses a hardcoded constant —
   the M3 "blind agent" failure wearing a different hat.
+  > **Correction - 2026-10-17.** `scripts/check_swap.py` was never committed to git, on any branch (`git log --all -- scripts/check_swap.py` is empty). The 4/4 PASS above was run and recorded in `docs/m4/M4_Log.md`, but the script can't be re-run from the repo. The profile runs themselves *can* be re-run, and they're the main M4 evidence.
 - **TUI entry (`src/gametrainer/tui.py`):** `[6] Train from profile - config-only,
   pick the game (M4)` — asks which profile, then launches the same runner above.
   Play/Changelog/Deps/Quit renumbered `7`–`10` accordingly; the M0–M3 entries

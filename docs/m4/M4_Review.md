@@ -4,6 +4,8 @@
 > **Status:** current. **Last verified:** 2026-08-14 (all 7 bricks complete; 3 profiles verified PASS via one unedited runner; check_swap 4/4 PASS; DOC_STANDARD rule 7 ticked).
 > **Authority:** `docs/m4/M4_ToDo.md` owns the plan. `docs/m4/M4_Log.md` owns the lab notebook. This file owns *what it all meant*. Written to `docs/DOC_STANDARD.md`.
 
+> **Correction - 2026-10-17 (R1 docs audit).** `scripts/check_swap.py`, cited below as the M4 swap proof, was never committed to git on any branch (`git log --all -- scripts/check_swap.py` is empty). The run and its 4/4 PASS were recorded at the time, but the script can't be re-run from the repo. The re-runnable M4 evidence is the profile runs (`scripts/train_from_profile.py`) and `tests/test_m4_verdict.py`. If the script turns up, commit it and update this note.
+
 ---
 
 ## 1. Executive Summary
