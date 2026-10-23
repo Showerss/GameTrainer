@@ -76,7 +76,7 @@ def main():
         if terminated or truncated:
             episode_rewards.append(current_episode_reward)
             current_episode_reward = 0.0
-            obs, _info = env.reset()
+            _obs, _info = env.reset()
 
     # Count the final partial episode if it didn't terminate in time
     if current_episode_reward > 0:

@@ -173,7 +173,7 @@ def find_board(frame: np.ndarray) -> tuple[int, int, int]:
 
     # Label 0 is the background, so candidates start at 1. Largest first: the
     # first blob that passes every check is the board.
-    for i in sorted(range(1, count), key=lambda i: -stats[i, cv2.CC_STAT_AREA]):
+    for i in sorted(range(1, count), key=lambda idx: -stats[idx, cv2.CC_STAT_AREA]):
         x, y, width, height, area = stats[i]
         if min(width, height) < GRID * _MIN_CELL_PIXELS:
             continue

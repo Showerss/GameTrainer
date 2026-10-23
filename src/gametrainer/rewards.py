@@ -48,11 +48,13 @@ class MinesweeperRewardCalculator:
     win_reward: float = 10.0
     total_safe_cells: int = 54  # 8x8 Easy: 64 cells - 10 mines
 
-    def count_revealed_safe(self, grid: np.ndarray) -> int:
+    @staticmethod
+    def count_revealed_safe(grid: np.ndarray) -> int:
         """Count cells revealed with neighbor count 0-8."""
         return int(_revealed_safe(grid).sum())
 
-    def is_loss(self, grid: np.ndarray) -> bool:
+    @staticmethod
+    def is_loss(grid: np.ndarray) -> bool:
         """Did the agent hit a mine?"""
         arr = np.asarray(grid)
         return bool((arr == MINE).any())

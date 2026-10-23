@@ -126,7 +126,7 @@ def make_env() -> GridWorldEnv:
 def render_one_episode(model) -> None:
     """Play one greedy episode and print the grid each step (the learned path)."""
     env = make_env()
-    obs, _ = env.reset()
+    obs, info = env.reset()
     terminated = truncated = False
     print("\nLearned path (greedy rollout):")
     env.render()

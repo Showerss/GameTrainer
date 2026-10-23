@@ -15,7 +15,6 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from enum import IntEnum
-from typing import ClassVar
 
 import gymnasium as gym
 import numpy as np
@@ -47,8 +46,6 @@ class MinesweeperAction(IntEnum):
 class MinesweeperEnv(gym.Env):
     """An 8x8 Minesweeper environment that follows the Gymnasium contract."""
 
-    metadata: ClassVar[dict[str, list[str]]] = {"render_modes": ["ansi"]}
-
     GRID_SIZE = GRID  # 8x8 Easy board
 
     # 6 Discrete actions (docs/m5/M5_ToDo.md)
@@ -71,6 +68,7 @@ class MinesweeperEnv(gym.Env):
         owns_window: bool = False,
     ):
         super().__init__()
+        self.metadata = {"render_modes": ["ansi"]}
         self.render_mode = render_mode
         self.hands: InputController = hands if hands is not None else NullInput()
         self.window = window

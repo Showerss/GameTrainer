@@ -152,7 +152,7 @@ class GameWindow(ABC):
     def __init__(self, title_contains: str = "LibreMines"):
         self.title_contains = title_contains
         self.hwnd = self._find(title_contains)
-        self._sct = mss.mss()
+        self._sct = mss.MSS()
 
     @abstractmethod
     def _find(self, title_contains: str) -> int:

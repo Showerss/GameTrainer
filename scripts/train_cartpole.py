@@ -121,8 +121,8 @@ def make_eval_env(render: bool) -> gym.Env:
     render_mode = "human" if render else None
     try:
         return gym.make("CartPole-v1", render_mode=render_mode)
-    except Exception:  # noqa: BLE001 - silent fallback if display/human render is unavailable
-        # Fall back silently if human rendering isn't available
+    except Exception as e:  # noqa: BLE001 - fallback if display/human render is unavailable
+        print(f"  [!] Human rendering not available ({e}). Falling back to no-render mode.")
         return gym.make("CartPole-v1")
 
 

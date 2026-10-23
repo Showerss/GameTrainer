@@ -32,8 +32,6 @@ from src.gametrainer.rewards import RewardCalculator
 class GridWorldEnv(gym.Env):
     """A 5x5 walk-to-the-goal world that follows the Gymnasium contract."""
 
-    metadata: ClassVar[dict[str, list[str]]] = {"render_modes": ["human", "rgb_array"]}
-
     # World shape (fixed for M2).
     SIZE = 5                 # 5x5 grid
     START = (0, 0)           # top-left corner
@@ -62,6 +60,7 @@ class GridWorldEnv(gym.Env):
 
     def __init__(self, render_mode=None, step_cost=None, goal_reward=None):
         super().__init__()
+        self.metadata = {"render_modes": ["human", "rgb_array"]}
         self.render_mode = render_mode
 
         # ACTION SPACE: four discrete moves.

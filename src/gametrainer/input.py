@@ -137,12 +137,12 @@ class _MOUSEINPUT(ctypes.Structure):
     ]
 
 
-class _INPUT_UNION(ctypes.Union):
-    _fields_ = [("ki", _KEYBDINPUT), ("mi", _MOUSEINPUT)]
+class _InputUnion(ctypes.Union):
+    _fields_ = (("ki", _KEYBDINPUT), ("mi", _MOUSEINPUT))
 
 
 class _INPUT(ctypes.Structure):
-    _fields_ = [("type", _DWORD), ("union", _INPUT_UNION)]
+    _fields_ = [("type", _DWORD), ("union", _InputUnion)]
 
 
 _EXPECTED_INPUT_SIZE = 40  # x64, and v1 is x64 Windows only.

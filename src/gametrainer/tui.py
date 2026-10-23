@@ -228,6 +228,7 @@ def run_tui(cfg: TuiConfig | None = None) -> int:
                 console.print(f"[dim]{item.note}[/dim]\n")
             return _run_script(item.script)
 
-        exit_code = item.screen(cfg)
-        if exit_code is not None:
-            return exit_code
+        if item.screen is not None:
+            exit_code = item.screen(cfg)
+            if exit_code is not None:
+                return exit_code
